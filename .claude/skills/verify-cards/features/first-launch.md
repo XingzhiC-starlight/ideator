@@ -34,7 +34,7 @@ Preconditions:
 - Plain `cv launch` for `settings-shortcut` and `settings-privacy` is enough, and so is the welcome.
 
 - **welcome-card.** Run `cv launch --welcome`. `cv ax tree` lists the text "Welcome to Ideator", the
-  four paragraphs (the second names `⌃⌥Space`) and `AXButton "Continue"`, and no `New`.
+  four paragraphs (the second names `⌃⌥I`) and `AXButton "Continue"`, and no `New`.
   `cv ax windows` lists one window. `cv shot welcome` is the proof image.
 - **welcome-gate.** Run `cv launch --welcome --seed`. Before Continue, `cv ax windows` lists one window
   and `cv ax tree` has no `New` and no count badge: the seeded cards have not been read. Run
@@ -45,13 +45,13 @@ Preconditions:
   --welcome`, `cv ax press Continue`, `cv stop`, then plain `cv launch` (it waits for `New`, so it
   fails if a welcome shows), then `cv stop`. Run the `shasum` again: equal.
 - **settings-shortcut.** From any run, `cv ax key cmd+,` then `cv shot settings`: the shortcut row
-  (`⌃⌥Space`, Use Default dimmed), the caption, the privacy line, and a window that fits its rows.
-  `cv ax press "⌃⌥Space"` starts recording (the button reads `Type shortcut…`). `cv ax key
+  (`⌃⌥I`, Use Default dimmed), the caption, the privacy line, and a window that fits its rows.
+  `cv ax press "⌃⌥I"` starts recording (the button reads `Type shortcut…`). `cv ax key
   ctrl+cmd+h`: the button reads `⌃⌘H` and Use Default is enabled; a scratch run saves nothing, so a
-  relaunch is back to `⌃⌥Space`. Press the button again and `cv ax key cmd+k`: the caption reads
+  relaunch is back to `⌃⌥I`. Press the button again and `cv ax key cmd+k`: the caption reads
   "⌘K can't be the shortcut. Use ⌃ or ⌘ with at least one other modifier key, so typing never
   triggers it." and the button is still recording. `cv ax key escape` cancels. `cv ax press "Use
-  Default"` after a change restores `⌃⌥Space`.
+  Default"` after a change restores `⌃⌥I`.
 - **settings-privacy.** `cv ax tree` of the Settings window has the static text beginning "Summaries
   are optional. With a key saved, Ideator sends a card's text to Anthropic".
 

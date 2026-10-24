@@ -11,10 +11,10 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(caption(problem: .taken, usedByMacOS: true, rejected: "⌘K can't be the shortcut."),
                        "⌘K can't be the shortcut.")
         XCTAssertEqual(caption(problem: .taken, usedByMacOS: true),
-                       "⌃⌥Space is already taken. There is no shortcut until you pick another.")
+                       "⌃⌥I is already taken. There is no shortcut until you pick another.")
         XCTAssertEqual(caption(problem: .refused(-9879)),
-                       "macOS refused ⌃⌥Space (error -9879). There is no shortcut until you pick another.")
-        XCTAssertTrue(caption(usedByMacOS: true).hasPrefix("macOS also has a shortcut on ⌃⌥Space"))
+                       "macOS refused ⌃⌥I (error -9879). There is no shortcut until you pick another.")
+        XCTAssertTrue(caption(usedByMacOS: true).hasPrefix("macOS also has a shortcut on ⌃⌥I"))
         XCTAssertEqual(caption(), "Hides or shows every card, from any app. Click it, then press the new keys.")
     }
 

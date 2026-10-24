@@ -38,8 +38,8 @@ final class HotKeyTests: XCTestCase {
                          keyCode: UInt16(keyCode))!
     }
 
-    func testTheStandardShortcutIsControlOptionSpace() {
-        XCTAssertEqual(Shortcut.standard.display, "⌃⌥Space")
+    func testTheStandardShortcutIsControlOptionI() {
+        XCTAssertEqual(Shortcut.standard.display, "⌃⌥I")
         XCTAssertEqual(Shortcut(keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(optionKey | cmdKey))?.display, "⌥⌘C",
                        "modifiers come in Apple's order, then the key")
     }
@@ -56,10 +56,10 @@ final class HotKeyTests: XCTestCase {
     }
 
     func testAKeyEventMapsToCarbonModifiersAndIgnoresCapsLockAndFn() {
-        let down = key(.keyDown, keyCode: kVK_Space, [.control, .option, .capsLock, .function])
+        let down = key(.keyDown, keyCode: kVK_ANSI_I, [.control, .option, .capsLock, .function])
         XCTAssertEqual(Shortcut(event: down), .standard)
-        XCTAssertNil(Shortcut(event: key(.keyUp, keyCode: kVK_Space, [.control, .option])), "a key-up")
-        XCTAssertNil(Shortcut(event: key(.keyDown, keyCode: kVK_Space, [.control, .option], isARepeat: true)),
+        XCTAssertNil(Shortcut(event: key(.keyUp, keyCode: kVK_ANSI_I, [.control, .option])), "a key-up")
+        XCTAssertNil(Shortcut(event: key(.keyDown, keyCode: kVK_ANSI_I, [.control, .option], isARepeat: true)),
                      "a held key repeating")
     }
 
@@ -82,12 +82,12 @@ final class HotKeyTests: XCTestCase {
     }
 
     func testMacOSBindingsMatchOnKeyAndTheFourModifiersOnly() {
-        let space = UInt32(kVK_Space)
+        let key = UInt32(kVK_ANSI_I)
         let controlOption = UInt32(controlKey | optionKey)
-        XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(space, controlOption)]))
-        XCTAssertFalse(Shortcut.standard.isUsedByMacOS(in: [(space, UInt32(controlKey))]), "⌃Space is another shortcut")
+        XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(key, controlOption)]))
+        XCTAssertFalse(Shortcut.standard.isUsedByMacOS(in: [(key, UInt32(controlKey))]), "⌃I is another shortcut")
         XCTAssertFalse(Shortcut.standard.isUsedByMacOS(in: [(UInt32(kVK_Return), controlOption)]), "another key")
-        XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(space, controlOption | 0x20_000)]),
+        XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(key, controlOption | 0x20_000)]),
                       "the fn bit macOS adds to its own entries does not make it a different shortcut")
     }
 

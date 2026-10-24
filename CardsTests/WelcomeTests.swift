@@ -19,8 +19,8 @@ final class WelcomeTests: XCTestCase {
     func testTheCopyDoesNotPromiseAShortcutThatFailed() {
         let text = copy(shortcutWorks: false).paragraphs.map(\.text).joined(separator: "\n")
 
-        XCTAssertTrue(text.contains("Ideator couldn't claim ⌃⌥Space, so there is no shortcut yet."))
-        XCTAssertFalse(text.contains("Press ⌃⌥Space"))
+        XCTAssertTrue(text.contains("Ideator couldn't claim ⌃⌥I, so there is no shortcut yet."))
+        XCTAssertFalse(text.contains("Press ⌃⌥I"))
     }
 
     func testTheCardFitsItsCopyAtTheStackWidth() {

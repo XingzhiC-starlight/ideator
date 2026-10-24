@@ -10,7 +10,7 @@ struct Shortcut: Equatable {
     let keyCode: UInt32
     let modifiers: UInt32
 
-    static let standard = Shortcut(valid: UInt32(kVK_Space), UInt32(controlKey | optionKey))
+    static let standard = Shortcut(valid: UInt32(kVK_ANSI_I), UInt32(controlKey | optionKey))
 
     static let requirement = "Use ⌃ or ⌘ with at least one other modifier key, so typing never triggers it."
 

@@ -147,6 +147,13 @@ final class SettingsWindow: NSWindow {
         refresh()
     }
 
+    /// The window is kept between openings, and the macOS shortcuts and the saved key can change
+    /// meanwhile, so what it says is read again each time it comes forward.
+    override func becomeKey() {
+        super.becomeKey()
+        refresh()
+    }
+
     /// ⌘-Tab or closing the window ends a recording, so the shortcut never stays released.
     override func resignKey() {
         super.resignKey()
