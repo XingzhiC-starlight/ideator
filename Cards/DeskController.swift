@@ -10,7 +10,8 @@ import AppKit
 final class DeskController {
     private(set) var desk: Desk
     private var grid: Grid
-    /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk, not persisted.
+    /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk,
+    /// not persisted.
     private var visibility = Visibility.all
     /// One window per popped card, created on pop and closed when the card leaves the desktop.
     private var cardWindows: [CardID: CardWindow] = [:]

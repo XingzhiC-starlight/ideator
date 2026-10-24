@@ -66,5 +66,7 @@ Preconditions:
   com.systemlabs.Ideator`, move `~/Documents/Ideator` aside, and open the installed app.
 - `welcome-scratch` compares the owner's real preferences, so another Ideator changing them between
   the two reads (Settings in the owner's own app) makes a false difference. Re-run it.
-- Choosing a shortcut in a scratch run registers it with the system until `cv stop`. Pick an obscure
-  one (`ctrl+cmd+h` is) and stop the run afterwards.
+- A scratch run registers no global shortcut until Settings' shortcut button is used. Once it is
+  pressed, ending the recording registers a shortcut in that process (the one picked, or `⌃⌥Space`
+  after Esc) until `cv stop`, which can contend with the owner's Ideator. Pick an obscure one
+  (`ctrl+cmd+h` is) and stop the run right after the recipe.

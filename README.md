@@ -30,7 +30,7 @@ xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derive
 ```
 
 ```bash
-open build/DerivedData/Build/Products/Debug/Cards.app
+open build/DerivedData/Build/Products/Debug/Ideator.app
 ```
 
 Run the unit tests (they use the app as their host and never touch `~/Documents/Ideator`):

@@ -279,6 +279,14 @@ Later changes, after trying the app:
   sidecar's `version` on its own, since a newer file may not decode as a `SavedDesk`. Above this
   build's version, it places cards as best it can, never writes the sidecar, and still saves card
   files; `DeskController` says so once per launch. `Desk` is unchanged.
+- 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
+  explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
+  whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records
+  the card as seen once the folder opened. The global shortcut became ⌃⌥Space (⌥⌘C is Finder's Copy
+  as Pathname), chosen in Settings through `Shortcut` and `HotKey` and kept by `Preferences`. A
+  scratch run reads and writes no preferences and registers no shortcut, so a verify run can't
+  touch the owner's. Settings says what summaries send, PRIVACY.md says it in full, and the app
+  got a placeholder icon. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
@@ -354,3 +362,10 @@ Later changes, after trying the app:
   line, as pasting in any text editor does.
 - Pasted text keeps a backslash that Markdown keeps (`C:\Users`, `a\nb`); only a backslash before
   punctuation escapes it.
+- An update shows the welcome once to someone who already uses Ideator, because their shortcut
+  changed, in exchange for one first-launch rule and no migration code.
+- A conflict with another app's global shortcut can't be detected, since two apps registering one
+  combination both succeed. `HotKey.problem` covers what Carbon refuses inside this process, and
+  Settings warns about macOS's own shortcuts, which are the one other conflict that can be read.
+- The welcome is taller than a grid cell, in exchange for its copy fitting at body size in the
+  stack's width. It is top-right where the stack appears.
