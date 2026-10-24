@@ -42,6 +42,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # package.sh counts commits for the build number
       - run: scripts/package.sh
       - uses: actions/upload-artifact@v7
         with:
