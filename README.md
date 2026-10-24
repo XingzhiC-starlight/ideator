@@ -64,8 +64,8 @@ They do this:
 2. Open Ideator from Applications. macOS blocks it, because Apple has not notarized the app.
 3. Open **System Settings › Privacy & Security**, scroll to the message about Ideator, click **Open
    Anyway**, and confirm.
-4. If macOS asks whether Ideator can access the Documents folder, allow it. Notes live in
-   `~/Documents/Ideator`.
+4. Ideator opens with a welcome card. Press **Continue**. If macOS then asks whether Ideator can
+   access the Documents folder, allow it. Notes live in `~/Documents/Ideator`.
 5. For summaries, choose **Settings…** from the menu bar icon and paste their own Anthropic API key.
    The image holds no key.
 
@@ -83,6 +83,15 @@ builds are not signed with a stable identity, so after a rebuild macOS may ask o
 may read its Keychain item; choose **Always Allow**.
 
 [PRIVACY.md](PRIVACY.md) lists what Ideator stores and the one thing it sends.
+
+## First launch
+
+The first time Ideator starts, it shows a welcome card before it creates `~/Documents/Ideator`, so
+macOS's Documents prompt comes after the card explains it. To see the card again, quit Ideator and
+run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
+`CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
+`-CardsFolder` shows no card on its own, remembers nothing, and does not register the global
+shortcut.
 
 ## Where notes live
 

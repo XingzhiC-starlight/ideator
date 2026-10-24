@@ -50,6 +50,7 @@ func send(_ command: Command) {
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
 | `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
 | `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run); the persisted shortcut, and no persistence at all in a scratch run |
+| `Welcome.swift` | the first-launch card and its copy |
 | `Settings.swift`, `App.swift` | the API key, the shortcut recorder and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 
@@ -102,6 +103,20 @@ func send(_ command: Command) {
   place and the toggle button's icon all derive from it. The icon shows the current state (an
   eye while cards show, a slashed eye while hidden); the tooltip names what a click does.
   The toggle calls `DeskController.toggleHidden`, the path the global shortcut takes, not a `Command`.
+- **The notes folder opens last.** `DeskController` creates `~/Documents/Ideator` when it is built, and
+  that first access is what makes macOS ask for the Documents folder. `Launch.run` is the only caller
+  of the closure that builds it, and it calls it after the welcome's Continue, or at once when no
+  welcome is due. First launch is a `UserDefaults` flag read through `Preferences`: probing the folder
+  to find out would be the access. The flag is set after the notes open, so a launch killed inside the
+  prompt shows the welcome again instead of a bare prompt. A scratch run (`-CardsFolder`) gets
+  `Preferences(defaults: nil)`: factory values, nothing written, no welcome, and no global shortcut,
+  so a verify run can neither change nor take anything of the owner's.
+- **One owner for the global shortcut.** `Shortcut` is legal by construction (⌘ or ⌃ plus one more
+  modifier, so a hotkey never swallows ordinary typing). `HotKey` owns the chosen shortcut, its Carbon
+  registration and why it is not registered. `choose` claims the new combination before it drops the
+  old one, so a refusal leaves the working shortcut live. Carbon reports a conflict only inside one
+  process, since two apps registering one combination both succeed, so Settings also says when macOS
+  has its own shortcut on it (`CopySymbolicHotKeys`).
 - **Derived, idempotent side effects.** `render()` compares the desk with the real windows,
   `Library.save` with the disk, and `Summarizer.sync` with the requests in flight. Each is safe
   to run any number of times.

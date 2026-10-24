@@ -60,6 +60,8 @@ commands and observable proof.
   reorders them by grip drag, ⌥↑ and ⌥↓ or VoiceOver actions, and shows one on the stack.
 - [Clarity](./clarity.md): the global Clarity button, per-card collapse and expand, and what a
   collapsed card shows.
+- [First launch](./first-launch.md): the welcome card and the folder it keeps closed until Continue,
+  and Settings' shortcut recorder and privacy line.
 - [Delete a card](./delete-card.md): the trash button, its confirmation, and the file leaving the
   folder.
 - [Move cards and the stack](./drag.md): dragging a card or the stack to snap, swap, stay free
@@ -69,5 +71,5 @@ commands and observable proof.
 - [Copy and paste](./clipboard.md): Markdown and HTML on copy, pasting HTML lists and terminal
   text, one-line and header pastes, and undoing a paste, with the owner's clipboard restored.
 
-Not mapped yet: bold and italic, Settings… and the API key, summaries with a real key, the menu
-bar icon, and folder changes made outside the app.
+Not mapped yet: bold and italic, the API key field, summaries with a real key, the menu bar icon,
+and folder changes made outside the app.

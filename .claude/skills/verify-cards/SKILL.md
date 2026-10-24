@@ -28,6 +28,7 @@ cv() { "$(git rev-parse --show-toplevel)/.claude/skills/verify-cards/scripts/car
 ```bash
 cv build              # xcodebuild into build/VerifyDerivedData, and compile the cards-ax helper
 cv launch --seed      # or plain `cv launch` for an empty folder
+cv launch --welcome   # the first-launch card, as a stranger sees it
 ```
 
 - `build` uses its own derived data (`build/VerifyDerivedData`), never `build/DerivedData` or
@@ -42,6 +43,10 @@ cv launch --seed      # or plain `cv launch` for an empty folder
   top. Without `--seed` the stack starts on its blank page with a count of 0.
 - `--seed SIDECAR` also copies SIDECAR in as `.cards.json` before launch, to start from saved
   places, Clarity or summaries.
+- `--welcome` forces the first-launch card even though a scratch run never shows it: it adds
+  `--env CARDS_SHOW_WELCOME=1` to `open`, and the command line stays `… --args -CardsFolder <folder>`.
+  Ready is then the card's Continue button, not New. It combines with `--seed`, which goes second.
+  Continue writes nothing of the owner's (a scratch run has no saved preferences).
 - One run at a time: `launch` refuses while the current run's app is still up.
 - The app activates itself at launch and on most clicks, so it takes focus from whatever the user
   is doing.
@@ -53,7 +58,8 @@ cv doctor
 ```
 
 Read-only. Checks that the pid is this run's binary on this run's folder, that no Swift source is
-newer than the binary, that the folder exists, and that the stack window answers. It lists other
+newer than the binary, that the folder exists, and that the stack window (or, after `launch
+--welcome` and before Continue, the welcome card) answers. It lists other
 Ideator processes, such as the owner's Xcode run, as a note. Never drive those. Run `doctor` first
 whenever a step fails or anything looks off. It must print `healthy` before any proof counts.
 

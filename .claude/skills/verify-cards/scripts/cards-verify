@@ -16,7 +16,7 @@ EVIDENCE_ROOT="$REPO/build/verify-evidence"
 usage() {
   cat <<'EOF'
 cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax
-cards-verify launch [--seed [SIDECAR]]  start an isolated instance on an empty temp folder (--seed: two stacked cards; SIDECAR: a .cards.json to start from)
+cards-verify launch [--welcome] [--seed [SIDECAR]]  start an isolated instance on an empty temp folder (--welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from)
 cards-verify doctor                 read-only health check of the current run
 cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, where, mouse, dragat, listen)
 cards-verify shot NAME              screenshot every window + accessibility tree into the evidence folder
@@ -67,7 +67,13 @@ launch() {
     current
     if ours; then die "run $RUN_ID (pid $PID) is still up; stop it first: cards-verify stop"; fi
   fi
-  local run_id folder evidence pid=""
+  local run_id folder evidence pid="" ready=New env=() mode="$*"
+  if [[ "${1:-}" == "--welcome" ]]; then
+    # An environment variable, not an argument: the command line pgrep and ours() match stays as is.
+    env=(--env CARDS_SHOW_WELCOME=1)
+    ready=Continue
+    shift
+  fi
   run_id="$(date '+%Y%m%d-%H%M%S')"
   # Cards writes here, so keep it out of ~/Desktop and ~/Documents: those trigger a privacy prompt.
   folder="${TMPDIR:-/tmp/}cards-verify/$run_id/folder"
@@ -81,7 +87,7 @@ launch() {
   fi
   # `open -n` detaches the app from this shell (a child of the shell dies with it) and starts a new
   # instance even while the owner's Cards runs. Every later step targets the pid, never the name.
-  open -n --stdout "$evidence/app.log" --stderr "$evidence/app.log" "$APP" --args -CardsFolder "$folder"
+  open -n ${env[@]+"${env[@]}"} --stdout "$evidence/app.log" --stderr "$evidence/app.log" "$APP" --args -CardsFolder "$folder"
   for _ in $(seq 1 50); do
     pid="$(pgrep -f -- "-CardsFolder $folder\$" || true)"
     [[ -n "$pid" ]] && break
@@ -90,16 +96,17 @@ launch() {
   [[ -n "$pid" ]] || die "Cards did not start; see $evidence/app.log"
   printf 'RUN_ID=%q\nPID=%q\nFOLDER=%q\nEVIDENCE=%q\n' "$run_id" "$pid" "$folder" "$evidence" > "$RUNS/current.env"
   current
-  # Ready = the stack window answers with its New button, not just a live process.
+  # Ready = the stack window answers with its New button (the welcome card with its Continue
+  # button), not just a live process.
   for _ in $(seq 1 50); do
-    if "$AX" tree "$PID" 2>/dev/null | grep -q '"New"'; then
-      log "launched run $RUN_ID pid $PID folder $FOLDER${1:+ ($1)}"
+    if "$AX" tree "$PID" 2>/dev/null | grep -q "\"$ready\""; then
+      log "launched run $RUN_ID pid $PID folder $FOLDER${mode:+ ($mode)}"
       echo "evidence: $EVIDENCE"
       return
     fi
     sleep 0.2
   done
-  die "pid $PID is up but the stack window never appeared; run: cards-verify doctor"
+  die "pid $PID is up but its $ready button never appeared; run: cards-verify doctor"
 }
 
 doctor() {
@@ -114,7 +121,9 @@ doctor() {
   if [[ $ok == 1 ]] && "$AX" tree "$PID" > /tmp/cards-verify-doctor.$$ 2>&1; then
     local windows
     windows="$(grep -c '^w' /tmp/cards-verify-doctor.$$ || true)"
-    if grep -q '"New"' /tmp/cards-verify-doctor.$$; then echo "ui        ok: $windows window(s), stack answers"; else echo "ui        FAIL: no stack window in the accessibility tree"; ok=0; fi
+    if grep -q '"New"' /tmp/cards-verify-doctor.$$; then echo "ui        ok: $windows window(s), stack answers"
+    elif grep -q '"Continue"' /tmp/cards-verify-doctor.$$; then echo "ui        ok: $windows window(s), the welcome card answers"
+    else echo "ui        FAIL: no stack window or welcome card in the accessibility tree"; ok=0; fi
   else
     echo "ui        FAIL: $(cat /tmp/cards-verify-doctor.$$ 2>/dev/null)"; ok=0
   fi

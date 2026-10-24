@@ -23,21 +23,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let keys = KeyStore()
     // `-CardsFolder <path>` on the command line points the app at another folder (for trying
     // things out without touching ~/Documents/Ideator).
-    private let launch = Launch(arguments: .standard)
+    private let launch = Launch(arguments: .standard, environment: ProcessInfo.processInfo.environment)
     private lazy var preferences = launch.preferences(standard: .standard)
-    private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in self?.controller?.toggleHidden() }
+    /// Registered before the welcome and kept for the life of the app, so Settings can change it
+    /// at any time and the welcome can name what really works.
+    private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in
+        self?.withDesk { $0.toggleHidden() }
+    }
     private var controller: DeskController?
+    private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
     private var settingsWindow: SettingsWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
-        controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
-                                    appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
-        statusItem = makeStatusItem()
+        statusItem = makeStatusItem()   // before the welcome, which points at it
         // A scratch run leaves the global shortcut to the owner's running Ideator.
         if !launch.isScratch { hotKey.register() }
-        NSApp.activate()
+        // The launch order lives in `Launch.run`. `openNotes` is the only code that builds the
+        // controller, and so the only first touch of the notes folder: macOS's Documents prompt
+        // cannot come before the welcome, because nothing else here can start it.
+        launch.run(
+            preferences: preferences,
+            welcome: { [unowned self] onContinue in showWelcome(onContinue) },
+            openNotes: { [unowned self] in
+                controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
+                                            appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
+                NSApp.activate()
+            })
+    }
+
+    /// The welcome card. Continue closes it first and opens the folder on the next turn of the run
+    /// loop: the Documents prompt blocks the main thread until it is answered, and the card must
+    /// not sit frozen under it.
+    private func showWelcome(_ onContinue: @escaping () -> Void) {
+        let copy = WelcomeCopy(shortcut: hotKey.shortcut, shortcutWorks: hotKey.problem == nil)
+        let window = WelcomeWindow(copy: copy) { [unowned self] in
+            welcome?.close()
+            welcome = nil
+            DispatchQueue.main.async(execute: onContinue)
+        }
+        welcome = window
+        window.present()
+    }
+
+    /// Runs `action` on the desk. Before the desk exists the welcome is up, and whatever asked
+    /// (the shortcut, the menu bar icon, opening the app again) brings it forward instead.
+    private func withDesk(_ action: (DeskController) -> Void) {
+        if let controller { action(controller) } else { welcome?.bringForward() }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) { controller?.appDidBecomeActive() }
@@ -48,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Opening the app again (Finder, Spotlight, Launchpad) while it runs shows everything and
     /// brings the app forward. Returning false skips the default, which has no window to open.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        controller?.setHidden(false)
+        withDesk { $0.setHidden(false) }
         return false
     }
 
@@ -112,9 +145,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = main
     }
 
-    @objc private func showAll() { controller?.setHidden(false) }
-    @objc private func hideAll() { controller?.setHidden(true) }
-    @objc private func openStack() { controller?.openStack() }
+    @objc private func showAll() { withDesk { $0.setHidden(false) } }
+    @objc private func hideAll() { withDesk { $0.setHidden(true) } }
+    @objc private func openStack() { withDesk { $0.openStack() } }
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func openSettings() {
