@@ -48,7 +48,10 @@ func send(_ command: Command) {
 | `CardWindow.swift`, `CardEditor.swift` | the card window, press routing, and the text view |
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
-| `Settings.swift`, `App.swift` | API key and settings; entry point, menu bar, hotkey, reopen |
+| `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
+| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run); the persisted shortcut, and no persistence at all in a scratch run |
+| `Welcome.swift` | the first-launch card and its copy |
+| `Settings.swift`, `App.swift` | the API key, the shortcut recorder and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
@@ -99,7 +102,21 @@ func send(_ command: Command) {
   The stack window gets the `Visibility` value itself: its ribbon-only shape, the count badge's
   place and the toggle button's icon all derive from it. The icon shows the current state (an
   eye while cards show, a slashed eye while hidden); the tooltip names what a click does.
-  The toggle calls `DeskController.toggleHidden`, the path ⌥⌘C takes, not a `Command`.
+  The toggle calls `DeskController.toggleHidden`, the path the global shortcut takes, not a `Command`.
+- **The notes folder opens last.** `DeskController` creates `~/Documents/Ideator` when it is built, and
+  that first access is what makes macOS ask for the Documents folder. `Launch.run` is the only caller
+  of the closure that builds it, and it calls it after the welcome's Continue, or at once when no
+  welcome is due. First launch is a `UserDefaults` flag read through `Preferences`: probing the folder
+  to find out would be the access. The flag is set after the notes open, so a launch killed inside the
+  prompt shows the welcome again instead of a bare prompt. A scratch run (`-CardsFolder`) gets
+  `Preferences(defaults: nil)`: factory values, nothing written, no welcome, and no global shortcut,
+  so a verify run can neither change nor take anything of the owner's.
+- **One owner for the global shortcut.** `Shortcut` is legal by construction (⌘ or ⌃ plus one more
+  modifier, so a hotkey never swallows ordinary typing). `HotKey` owns the chosen shortcut, its Carbon
+  registration and why it is not registered. `choose` claims the new combination before it drops the
+  old one, so a refusal leaves the working shortcut live. Carbon reports a conflict only inside one
+  process, since two apps registering one combination both succeed, so Settings also says when macOS
+  has its own shortcut on it (`CopySymbolicHotKeys`).
 - **Derived, idempotent side effects.** `render()` compares the desk with the real windows,
   `Library.save` with the disk, and `Summarizer.sync` with the requests in flight. Each is safe
   to run any number of times.
@@ -262,6 +279,14 @@ Later changes, after trying the app:
   sidecar's `version` on its own, since a newer file may not decode as a `SavedDesk`. Above this
   build's version, it places cards as best it can, never writes the sidecar, and still saves card
   files; `DeskController` says so once per launch. `Desk` is unchanged.
+- 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
+  explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
+  whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records
+  the card as seen once the folder opened. The global shortcut became ⌃⌥Space (⌥⌘C is Finder's Copy
+  as Pathname), chosen in Settings through `Shortcut` and `HotKey` and kept by `Preferences`. A
+  scratch run reads and writes no preferences and registers no shortcut, so a verify run can't
+  touch the owner's. Settings says what summaries send, PRIVACY.md says it in full, and the app
+  got a placeholder icon. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
@@ -337,3 +362,10 @@ Later changes, after trying the app:
   line, as pasting in any text editor does.
 - Pasted text keeps a backslash that Markdown keeps (`C:\Users`, `a\nb`); only a backslash before
   punctuation escapes it.
+- An update shows the welcome once to someone who already uses Ideator, because their shortcut
+  changed, in exchange for one first-launch rule and no migration code.
+- A conflict with another app's global shortcut can't be detected, since two apps registering one
+  combination both succeed. `HotKey.problem` covers what Carbon refuses inside this process, and
+  Settings warns about macOS's own shortcuts, which are the one other conflict that can be read.
+- The welcome is taller than a grid cell, in exchange for its copy fitting at body size in the
+  stack's width. It is top-right where the stack appears.

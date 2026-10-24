@@ -10,7 +10,8 @@ import AppKit
 final class DeskController {
     private(set) var desk: Desk
     private var grid: Grid
-    /// What "Hide all" / ⌥⌘C has hidden. Presentation only: not part of the desk, not persisted.
+    /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk,
+    /// not persisted.
     private var visibility = Visibility.all
     /// One window per popped card, created on pop and closed when the card leaves the desktop.
     private var cardWindows: [CardID: CardWindow] = [:]
@@ -85,7 +86,7 @@ final class DeskController {
         }
     }
 
-    /// ⌥⌘C, and the stack ribbon's Hide all / Show all button.
+    /// The global shortcut, and the stack ribbon's Hide all / Show all button.
     func toggleHidden() { setHidden(!visibility.isHidden) }
 
     func openStack() {
@@ -230,12 +231,22 @@ final class DeskController {
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = "Ideator can't save your notes"
-            alert.informativeText = "Ideator couldn't write to \(library.folder.path). "
-                + "Your cards stay in memory until a save succeeds."
+            alert.informativeText = Self.saveFailureText(folder: library.folder)
             NSApp.activate()
             alert.runModal()
         }
         return saved
+    }
+
+    /// Inside the user's Documents folder, a refused write is most often their answer to macOS's
+    /// Documents prompt, so the alert says where to undo it.
+    static func saveFailureText(folder: URL, documents: URL = URL.documentsDirectory) -> String {
+        var text = "Ideator couldn't write to \(folder.path). Your cards stay in memory until a save succeeds."
+        if folder.standardizedFileURL.path.hasPrefix(documents.standardizedFileURL.path + "/") {
+            text += " If you chose Don't Allow when macOS asked about your Documents folder, turn Ideator on in "
+                + "System Settings › Privacy & Security › Files & Folders."
+        }
+        return text
     }
 
     /// Once per launch: card files still save, but places, Clarity and summaries do not.

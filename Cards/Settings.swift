@@ -54,53 +54,135 @@ final class KeyStore {
     }
 }
 
-/// "Settings…" from the menu bar menu: one secure field for the key, Save and Remove buttons,
-/// and a line saying whether a key is stored. Calls `onChange` after the store changes so the
-/// controller can start (or stop) summaries.
+/// Calls `onChange` after the key store changes so the controller can start (or stop) summaries.
 final class SettingsWindow: NSWindow {
+    private static let width: CGFloat = 440
+    private static let inner: CGFloat = 400
+
+    static let privacy = "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, "
+        + "using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash "
+        + "reports. The key stays in your login Keychain."
+
     private let keys: KeyStore
+    private let hotKey: HotKey
     private let onChange: () -> Void
+    private let shortcutField = ShortcutField()
+    private let defaultButton = NSButton(title: "Use Default", target: nil, action: nil)
+    private let shortcutNote = NSTextField(wrappingLabelWithString: "")
     private let field = NSSecureTextField()
     private let status = NSTextField(wrappingLabelWithString: "")
+    private let stack = NSStackView()
+    private var rejected: String?
+    private var releasedForRecording = false
 
-    init(keys: KeyStore, onChange: @escaping () -> Void) {
+    init(keys: KeyStore, hotKey: HotKey, onChange: @escaping () -> Void) {
         self.keys = keys
+        self.hotKey = hotKey
         self.onChange = onChange
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 440, height: 150),
+        super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
         title = "Ideator Settings"
         isReleasedWhenClosed = false
 
-        let label = NSTextField(labelWithString: "Anthropic API key")
-        label.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        func heading(_ text: String) -> NSTextField {
+            let label = NSTextField(labelWithString: text)
+            label.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+            return label
+        }
+        func caption(_ label: NSTextField) -> NSTextField {
+            label.textColor = .secondaryLabelColor
+            label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            label.preferredMaxLayoutWidth = Self.inner
+            label.widthAnchor.constraint(equalToConstant: Self.inner).isActive = true
+            return label
+        }
+
+        shortcutField.onPick = { [unowned self] picked in
+            let problem = hotKey.choose(picked)
+            rejected = problem.map { "\($0.text(for: picked)) Still using \(hotKey.shortcut.display)." }
+        }
+        shortcutField.onReject = { [unowned self] refusal in
+            rejected = refusal
+            refresh()
+        }
+        shortcutField.onRecordingChange = { [unowned self] recording in
+            // Retake only what this recording released: a scratch run never registered one.
+            if recording {
+                releasedForRecording = hotKey.unregister()
+                rejected = nil
+            } else if releasedForRecording {
+                releasedForRecording = false
+                hotKey.register()
+            }
+            refresh()
+        }
+        defaultButton.target = self
+        defaultButton.action = #selector(useDefaultShortcut)
+        let shortcutRow = NSStackView(views: [shortcutField, defaultButton])
+        shortcutRow.spacing = 8
+
         field.placeholderString = "sk-ant-…"
         field.target = self
         field.action = #selector(save)
-        status.textColor = .secondaryLabelColor
-        status.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         let save = NSButton(title: "Save", target: self, action: #selector(save))
         save.keyEquivalent = "\r"
         let remove = NSButton(title: "Remove Key", target: self, action: #selector(remove))
         let buttons = NSStackView(views: [remove, save])
-        let stack = NSStackView(views: [label, field, status, buttons])
+
+        for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("Anthropic API key"), field,
+                     caption(NSTextField(wrappingLabelWithString: Self.privacy)), caption(status), buttons] {
+            stack.addArrangedSubview(view)
+        }
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
+        stack.setCustomSpacing(18, after: shortcutNote)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        let content = NSView()
-        content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: content.topAnchor),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor),
-            field.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40),
-            status.widthAnchor.constraint(equalTo: field.widthAnchor),
+            stack.widthAnchor.constraint(equalToConstant: Self.width),
+            field.widthAnchor.constraint(equalToConstant: Self.inner),
             buttons.trailingAnchor.constraint(equalTo: field.trailingAnchor),
         ])
-        contentView = content
-        refreshStatus()
+        contentView = stack
+        refresh()
+    }
+
+    /// ⌘-Tab or closing the window ends a recording, so the shortcut never stays released.
+    override func resignKey() {
+        super.resignKey()
+        shortcutField.cancelRecording()
+    }
+
+    private func refresh() {
+        shortcutField.shortcut = hotKey.shortcut
+        defaultButton.isEnabled = hotKey.shortcut != .standard
+        shortcutNote.stringValue = Self.shortcutCaption(shortcut: hotKey.shortcut, problem: hotKey.problem,
+                                                        usedByMacOS: hotKey.shortcut.isUsedByMacOS(),
+                                                        rejected: rejected)
+        status.stringValue = keys.apiKey == nil
+            ? "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
+            : "A key is saved in your Keychain. Paste a new one to replace it."
+        contentView?.layoutSubtreeIfNeeded()
+        let top = frame.maxY
+        setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))
+        setFrameTopLeftPoint(NSPoint(x: frame.minX, y: top))
+    }
+
+    static func shortcutCaption(shortcut: Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
+                                rejected: String?) -> String {
+        if let rejected { return rejected }
+        if let problem { return problem.text(for: shortcut) + " There is no shortcut until you pick another." }
+        if usedByMacOS {
+            return "macOS also has a shortcut on \(shortcut.display) (System Settings › Keyboard › Keyboard "
+                + "Shortcuts). If it fires instead of Ideator, pick another here."
+        }
+        return "Hides or shows every card, from any app. Click it, then press the new keys."
+    }
+
+    @objc private func useDefaultShortcut() {
+        let problem = hotKey.choose(.standard)
+        rejected = problem.map { "\($0.text(for: .standard)) Still using \(hotKey.shortcut.display)." }
+        refresh()
     }
 
     @objc private func save() {
@@ -111,18 +193,77 @@ final class SettingsWindow: NSWindow {
         } else {
             NSSound.beep()
         }
-        refreshStatus()
+        refresh()
     }
 
     @objc private func remove() {
         keys.set(nil)
         onChange()
-        refreshStatus()
+        refresh()
+    }
+}
+
+/// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the
+/// current combination reaches the recorder instead of hiding every card. A local monitor sees
+/// every key first, so ⌘, ⌘Q and Return never reach the menu or the default button.
+final class ShortcutField: NSButton {
+    private static let prompt = "Type shortcut…"
+
+    var shortcut: Shortcut = .standard { didSet { if monitor == nil { title = shortcut.display } } }
+    var onPick: (Shortcut) -> Void = { _ in }
+    var onReject: (String) -> Void = { _ in }
+    var onRecordingChange: (Bool) -> Void = { _ in }
+    private var monitor: Any?
+
+    init() {
+        super.init(frame: .zero)
+        bezelStyle = .rounded
+        target = self
+        action = #selector(beginRecording)
+        title = shortcut.display
     }
 
-    private func refreshStatus() {
-        status.stringValue = keys.apiKey == nil
-            ? "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
-            : "A key is saved in your Keychain. Paste a new one to replace it."
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    @objc private func beginRecording() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown]) { [weak self] event in
+            guard let self else { return event }
+            switch event.type {
+            case .leftMouseDown:
+                finish(nil)
+                return event
+            case .flagsChanged:
+                let held = Shortcut.describe(event)
+                title = held.isEmpty ? Self.prompt : held + "…"
+                return event
+            default:
+                let bare = event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty
+                if bare, event.charactersIgnoringModifiers == "\u{1B}" {
+                    finish(nil)
+                } else if let picked = Shortcut(event: event) {
+                    finish(picked)
+                } else if !event.isARepeat {
+                    onReject(Shortcut.refusal(of: event))
+                }
+                return nil
+            }
+        }
+        title = Self.prompt
+        onRecordingChange(true)
+    }
+
+    func cancelRecording() {
+        if monitor != nil { finish(nil) }
+    }
+
+    /// `onPick` runs while the old shortcut is still released, so `choose` claims the new one
+    /// before `onRecordingChange(false)` would retake the old.
+    private func finish(_ picked: Shortcut?) {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        title = shortcut.display
+        if let picked { onPick(picked) }
+        onRecordingChange(false)
     }
 }

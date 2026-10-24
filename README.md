@@ -14,9 +14,10 @@ Requires macOS 15 or later and Xcode 26.
 3. Press **⌘R**.
 
 Ideator is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
-bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌥⌘C** hides or shows every card
-from anywhere. Hide All leaves the stack's tan ribbon where the stack is, so New, Clarity and
-the menu stay in reach. Opening Ideator again from Finder or Spotlight shows everything.
+bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌃⌥Space** hides or shows every card
+from anywhere (Settings… changes it). Hide All leaves the stack's tan ribbon where the stack is, so
+New, Clarity and the menu stay in reach. Opening Ideator again from Finder or Spotlight shows
+everything.
 
 On a MacBook with a crowded menu bar, macOS may hide the icon behind the camera notch. The stack's
 tan ribbon has what you need: the eye button hides or shows everything (an open eye while cards
@@ -29,7 +30,7 @@ xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derive
 ```
 
 ```bash
-open build/DerivedData/Build/Products/Debug/Cards.app
+open build/DerivedData/Build/Products/Debug/Ideator.app
 ```
 
 Run the unit tests (they use the app as their host and never touch `~/Documents/Ideator`):
@@ -53,8 +54,11 @@ the app's `CFBundleShortVersionString` (`MARKETING_VERSION` in the project); the
 number of commits on `HEAD`, so it rises with every release from `main` and needs a full clone.
 The script checks the app's signature, refuses an app that is not signed with the hardened runtime
 or that carries the `get-task-allow` debug entitlement (either one lets other programs read the API
-key from Ideator's memory), checks that the app has both `arm64` and `x86_64` slices, and verifies
-the disk image. It runs from any folder, and running it again replaces the old image.
+key from Ideator's memory), checks that the app has both `arm64` and `x86_64` slices and its icon,
+and verifies the disk image. It runs from any folder, and running it again replaces the old image.
+
+The app icon is a placeholder, drawn by `scripts/make-icon.swift` from the app's own colors. It gets
+replaced before 1.0.
 
 Send that one file. The other person needs a Mac with macOS 15 or later, Apple silicon or Intel.
 They do this:
@@ -63,8 +67,8 @@ They do this:
 2. Open Ideator from Applications. macOS blocks it, because Apple has not notarized the app.
 3. Open **System Settings › Privacy & Security**, scroll to the message about Ideator, click **Open
    Anyway**, and confirm.
-4. If macOS asks whether Ideator can access the Documents folder, allow it. Notes live in
-   `~/Documents/Ideator`.
+4. Ideator opens with a welcome card. Press **Continue**. If macOS then asks whether Ideator can
+   access the Documents folder, allow it. Notes live in `~/Documents/Ideator`.
 5. For summaries, choose **Settings…** from the menu bar icon and paste their own Anthropic API key.
    The image holds no key.
 
@@ -80,6 +84,17 @@ The key is stored in your login Keychain (service "Ideator"), never in the proje
 folder. Without a key everything works; collapsed cards just say "Summary unavailable". Debug
 builds are not signed with a stable identity, so after a rebuild macOS may ask once whether Ideator
 may read its Keychain item; choose **Always Allow**.
+
+[PRIVACY.md](PRIVACY.md) lists what Ideator stores and the one thing it sends.
+
+## First launch
+
+The first time Ideator starts, it shows a welcome card before it creates `~/Documents/Ideator`, so
+macOS's Documents prompt comes after the card explains it. To see the card again, quit Ideator and
+run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
+`CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
+`-CardsFolder` shows no card on its own, remembers nothing, and does not register the global
+shortcut.
 
 ## Where notes live
 

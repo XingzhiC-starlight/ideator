@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 
 // Entry point and app-level wiring: menu bar item, global hotkey, app events.
 // The build settings set LSUIElement = YES (menu bar app, no Dock icon).
@@ -22,22 +21,49 @@ enum CardsApp {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let keys = KeyStore()
+    private let launch = Launch(arguments: .standard, environment: ProcessInfo.processInfo.environment)
+    private lazy var preferences = launch.preferences(standard: .standard)
+    private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in
+        self?.withDesk { $0.toggleHidden() }
+    }
     private var controller: DeskController?
+    private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
-    private var hotKey: HotKey?
     private var settingsWindow: SettingsWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
-        // `-CardsFolder <path>` on the command line points the app at another folder (for trying
-        // things out without touching ~/Documents/Ideator).
-        let folder = UserDefaults.standard.string(forKey: "CardsFolder").map { URL(filePath: $0, directoryHint: .isDirectory) }
-        let controller = DeskController(library: Library(folder: folder ?? Library.defaultFolder), keys: keys,
-                                        appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
-        self.controller = controller
         statusItem = makeStatusItem()
-        hotKey = HotKey(keyCode: kVK_ANSI_C, modifiers: optionKey | cmdKey) { controller.toggleHidden() }
-        NSApp.activate()
+        // A scratch run leaves the global shortcut to the owner's running Ideator.
+        if !launch.isScratch { hotKey.register() }
+        // Building the controller is the first touch of the notes folder, which starts macOS's
+        // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
+        launch.run(
+            preferences: preferences,
+            welcome: { [unowned self] onContinue in showWelcome(onContinue) },
+            openNotes: { [unowned self] in
+                controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
+                                            appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
+                NSApp.activate()
+            })
+    }
+
+    /// The welcome card. Continue closes it first and opens the folder on the next turn of the run
+    /// loop: the Documents prompt blocks the main thread until it is answered, and the card must
+    /// not sit frozen under it.
+    private func showWelcome(_ onContinue: @escaping () -> Void) {
+        let copy = WelcomeCopy(shortcut: hotKey.shortcut, shortcutWorks: hotKey.problem == nil)
+        let window = WelcomeWindow(copy: copy) { [unowned self] in
+            welcome?.close()
+            welcome = nil
+            DispatchQueue.main.async(execute: onContinue)
+        }
+        welcome = window
+        window.present()
+    }
+
+    private func withDesk(_ action: (DeskController) -> Void) {
+        if let controller { action(controller) } else { welcome?.bringForward() }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) { controller?.appDidBecomeActive() }
@@ -48,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Opening the app again (Finder, Spotlight, Launchpad) while it runs shows everything and
     /// brings the app forward. Returning false skips the default, which has no window to open.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        controller?.setHidden(false)
+        withDesk { $0.setHidden(false) }
         return false
     }
 
@@ -112,37 +138,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = main
     }
 
-    @objc private func showAll() { controller?.setHidden(false) }
-    @objc private func hideAll() { controller?.setHidden(true) }
-    @objc private func openStack() { controller?.openStack() }
+    @objc private func showAll() { withDesk { $0.setHidden(false) } }
+    @objc private func hideAll() { withDesk { $0.setHidden(true) } }
+    @objc private func openStack() { withDesk { $0.openStack() } }
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func openSettings() {
-        let window = settingsWindow ?? SettingsWindow(keys: keys) { [weak self] in self?.controller?.apiKeyChanged() }
+        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey) { [weak self] in
+            self?.controller?.apiKeyChanged()
+        }
         settingsWindow = window
         NSApp.activate()
         window.center()
         window.makeKeyAndOrderFront(nil)
-    }
-}
-
-/// One system-wide hotkey through Carbon's RegisterEventHotKey: no Accessibility permission.
-final class HotKey {
-    private let action: () -> Void
-    private var hotKeyRef: EventHotKeyRef?
-    private var handlerRef: EventHandlerRef?
-
-    init(keyCode: Int, modifiers: Int, action: @escaping () -> Void) {
-        self.action = action
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, userData in
-            // A C callback, delivered on the main thread.
-            guard let userData else { return noErr }
-            MainActor.assumeIsolated { Unmanaged<HotKey>.fromOpaque(userData).takeUnretainedValue().action() }
-            return noErr
-        }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handlerRef)
-        RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers),
-                            EventHotKeyID(signature: OSType(0x4352_4453) /* "CRDS" */, id: 1),
-                            GetApplicationEventTarget(), 0, &hotKeyRef)
     }
 }

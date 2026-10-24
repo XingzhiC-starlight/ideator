@@ -1,4 +1,4 @@
-# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-23)
+# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-24)
 
 Personal-use macOS prototype. Native Swift app built with Xcode.
 
@@ -7,13 +7,25 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Cards behave as one group: clicking any card brings all cards forward; clicking another app drops them all behind it.
 - Clicking a card activates the app and takes keyboard focus. Return to other apps the normal way (click or ⌘-Tab).
 - Cards follow the user across Spaces and over full-screen apps.
-- App home: menu bar icon with Show all / Hide all / Open stack / Quit, and a Hide all / Show all button in the stack's ribbon (revised 2026-10-22). Global shortcut ⌥⌘C hides/shows every card.
+- App home: menu bar icon with Show all / Hide all / Open stack / Quit, and a Hide all / Show all button in the stack's ribbon (revised 2026-10-22). Global shortcut ⌃⌥Space hides/shows every card (revised 2026-10-24).
+
+## First launch (new 2026-10-24)
+- The first launch on a Mac shows one card, "Welcome to Ideator", before Ideator reads or creates the notes folder, so macOS's Documents prompt comes after it. "First" means Ideator's saved preferences have no record that the card was acknowledged; an update from an earlier build shows it once too.
+- It is a card-look window as wide as the stack, top-right where the stack will appear, as tall as its text. The app icon and title come first, then four paragraphs and a Continue button (Return does the same):
+  - Find it in the menu bar: no Dock icon, the stacked-rectangles icon at the top right, and that the notch can hide it, in which case the ⋯ button on the stack's ribbon has Settings and Quit too.
+  - Hide and show your cards: the current shortcut by name and that Settings changes it. If the shortcut could not be registered, it says so and that there is none yet.
+  - Your notes are files: Markdown files in ~/Documents/Ideator, and that macOS asks about the Documents folder after Continue.
+  - Summaries are optional: they need the user's own Anthropic API key; only a card's text goes to Anthropic, nothing else leaves the Mac.
+- Continue closes the card, then opens the notes folder and the stack, then records that the card was acknowledged. A launch that ends before that (quit during the card, killed in the Documents prompt) shows it again. Quitting during the card creates nothing.
+- While it is up, the global shortcut, Show all / Hide all / Open stack in the menu bar icon's menu, and opening the app again bring it forward. Settings… and Quit work as usual.
+- A scratch run (`-CardsFolder`) shows it only when the environment holds `CARDS_SHOW_WELCOME=1`, and Continue then records nothing. `CARDS_SHOW_WELCOME=1` also shows it again on a normal launch.
+- If the user answered Don't Allow to the Documents prompt, the "Ideator can't save your notes" alert, shown at the first failed save, also says to turn Ideator on in System Settings › Privacy & Security › Files & Folders.
 
 ## Hide all (revised 2026-10-22)
-- Hide all (menu bar icon, the stack ribbon's button, or ⌥⌘C) hides every popped card, free ones included, and shrinks the stack to just its tan ribbon, at the top of wherever the stack is. The ribbon never hides.
-- The ribbon's button is a one-click toggle, the same as ⌥⌘C: the icon shows the current state, a plain eye (tooltip "Hide all") while cards are shown, an eye with a slash ("Show all") while they are hidden (revised 2026-10-22). It sits left of the menu button.
+- Hide all (menu bar icon, the stack ribbon's button, or the global shortcut) hides every popped card, free ones included, and shrinks the stack to just its tan ribbon, at the top of wherever the stack is. The ribbon never hides.
+- The ribbon's button is a one-click toggle, the same as the global shortcut: the icon shows the current state, a plain eye (tooltip "Hide all") while cards are shown, an eye with a slash ("Show all") while they are hidden (revised 2026-10-22). It sits left of the menu button.
 - While hidden, the ribbon keeps New, Clarity, the toggle and the menu button, plus the count badge, which moves into the ribbon beside the toggle because the card area is gone (on a very narrow stack the badge is dropped before it would cover the toolbar). The ribbon can still be dragged. There is no Pop while hidden: its button is on the stacked card, which is gone too (revised 2026-10-22).
-- Show all (the toggle or the menu bar icon), ⌥⌘C, or opening the app again (Spotlight, Finder, Launchpad) while it runs brings back the stack's card area and every popped card, and brings the app forward.
+- Show all (the toggle or the menu bar icon), the global shortcut, or opening the app again (Spotlight, Finder, Launchpad) while it runs brings back the stack's card area and every popped card, and brings the app forward.
 - New while hidden shows only that card; the rest stay hidden. Its slot is chosen as if the hidden cards were in place, free ones included (revised 2026-10-22: Pop is no longer here).
 - Hidden is not persisted: every launch starts with everything shown.
 
@@ -128,6 +140,15 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
   - A thin card gets a short summary: infer its intent, never invent details to fill the space.
   - The reply is the summary alone: it never explains itself or comments on the title or the prompt.
 - While generating: small spinner in the summary area. On failure: "Summary unavailable", hover shows the reason.
+
+## Settings (new 2026-10-24)
+- Settings… (the menu bar icon, or the stack ribbon's ⋯ menu) opens one window. It is as tall as its rows need.
+- Shortcut: a button that shows the global shortcut, ⌃⌥Space by default. Click it, then press the new keys. While it records it shows the modifiers held and has released the current shortcut, so pressing that one is recorded instead of hiding the cards. Esc, a click, or leaving the window cancels.
+- A shortcut needs ⌘ or ⌃ plus at least one more modifier, so typing never triggers it. A refused combination is named ("⌘K can't be the shortcut. …") and the button keeps recording.
+- A combination macOS refuses to register is refused with the reason, and the old shortcut stays. "Use Default" goes back to ⌃⌥Space and is dimmed while that is in use. The choice survives a relaunch.
+- If the saved shortcut cannot be registered, the line under the button says why and that there is no shortcut until another is chosen. If macOS has its own shortcut on the combination (⌃⌥Space can be Select next source in Input menu), the line says so; Ideator still registers it.
+- API key: a secure field, Save and Remove Key. Under it, a line says what summaries send: "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash reports. The key stays in your login Keychain." PRIVACY.md says the same in full.
+- A scratch run (`-CardsFolder`) reads the default shortcut, saves nothing of Settings' shortcut, and does not register the global shortcut until one is chosen in Settings.
 
 ## Storage
 - One Markdown (.md) file per card in ~/Documents/Ideator/.
