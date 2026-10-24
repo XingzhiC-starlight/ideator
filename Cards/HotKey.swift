@@ -215,11 +215,14 @@ final class HotKey {
     }
 
     /// Releases the combination so the Settings recorder sees the keys instead of the hotkey
-    /// swallowing them. No-op when released. `register()` takes it back.
-    func unregister() {
-        guard let registration else { return }
+    /// swallowing them. No-op when released. `register()` takes it back. True when it released
+    /// a registration, so the caller knows whether there is anything to take back.
+    @discardableResult
+    func unregister() -> Bool {
+        guard let registration else { return false }
         UnregisterEventHotKey(registration)
         self.registration = nil
+        return true
     }
 
     /// Switches to `new` and persists it, or changes nothing and says why. `new` is claimed

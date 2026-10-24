@@ -79,6 +79,8 @@ final class SettingsWindow: NSWindow {
     private let stack = NSStackView()
     /// The verdict on the last pick ("… Still using ⌃⌥Space."), shown until the next one.
     private var rejected: String?
+    /// True while a recording holds a registration it released, so only that recording gives it back.
+    private var releasedForRecording = false
 
     init(keys: KeyStore, hotKey: HotKey, onChange: @escaping () -> Void) {
         self.keys = keys
@@ -112,8 +114,15 @@ final class SettingsWindow: NSWindow {
         }
         shortcutField.onRecordingChange = { [unowned self] recording in
             // Released while recording, so the live combination reaches the field; retaken after,
-            // unless `choose` already registered the new one.
-            if recording { hotKey.unregister(); rejected = nil } else { hotKey.register() }
+            // unless `choose` already registered the new one. A scratch run never registered one,
+            // so it has nothing to retake.
+            if recording {
+                releasedForRecording = hotKey.unregister()
+                rejected = nil
+            } else if releasedForRecording {
+                releasedForRecording = false
+                hotKey.register()
+            }
             refresh()
         }
         defaultButton.target = self
@@ -235,8 +244,8 @@ final class ShortcutField: NSButton {
 
     @objc private func beginRecording() {
         guard monitor == nil else { return }
-        title = Self.prompt
-        onRecordingChange(true)
+        // The monitor goes in before the notification: `monitor != nil` is what keeps `shortcut`'s
+        // didSet from rewriting the title when the handler refreshes the field.
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown]) { [weak self] event in
             guard let self else { return event }
             switch event.type {
@@ -259,6 +268,8 @@ final class ShortcutField: NSButton {
                 return nil   // swallowed
             }
         }
+        title = Self.prompt
+        onRecordingChange(true)
     }
 
     /// Esc, a click, the window losing key status: the same as pressing nothing. Idempotent.

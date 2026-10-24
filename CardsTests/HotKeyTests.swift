@@ -139,8 +139,8 @@ final class HotKeyTests: XCTestCase {
         let mine = HotKey(preferences: preferences(shortcut: combo(kVK_F13))) {}
         mine.register()
 
-        mine.unregister()
-        mine.unregister()
+        XCTAssertTrue(mine.unregister(), "it released a registration")
+        XCTAssertFalse(mine.unregister(), "and has nothing left to release")
         let other = HotKey(preferences: preferences()) {}
         XCTAssertNil(other.choose(combo(kVK_F13)), "released while recording")
         other.unregister()
@@ -149,6 +149,12 @@ final class HotKeyTests: XCTestCase {
         mine.register()
         XCTAssertNil(mine.problem)
         XCTAssertEqual(HotKey(preferences: preferences()) {}.choose(combo(kVK_F13)), .taken, "taken back")
+    }
+
+    func testUnregisterOnAHotKeyThatWasNeverRegisteredReleasesNothing() {
+        let mine = HotKey(preferences: preferences(shortcut: combo(kVK_F13))) {}
+
+        XCTAssertFalse(mine.unregister())
     }
 
     func testAReleasedHotKeyGivesItsCombinationBack() {

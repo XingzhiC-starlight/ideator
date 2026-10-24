@@ -26,4 +26,16 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(line.contains("no analytics, no crash reports"))
         XCTAssertTrue(line.contains("login Keychain"), "where the key stays")
     }
+
+    func testTheShortcutFieldShowsThatItIsRecordingEvenWhenTheHandlerRefreshesTheShortcut() {
+        let field = ShortcutField()
+        field.shortcut = .standard
+        field.onRecordingChange = { [unowned field] _ in field.shortcut = .standard }
+
+        field.performClick(nil)
+        XCTAssertEqual(field.title, "Type shortcut…")
+
+        field.cancelRecording()
+        XCTAssertEqual(field.title, Shortcut.standard.display)
+    }
 }

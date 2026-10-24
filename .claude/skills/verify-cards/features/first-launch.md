@@ -41,7 +41,7 @@ Preconditions:
   `cv ax press Continue`. The welcome window is gone, `cv ax tree` shows `New` and the badge `"2"`
   (Alpha and Beta, now loaded). Then `cv stop`, launch again the same way, and run `cv ax key return`
   instead of the press: the same result, which proves Return is Continue.
-- **welcome-scratch.** Run `defaults read com.systemlabs.Ideator 2>&1 | shasum`. Run `cv launch
+- **welcome-scratch.** Run `defaults export com.systemlabs.Ideator - 2>/dev/null | shasum` (empty output when the domain is absent, so the hash is stable). Run `cv launch
   --welcome`, `cv ax press Continue`, `cv stop`, then plain `cv launch` (it waits for `New`, so it
   fails if a welcome shows), then `cv stop`. Run the `shasum` again: equal.
 - **settings-shortcut.** From any run, `cv ax key cmd+,` then `cv shot settings`: the shortcut row
@@ -66,7 +66,7 @@ Preconditions:
   com.systemlabs.Ideator`, move `~/Documents/Ideator` aside, and open the installed app.
 - `welcome-scratch` compares the owner's real preferences, so another Ideator changing them between
   the two reads (Settings in the owner's own app) makes a false difference. Re-run it.
-- A scratch run registers no global shortcut until Settings' shortcut button is used. Once it is
-  pressed, ending the recording registers a shortcut in that process (the one picked, or `⌃⌥Space`
-  after Esc) until `cv stop`, which can contend with the owner's Ideator. Pick an obscure one
-  (`ctrl+cmd+h` is) and stop the run right after the recipe.
+- A scratch run registers no global shortcut. Ending a recording without a pick (Esc, a click) registers
+  nothing there. Picking a combination registers it in that process until `cv stop`, which can
+  contend with the owner's Ideator, so pick an obscure one (`ctrl+cmd+h` is) and stop the run right
+  after the recipe.
