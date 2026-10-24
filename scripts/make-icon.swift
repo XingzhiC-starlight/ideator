@@ -1,6 +1,6 @@
 import AppKit
 
-// Draws the placeholder app icon from Palette's colors; it is replaced before 1.0. From the repo root:
+// Draws the app icon, a card and a spark on an ink plate, from Palette's colors. From the repo root:
 //   swiftc -parse-as-library scripts/make-icon.swift Cards/Palette.swift -o build/make-icon
 //   build/make-icon Cards/Assets.xcassets/AppIcon.appiconset
 
@@ -34,9 +34,10 @@ enum MakeIcon {
     }
 
     static func draw(_ s: CGFloat) {
-        func opaque(_ c: NSColor) -> NSColor { c.withAlphaComponent(1) }
         let body = NSRect(x: s * 0.0977, y: s * 0.0977, width: s * 0.8046, height: s * 0.8046)
         let plate = NSBezierPath(roundedRect: body, xRadius: s * 0.18, yRadius: s * 0.18)
+        let wash = NSGradient(colors: [Palette.ink.blended(withFraction: 0.15, of: Palette.inkSoft)!,
+                                       Palette.ink.blended(withFraction: 0.3, of: .black)!])!
 
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow()
@@ -44,48 +45,51 @@ enum MakeIcon {
         shadow.shadowBlurRadius = s * 0.025
         shadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
         shadow.set()
-        opaque(Palette.ribbon).setFill()
+        Palette.ink.setFill()
         plate.fill()
         NSGraphicsContext.restoreGraphicsState()
 
         NSGraphicsContext.saveGraphicsState()
         plate.addClip()
-        NSGradient(colors: [opaque(Palette.paper), opaque(Palette.ribbon)])?.draw(in: body, angle: -90)
-        NSGraphicsContext.restoreGraphicsState()
-        Palette.line.setStroke()
-        plate.lineWidth = max(1, s * 0.004)
+        wash.draw(in: body, angle: -90)
+        // A faint rim inside the edge, so the dark plate still has an outline on a dark Dock.
+        Palette.rim.withAlphaComponent(0.14).setStroke()
+        plate.lineWidth = max(2, s * 0.008)
         plate.stroke()
+        NSGraphicsContext.restoreGraphicsState()
 
-        let w = s * 0.40, h = s * 0.46, r = s * 0.045
-        let origin = NSPoint(x: s * 0.5 - w / 2 + s * 0.05, y: s * 0.5 - h / 2 - s * 0.04)
-        for step in (0..<3).reversed() {
-            let dx = -CGFloat(2 - step) * s * 0.045, dy = CGFloat(2 - step) * s * 0.045
-            let rect = NSRect(x: origin.x + dx, y: origin.y + dy, width: w, height: h)
-            let card = NSBezierPath(roundedRect: rect, xRadius: r, yRadius: r)
-            NSGraphicsContext.saveGraphicsState()
-            let lift = NSShadow()
-            lift.shadowOffset = NSSize(width: 0, height: -s * 0.006)
-            lift.shadowBlurRadius = s * 0.014
-            lift.shadowColor = Palette.line.withAlphaComponent(0.45)
-            lift.set()
-            Palette.sheen.withAlphaComponent(0.92).setFill()
-            card.fill()
-            NSGraphicsContext.restoreGraphicsState()
-            Palette.line.setStroke()
-            card.lineWidth = max(1, s * 0.004)
-            card.stroke()
-            guard step == 0 else { continue }
-            NSGraphicsContext.saveGraphicsState()
-            card.addClip()
-            opaque(Palette.ribbon).setFill()
-            NSRect(x: rect.minX, y: rect.maxY - h * 0.2, width: w, height: h * 0.2).fill()
-            NSGraphicsContext.restoreGraphicsState()
-            opaque(Palette.inkSoft).setFill()
-            for (i, width) in [0.72, 0.58, 0.66].enumerated() {
-                let bar = NSRect(x: rect.minX + w * 0.12, y: rect.maxY - h * (0.34 + 0.14 * CGFloat(i)),
-                                 width: w * width, height: h * 0.05)
-                NSBezierPath(roundedRect: bar, xRadius: bar.height / 2, yRadius: bar.height / 2).fill()
-            }
-        }
+        // The card leans 6° to the left about a point just below the icon's center.
+        let rect = NSRect(x: s * 0.3125, y: s * 0.2383, width: s * 0.3516, height: s * 0.4297)
+        let card = NSBezierPath(roundedRect: rect, xRadius: s * 0.0527, yRadius: s * 0.0527)
+        let lean = NSAffineTransform()
+        lean.translateX(by: s * 0.4883, yBy: s * 0.4531)
+        lean.rotate(byDegrees: 6)
+        lean.translateX(by: -s * 0.4883, yBy: -s * 0.4531)
+        card.transform(using: lean as AffineTransform)
+        NSGraphicsContext.saveGraphicsState()
+        let lift = NSShadow()
+        lift.shadowOffset = NSSize(width: 0, height: -s * 0.01)
+        lift.shadowBlurRadius = s * 0.027
+        lift.shadowColor = NSColor.black.withAlphaComponent(0.3)
+        lift.set()
+        Palette.paper.withAlphaComponent(1).setFill()
+        card.fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        // A four-point spark over the card's top-right corner, cut out of the card by a ring of plate color.
+        let c = NSPoint(x: s * 0.6484, y: s * 0.6641), r = s * 0.1016, k = r * 0.13
+        let spark = NSBezierPath()
+        spark.move(to: NSPoint(x: c.x, y: c.y + r))
+        spark.curve(to: NSPoint(x: c.x + r, y: c.y), controlPoint: NSPoint(x: c.x + k, y: c.y + k))
+        spark.curve(to: NSPoint(x: c.x, y: c.y - r), controlPoint: NSPoint(x: c.x + k, y: c.y - k))
+        spark.curve(to: NSPoint(x: c.x - r, y: c.y), controlPoint: NSPoint(x: c.x - k, y: c.y - k))
+        spark.curve(to: NSPoint(x: c.x, y: c.y + r), controlPoint: NSPoint(x: c.x - k, y: c.y + k))
+        spark.close()
+        wash.interpolatedColor(atLocation: (body.maxY - c.y) / body.height).setStroke()
+        spark.lineWidth = s * 0.0254
+        spark.lineJoinStyle = .round
+        spark.stroke()
+        Palette.focus.setFill()
+        spark.fill()
     }
 }
