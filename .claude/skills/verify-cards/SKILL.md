@@ -185,7 +185,7 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   someone answers. Prefer one-line bodies when proving collapse (they show the line itself and
   never call the API). If `tree` hangs or shows nothing after a rebuild, tell the user to look
   for that prompt.
-- A scratch run (`cv launch` passes `-CardsFolder`) does not register the global shortcut (⌃⌥Space by
+- A scratch run (`cv launch` passes `-CardsFolder`) does not register the global shortcut (⌃⌥I by
   default) and never reads or writes the owner's saved shortcut, so it cannot take the shortcut from
   the owner's Ideator. The harness also cannot press it. Prove Hide all with the ribbon button, not
   the hotkey.

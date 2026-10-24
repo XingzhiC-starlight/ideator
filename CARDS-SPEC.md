@@ -7,7 +7,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Cards behave as one group: clicking any card brings all cards forward; clicking another app drops them all behind it.
 - Clicking a card activates the app and takes keyboard focus. Return to other apps the normal way (click or ⌘-Tab).
 - Cards follow the user across Spaces and over full-screen apps.
-- App home: menu bar icon with Show all / Hide all / Open stack / Quit, and a Hide all / Show all button in the stack's ribbon (revised 2026-10-22). Global shortcut ⌃⌥Space hides/shows every card (revised 2026-10-24).
+- App home: menu bar icon with Show all / Hide all / Open stack / Quit, and a Hide all / Show all button in the stack's ribbon (revised 2026-10-22). Global shortcut ⌃⌥I hides/shows every card (revised 2026-10-24; first ⌃⌥Space, which is macOS's Select next source in Input menu on Macs with several input sources).
 
 ## First launch (new 2026-10-24)
 - The first launch on a Mac shows one card, "Welcome to Ideator", before Ideator reads or creates the notes folder, so macOS's Documents prompt comes after it. "First" means Ideator's saved preferences have no record that the card was acknowledged; an update from an earlier build shows it once too.
@@ -143,10 +143,10 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 
 ## Settings (new 2026-10-24)
 - Settings… (the menu bar icon, or the stack ribbon's ⋯ menu) opens one window. It is as tall as its rows need.
-- Shortcut: a button that shows the global shortcut, ⌃⌥Space by default. Click it, then press the new keys. While it records it shows the modifiers held and has released the current shortcut, so pressing that one is recorded instead of hiding the cards. Esc, a click, or leaving the window cancels.
+- Shortcut: a button that shows the global shortcut, ⌃⌥I by default (revised 2026-10-24: ⌃⌥Space is macOS's Select next source in Input menu on Macs with several input sources). Click it, then press the new keys. While it records it shows the modifiers held and has released the current shortcut, so pressing that one is recorded instead of hiding the cards. Esc, a click, or leaving the window cancels.
 - A shortcut needs ⌘ or ⌃ plus at least one more modifier, so typing never triggers it. A refused combination is named ("⌘K can't be the shortcut. …") and the button keeps recording.
-- A combination macOS refuses to register is refused with the reason, and the old shortcut stays. "Use Default" goes back to ⌃⌥Space and is dimmed while that is in use. The choice survives a relaunch.
-- If the saved shortcut cannot be registered, the line under the button says why and that there is no shortcut until another is chosen. If macOS has its own shortcut on the combination (⌃⌥Space can be Select next source in Input menu), the line says so; Ideator still registers it.
+- A combination macOS refuses to register is refused with the reason, and the old shortcut stays. "Use Default" goes back to ⌃⌥I and is dimmed while that is in use. The choice survives a relaunch. Settings reads the shortcut line and the key status again each time the window comes forward (revised 2026-10-24).
+- If the saved shortcut cannot be registered, the line under the button says why and that there is no shortcut until another is chosen. If macOS has its own shortcut on the combination (⌃⌥Space, for Select next source in Input menu), the line says so; Ideator still registers it.
 - API key: a secure field, Save and Remove Key. Under it, a line says what summaries send: "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash reports. The key stays in your login Keychain." PRIVACY.md says the same in full.
 - A scratch run (`-CardsFolder`) reads the default shortcut, saves nothing of Settings' shortcut, and does not register the global shortcut until one is chosen in Settings.
 

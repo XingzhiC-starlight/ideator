@@ -17,7 +17,7 @@ is on the stacked card, which hidden removes.
 
 - The eye button in the stack's ribbon (tooltip `Hide all`, then `Show all`).
 - The menu bar icon's Show All / Hide All (not driven by this skill).
-- The global shortcut anywhere, ⌃⌥Space by default (not driven: a scratch run does not register it).
+- The global shortcut anywhere, ⌃⌥I by default (not driven: a scratch run does not register it).
 - Opening Ideator again from Finder or Spotlight shows everything (not driven).
 
 ## Driving it with cards-verify

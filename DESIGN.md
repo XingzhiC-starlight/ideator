@@ -287,6 +287,11 @@ Later changes, after trying the app:
   scratch run reads and writes no preferences and registers no shortcut, so a verify run can't
   touch the owner's. Settings says what summaries send, PRIVACY.md says it in full, and the app
   got a placeholder icon. `Desk` is unchanged.
+- 2026-10-24, the default moved to ⌃⌥I: with several input sources macOS enables "Select next
+  source in Input menu" on ⌃⌥Space and takes the key before Ideator sees it, so the cards did not
+  move. ⌃⌥I is on none of macOS's symbolic hotkeys. `SettingsWindow` also refreshes whenever it
+  becomes key, since the cached window kept showing the macOS-shortcut advisory and key status
+  from its first opening.
 
 ## Tradeoffs accepted
 
