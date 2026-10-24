@@ -10,11 +10,20 @@ APP="$DERIVED/Build/Products/Release/Ideator.app"
 
 die() { echo "package.sh: $*" >&2; exit 1; }
 
+# The build number is the number of commits on HEAD, so every release from main gets a higher one
+# without anyone editing it. Sparkle compares it to decide which build is newer.
+[[ "$(git rev-parse --is-shallow-repository)" == false ]] || die "shallow clone: the build number needs full history"
+build="$(git rev-list --count HEAD)"
+
 xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Release \
-  -destination 'generic/platform=macOS' -derivedDataPath "$DERIVED" -quiet build
+  -destination 'generic/platform=macOS' -derivedDataPath "$DERIVED" -quiet build \
+  CURRENT_PROJECT_VERSION="$build"
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
-dmg="$OUT/Ideator-$version.dmg"
+bundled="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
+[[ "$bundled" == "$build" ]] || die "the app's build number is $bundled, expected $build"
+echo "version: $version ($build)"
+dmg="$OUT/Ideator-$version-$build.dmg"
 
 codesign --verify --deep --strict --verbose=2 "$APP"
 

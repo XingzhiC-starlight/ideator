@@ -17,6 +17,10 @@ final class Library {
     /// What the folder held after our last read or write. `save` writes only what differs.
     private var notesOnDisk: [CardID: Note] = [:]
     private var savedOnDisk: SavedDesk?
+    /// The sidecar was written by a newer Ideator (its `version` is above ours), as when two Macs
+    /// share the folder and one is not updated yet. This build can't know what that file holds, so
+    /// it places cards as best it can and never overwrites it. Card files are still saved.
+    private(set) var sidecarIsNewer = false
 
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -33,8 +37,11 @@ final class Library {
     func load() -> Desk {
         createFolder()
         let notes = (try? readNotes()) ?? [:]
-        let saved = (try? Data(contentsOf: sidecarURL))
-            .flatMap { try? JSONDecoder().decode(SavedDesk.self, from: $0) } ?? SavedDesk()
+        let data = try? Data(contentsOf: sidecarURL)
+        // Read the version on its own: a newer sidecar may not decode as a SavedDesk at all.
+        let version = data.flatMap { try? JSONDecoder().decode(SidecarVersion.self, from: $0) }?.version
+        sidecarIsNewer = (version ?? 0) > SavedDesk().version
+        let saved = data.flatMap { try? JSONDecoder().decode(SavedDesk.self, from: $0) } ?? SavedDesk()
         notesOnDisk = notes
         savedOnDisk = saved
         return Desk(notes: notes, saved: saved)
@@ -46,7 +53,8 @@ final class Library {
     /// - a card whose note differs from `notesOnDisk` (or is new) → write `<id>.md` atomically;
     /// - an id in `notesOnDisk` the desk no longer has → move that file to the Trash
     ///   (recoverable; a file already gone is fine);
-    /// - `desk.saved != savedOnDisk` → write the sidecar atomically.
+    /// - `desk.saved != savedOnDisk` → write the sidecar atomically, unless `sidecarIsNewer`: then
+    ///   it is left alone and counts as matching, since not writing it is the point.
     /// Each successful step updates the snapshot; a failed one leaves it, so the next save retries,
     /// and the result is false.
     @discardableResult
@@ -55,6 +63,7 @@ final class Library {
             guard createFolder() else { return false }
             notesOnDisk = [:]
             savedOnDisk = nil
+            sidecarIsNewer = false   // the newer sidecar went with the folder
         }
         var matches = true
         let current = Dictionary(desk.allCards.map { ($0.id, $0.note) }, uniquingKeysWith: { first, _ in first })
@@ -81,7 +90,7 @@ final class Library {
             notesOnDisk[id] = nil
         }
         let saved = desk.saved
-        if saved != savedOnDisk {
+        if saved != savedOnDisk, !sidecarIsNewer {
             do {
                 try encoder.encode(saved).write(to: sidecarURL, options: .atomic)
                 savedOnDisk = saved
@@ -135,4 +144,9 @@ final class Library {
     private func log(_ message: String) {
         NSLog("Ideator: %@", message)
     }
+}
+
+/// Just the sidecar's `version`, readable whatever else a newer build put in the file.
+private struct SidecarVersion: Decodable {
+    var version: Int
 }

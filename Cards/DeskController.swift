@@ -39,6 +39,8 @@ final class DeskController {
         summarizer.sync(desk.allCards, typing: nil)
         render()
         trackPointer()
+        // After launch finishes, so the menu bar icon and hotkey exist while the alert is up.
+        if library.sidecarIsNewer { DispatchQueue.main.async { [weak self] in self?.warnNewerSidecar() } }
     }
 
     // MARK: The one way state changes
@@ -234,6 +236,18 @@ final class DeskController {
             alert.runModal()
         }
         return saved
+    }
+
+    /// Once per launch: card files still save, but places, Clarity and summaries do not.
+    private func warnNewerSidecar() {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "These notes were arranged by a newer Ideator"
+        alert.informativeText = "Your notes open and save as usual, but where cards sit, Clarity and "
+            + "summaries won't be saved on this Mac, so the newer Ideator's arrangement stays intact. "
+            + "Update Ideator to arrange cards here again."
+        NSApp.activate()
+        alert.runModal()
     }
 
     /// The menu-bar screen.

@@ -257,6 +257,11 @@ Later changes, after trying the app:
   Shift-Tab and saved as 4 spaces per level. Copy now writes Markdown and HTML lists, and paste
   reads them back, including lists copied from the Claude app or a terminal. Markers stay drawn,
   not typed; the clipboard puts them back as text.
+- 2026-10-24, a newer sidecar: before strangers get beta builds, an older build must not destroy
+  what a newer one saved, as when two Macs share the folder through iCloud. `Library` reads the
+  sidecar's `version` on its own, since a newer file may not decode as a `SavedDesk`. Above this
+  build's version, it places cards as best it can, never writes the sidecar, and still saves card
+  files; `DeskController` says so once per launch. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 

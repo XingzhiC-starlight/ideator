@@ -132,6 +132,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 ## Storage
 - One Markdown (.md) file per card in ~/Documents/Ideator/.
 - One hidden sidecar file for positions (each card's and the stack's slot or free spot), stack order, collapsed state, and cached summaries.
+- The sidecar carries a format version. A sidecar written by a newer Ideator is never overwritten: cards open and card files save as usual, places, Clarity and summaries are not saved, and a notice at launch says to update (added 2026-10-24).
 
 ## Look
 - Warm beige frosted-glass cards (revised 2026-10-22, see DESIGN.md), thin border, soft shadow, system font. Per-card colors later.

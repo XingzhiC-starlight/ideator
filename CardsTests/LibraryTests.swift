@@ -68,4 +68,35 @@ final class LibraryTests: XCTestCase {
             XCTAssertEqual(modified, longAgo, "\(file.lastPathComponent) was not rewritten")
         }
     }
+
+    func testANewerSidecarIsNeverOverwrittenWhileCardFilesStillSave() async throws {
+        try Data("# Groceries\n".utf8).write(to: cardFile)
+        let sidecar = folder.appending(path: ".cards.json")
+        let newer = Data(#"{"version":3,"layout":{"kind":"something this build has never seen"}}"#.utf8)
+        try newer.write(to: sidecar)
+        let library = Library(folder: folder)
+        var desk = library.load()
+        XCTAssertTrue(library.sidecarIsNewer, "version 3 is newer than this build's sidecar")
+        XCTAssertEqual(desk.stack.map(\.id), [CardID(rawValue: "card")], "the card still opens, in the stack")
+
+        desk.apply(.pop)
+        desk.apply(.edit(CardID(rawValue: "card"), Note(header: "Groceries", body: [Line(runs: [Run(text: "eggs")])])))
+
+        XCTAssertTrue(library.save(desk), "leaving the sidecar alone is not a failed save")
+        XCTAssertEqual(try Data(contentsOf: sidecar), newer, "the newer sidecar is byte for byte what it was")
+        XCTAssertEqual(try String(contentsOf: cardFile, encoding: .utf8), "# Groceries\n\neggs\n",
+                       "the edited card is saved")
+    }
+
+    func testOwnSidecarIsNotNewer() async throws {
+        try Data("# Groceries\n".utf8).write(to: cardFile)
+        let library = Library(folder: folder)
+        var desk = library.load()
+        desk.apply(.pop)
+        library.save(desk)
+
+        let reopened = Library(folder: folder)
+        XCTAssertEqual(reopened.load(), desk, "the sidecar this build wrote places the card again")
+        XCTAssertFalse(reopened.sidecarIsNewer, "and is not mistaken for a newer one")
+    }
 }
