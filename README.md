@@ -103,3 +103,13 @@ against another folder, pass `-CardsFolder /path/to/folder` as a launch argument
 The stack is a loop with one blank page after the last card. Swiping past the last card shows the
 blank page, and swiping once more shows the top card again. Typing on the blank page makes a new
 card at the bottom of the stack; leaving it empty makes nothing.
+
+## License
+
+Cards is becoming **Ideator**. It is source-available under the
+[PolyForm Shield License 1.0.0](LICENSE.md), not an open source license. You may use, change and
+share it for any purpose, including at work, except to offer a product that competes with it. The
+name and icon are not covered by the license; see [TRADEMARKS.md](TRADEMARKS.md).
+
+Contributions are welcome. Contributors sign the [Contributor License Agreement](CLA.md) once; see
+[CONTRIBUTING.md](CONTRIBUTING.md).
