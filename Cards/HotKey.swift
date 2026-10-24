@@ -68,6 +68,29 @@ struct Shortcut: Equatable {
         return event.type == .flagsChanged ? held : held + keyName(UInt32(event.keyCode))
     }
 
+    typealias Binding = (keyCode: UInt32, modifiers: UInt32)
+
+    /// True when an enabled macOS shortcut (System Settings › Keyboard › Keyboard Shortcuts) is on
+    /// this combination, as ⌃⌥Space is for "Select next source in Input menu". An advisory, not a
+    /// refusal: Carbon registers it either way and which one fires is up to macOS.
+    func isUsedByMacOS(in bindings: [Binding] = Shortcut.macOSBindings()) -> Bool {
+        bindings.contains { $0.keyCode == keyCode && $0.modifiers & Self.mask == modifiers }
+    }
+
+    /// Every enabled entry of `CopySymbolicHotKeys` (public HIToolbox API, no permission).
+    static func macOSBindings() -> [Binding] {
+        var unmanaged: Unmanaged<CFArray>?
+        guard CopySymbolicHotKeys(&unmanaged) == noErr,
+              let entries = unmanaged?.takeRetainedValue() as? [[String: Any]] else { return [] }
+        return entries.compactMap { entry in
+            guard entry[kHISymbolicHotKeyEnabled as String] as? Bool == true,
+                  let code = entry[kHISymbolicHotKeyCode as String] as? Int, code >= 0, code < 0xFFFF,
+                  let modifiers = entry[kHISymbolicHotKeyModifiers as String] as? Int, modifiers >= 0
+            else { return nil }
+            return (UInt32(code), UInt32(modifiers))
+        }
+    }
+
     /// "⌘K can't be the shortcut. Use ⌃ or ⌘ with at least one other modifier key, …"
     static func refusal(of event: NSEvent) -> String {
         "\(describe(event)) can't be the shortcut. \(requirement)"

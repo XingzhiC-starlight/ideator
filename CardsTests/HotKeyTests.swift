@@ -83,6 +83,16 @@ final class HotKeyTests: XCTestCase {
                        "holding modifiers shows just the modifiers")
     }
 
+    func testMacOSBindingsMatchOnKeyAndTheFourModifiersOnly() {
+        let space = UInt32(kVK_Space)
+        let controlOption = UInt32(controlKey | optionKey)
+        XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(space, controlOption)]))
+        XCTAssertFalse(Shortcut.standard.isUsedByMacOS(in: [(space, UInt32(controlKey))]), "⌃Space is another shortcut")
+        XCTAssertFalse(Shortcut.standard.isUsedByMacOS(in: [(UInt32(kVK_Return), controlOption)]), "another key")
+        XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(space, controlOption | 0x20_000)]),
+                      "the fn bit macOS adds to its own entries does not make it a different shortcut")
+    }
+
     // MARK: HotKey
 
     func testRegisterTakesTheChosenShortcutAndAnotherHotKeyCannotHaveIt() {

@@ -118,7 +118,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func openSettings() {
-        let window = settingsWindow ?? SettingsWindow(keys: keys) { [weak self] in self?.controller?.apiKeyChanged() }
+        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey) { [weak self] in
+            self?.controller?.apiKeyChanged()
+        }
         settingsWindow = window
         NSApp.activate()
         window.center()

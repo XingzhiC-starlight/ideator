@@ -1,4 +1,4 @@
-# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-23)
+# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-24)
 
 Personal-use macOS prototype. Native Swift app built with Xcode.
 
@@ -128,6 +128,15 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
   - A thin card gets a short summary: infer its intent, never invent details to fill the space.
   - The reply is the summary alone: it never explains itself or comments on the title or the prompt.
 - While generating: small spinner in the summary area. On failure: "Summary unavailable", hover shows the reason.
+
+## Settings (new 2026-10-24)
+- Settings… (the menu bar icon, or the stack ribbon's ⋯ menu) opens one window. It is as tall as its rows need.
+- Shortcut: a button that shows the global shortcut, ⌃⌥Space by default. Click it, then press the new keys. While it records it shows the modifiers held and has released the current shortcut, so pressing that one is recorded instead of hiding the cards. Esc, a click, or leaving the window cancels.
+- A shortcut needs ⌘ or ⌃ plus at least one more modifier, so typing never triggers it. A refused combination is named ("⌘K can't be the shortcut. …") and the button keeps recording.
+- A combination another part of Ideator already holds is refused with the reason, and the old shortcut stays. "Use Default" goes back to ⌃⌥Space and is dimmed while that is in use. The choice survives a relaunch.
+- If the saved shortcut cannot be registered, the line under the button says why and that there is no shortcut until another is chosen. If macOS has its own shortcut on the combination (⌃⌥Space can be Select next source in Input menu), the line says so; Ideator still registers it.
+- API key: a secure field, Save and Remove Key. Under it, a line says what summaries send: "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash reports. The key stays in your login Keychain." PRIVACY.md says the same in full.
+- A scratch run (`-CardsFolder`) reads the default shortcut, saves nothing of Settings' shortcut, and does not register the global shortcut until one is chosen in Settings.
 
 ## Storage
 - One Markdown (.md) file per card in ~/Documents/Ideator/.

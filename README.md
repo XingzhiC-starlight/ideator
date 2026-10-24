@@ -15,8 +15,9 @@ Requires macOS 15 or later and Xcode 26.
 
 Ideator is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
 bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌃⌥Space** hides or shows every card
-from anywhere. Hide All leaves the stack's tan ribbon where the stack is, so New, Clarity and
-the menu stay in reach. Opening Ideator again from Finder or Spotlight shows everything.
+from anywhere (Settings… changes it). Hide All leaves the stack's tan ribbon where the stack is, so
+New, Clarity and the menu stay in reach. Opening Ideator again from Finder or Spotlight shows
+everything.
 
 On a MacBook with a crowded menu bar, macOS may hide the icon behind the camera notch. The stack's
 tan ribbon has what you need: the eye button hides or shows everything (an open eye while cards
@@ -80,6 +81,8 @@ The key is stored in your login Keychain (service "Ideator"), never in the proje
 folder. Without a key everything works; collapsed cards just say "Summary unavailable". Debug
 builds are not signed with a stable identity, so after a rebuild macOS may ask once whether Ideator
 may read its Keychain item; choose **Always Allow**.
+
+[PRIVACY.md](PRIVACY.md) lists what Ideator stores and the one thing it sends.
 
 ## Where notes live
 
