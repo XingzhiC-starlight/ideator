@@ -1,9 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
 
-// The global shortcut, as a value (`Shortcut`) and as a registration (`HotKey`).
-// Nothing outside this file knows Carbon exists.
-
 /// A global key combination: a virtual key code and Carbon modifier bits (`controlKey`,
 /// `optionKey`, `shiftKey`, `cmdKey`). Always legal: the failable inits are the only way in, so
 /// every `Shortcut` in the app can be registered, shown and stored without a second check.
@@ -13,10 +10,8 @@ struct Shortcut: Equatable {
     let keyCode: UInt32
     let modifiers: UInt32
 
-    /// ⌃⌥Space. (The old ⌥⌘C was Finder's Copy as Pathname.)
     static let standard = Shortcut(valid: UInt32(kVK_Space), UInt32(controlKey | optionKey))
 
-    /// What Settings tells a user whose combination was refused.
     static let requirement = "Use ⌃ or ⌘ with at least one other modifier key, so typing never triggers it."
 
     private static let mask = UInt32(controlKey | optionKey | shiftKey | cmdKey)
@@ -26,43 +21,31 @@ struct Shortcut: Equatable {
         self.modifiers = modifiers
     }
 
-    /// nil unless `modifiers` (Carbon bits; anything but the four is dropped) holds ⌘ or ⌃ and at
-    /// least two modifiers in all.
     init?(keyCode: UInt32, modifiers: UInt32) {
         let modifiers = modifiers & Self.mask
         guard modifiers & UInt32(cmdKey | controlKey) != 0, modifiers.nonzeroBitCount >= 2 else { return nil }
         self.init(valid: keyCode, modifiers)
     }
 
-    /// A key-down (not a repeat) with its modifier flags mapped to Carbon bits. The recorder's
-    /// only way to make a `Shortcut`.
     init?(event: NSEvent) {
         guard event.type == .keyDown, !event.isARepeat else { return nil }
         self.init(keyCode: UInt32(event.keyCode), modifiers: Self.carbonModifiers(event.modifierFlags))
     }
 
-    /// Reads what `stored` wrote. nil for anything else (missing keys, wrong types, an illegal
-    /// combination), so a damaged default falls back to `standard` instead of crashing or sticking.
     init?(stored: Any?) {
         guard let dict = stored as? [String: Int], let code = dict["keyCode"], let modifiers = dict["modifiers"],
               let code = UInt32(exactly: code), let modifiers = UInt32(exactly: modifiers) else { return nil }
         self.init(keyCode: code, modifiers: modifiers)
     }
 
-    /// A property list: ["keyCode": 49, "modifiers": 6144]. Readable with `defaults read`.
     var stored: [String: Int] { ["keyCode": Int(keyCode), "modifiers": Int(modifiers)] }
 
-    /// "⌃⌥Space": the one string the welcome, Settings and every message use.
     var display: String { Self.describe(keyCode: keyCode, modifiers: modifiers) }
 
-    /// Modifiers in Apple's order (⌃⌥⇧⌘), then the key. Also names combinations that are not
-    /// legal shortcuts, for the message that refuses them.
     static func describe(keyCode: UInt32, modifiers: UInt32) -> String {
         glyphs(modifiers) + keyName(keyCode)
     }
 
-    /// What the recorder shows for `event`: the modifiers held, then the key unless the event is
-    /// only a modifier changing.
     static func describe(_ event: NSEvent) -> String {
         let held = glyphs(carbonModifiers(event.modifierFlags))
         return event.type == .flagsChanged ? held : held + keyName(UInt32(event.keyCode))
@@ -77,7 +60,6 @@ struct Shortcut: Equatable {
         bindings.contains { $0.keyCode == keyCode && $0.modifiers & Self.mask == modifiers }
     }
 
-    /// Every enabled entry of `CopySymbolicHotKeys` (public HIToolbox API, no permission).
     static func macOSBindings() -> [Binding] {
         var unmanaged: Unmanaged<CFArray>?
         guard CopySymbolicHotKeys(&unmanaged) == noErr,
@@ -91,7 +73,6 @@ struct Shortcut: Equatable {
         }
     }
 
-    /// "⌘K can't be the shortcut. Use ⌃ or ⌘ with at least one other modifier key, …"
     static func refusal(of event: NSEvent) -> String {
         "\(describe(event)) can't be the shortcut. \(requirement)"
     }
@@ -124,7 +105,6 @@ struct Shortcut: Equatable {
         kVK_F20: "F20",
     ]
 
-    /// Space, Return, arrows and F-keys come from a table; the rest from the current layout.
     private static func keyName(_ code: UInt32) -> String {
         if let name = named[Int(code)] { return name }
         var length = 0
@@ -139,9 +119,9 @@ struct Shortcut: Equatable {
 /// registered with Carbon right now, and why not when it isn't. The single owner of all three.
 /// Carbon's RegisterEventHotKey needs no Accessibility permission.
 ///
-/// One Carbon handler for the whole life of the object, installed in `init` and removed in
-/// `deinit` together with the registration, so a released `HotKey` can't be called and can't
-/// keep its combination. Each instance has its own hotkey id and ignores other ids.
+/// The handler's user data is an unretained `self`, so the handler lives exactly as long as the
+/// object: installed in `init`, removed in `deinit` with the registration. Each instance has its
+/// own hotkey id and ignores other ids.
 ///
 /// Every operation is idempotent and a failed one changes nothing: the working shortcut stays.
 final class HotKey {
@@ -149,10 +129,8 @@ final class HotKey {
         /// Carbon says the combination is already registered (`eventHotKeyExistsErr`). Only this
         /// process can cause it: two apps registering one combination both get `noErr`.
         case taken
-        /// Any other status.
         case refused(OSStatus)
 
-        /// "⌃⌘H is already taken." / "macOS refused ⌃⌘H (error -9879)."
         func text(for shortcut: Shortcut) -> String {
             switch self {
             case .taken: "\(shortcut.display) is already taken."
@@ -164,12 +142,8 @@ final class HotKey {
     private static let signature = OSType(0x4352_4453)   // "CRDS"
     private static var lastID: UInt32 = 0
 
-    /// The chosen combination: what Settings shows and the welcome names. Registered unless `problem`
-    /// is set or `unregister()` is in effect.
     private(set) var shortcut: Shortcut
-    /// Why `shortcut` isn't registered, as of the last attempt. nil while registered or released.
     private(set) var problem: Problem?
-    /// Tells this object's presses from another's; tests simulate a press with it.
     let id: UInt32
 
     private let preferences: Preferences
@@ -177,7 +151,6 @@ final class HotKey {
     private var registration: EventHotKeyRef?
     private var handler: EventHandlerRef?
 
-    /// Installs the handler and reads the chosen shortcut; registers nothing (`register()` does).
     init(preferences: Preferences, action: @escaping () -> Void) {
         self.preferences = preferences
         self.action = action
@@ -205,7 +178,6 @@ final class HotKey {
         if let handler { RemoveEventHandler(handler) }
     }
 
-    /// Makes sure `shortcut` is registered (launch, and after recording). No-op while it is.
     func register() {
         guard registration == nil else { return }
         switch Self.claim(shortcut, id) {
@@ -214,9 +186,6 @@ final class HotKey {
         }
     }
 
-    /// Releases the combination so the Settings recorder sees the keys instead of the hotkey
-    /// swallowing them. No-op when released. `register()` takes it back. True when it released
-    /// a registration, so the caller knows whether there is anything to take back.
     @discardableResult
     func unregister() -> Bool {
         guard let registration else { return false }
@@ -225,9 +194,8 @@ final class HotKey {
         return true
     }
 
-    /// Switches to `new` and persists it, or changes nothing and says why. `new` is claimed
-    /// BEFORE the old registration is dropped, so a refusal leaves the old shortcut live
-    /// (nothing to restore) and the preference untouched.
+    /// Claims `new` before it drops the old registration, so a refusal leaves the working shortcut
+    /// live and the preference untouched.
     @discardableResult
     func choose(_ new: Shortcut) -> Problem? {
         guard new != shortcut || registration == nil else { return nil }

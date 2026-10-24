@@ -1,15 +1,11 @@
 import AppKit
 
-/// What the first-launch card says, as a value so a test can check the copy against the real
-/// shortcut. The folder is always the default one: the card describes what a stranger gets, so a
-/// forced welcome in a scratch run is a faithful screenshot.
 struct WelcomeCopy: Equatable {
     let title = "Welcome to Ideator"
     let buttonTitle = "Continue"
-    /// The user's current shortcut (`HotKey.shortcut`), never a literal.
     var shortcut: Shortcut
-    /// False when `HotKey` couldn't register it: the card must not promise a key that does nothing.
     var shortcutWorks: Bool
+    /// Always the default folder, even in a scratch run, so a forced welcome shows what a stranger sees.
     var folder: URL = Library.defaultFolder
 
     struct Paragraph: Equatable {
@@ -17,7 +13,6 @@ struct WelcomeCopy: Equatable {
         let text: String
     }
 
-    /// Four paragraphs, in this order: where the app is, the shortcut, where notes go, summaries.
     var paragraphs: [Paragraph] {
         let path = (folder.path as NSString).abbreviatingWithTildeInPath
         let hideAndShow = shortcutWorks
@@ -39,16 +34,10 @@ struct WelcomeCopy: Equatable {
     }
 }
 
-/// The first-launch card: borderless, on the same glass as a card and the stack (`configureAsCard`),
-/// no ribbon, the app icon and a title in the card header font, four paragraphs and one pill
-/// button. It shows no desk and sends no `Command`: the app has not loaded anything yet, and it
-/// owns no state.
 final class WelcomeWindow: NSWindow {
     private let welcomeView: WelcomeView
     var continueButton: NSButton { welcomeView.continueButton }
 
-    /// `onContinue` runs for the button and for Return. It may run twice; the caller's launch
-    /// order (`Launch.run`) makes that harmless.
     init(copy: WelcomeCopy, onContinue: @escaping () -> Void) {
         welcomeView = WelcomeView(copy: copy, onContinue: onContinue)
         super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -71,9 +60,7 @@ final class WelcomeWindow: NSWindow {
         return size
     }
 
-    /// Puts the card top-right under the menu bar, in the stack's home cell, which is where the
-    /// stack appears after Continue. As wide as that cell (at least 320 points), as tall as the
-    /// copy needs, which is more than a cell's height.
+    /// Top-right in the stack's home cell, where the stack appears after Continue.
     func present() {
         let cell = Grid(screen: NSScreen.screens.first)?.frame(of: Slot.stackHome)
             ?? NSRect(x: 100, y: 100, width: 342, height: 267)
@@ -82,15 +69,12 @@ final class WelcomeWindow: NSWindow {
         bringForward()
     }
 
-    /// The menu bar icon, the shortcut and opening the app again all land here while the card is up.
     func bringForward() {
         NSApp.activate()
         makeKeyAndOrderFront(nil)
     }
 }
 
-/// Root view: draws the card (`CardShape.fillGlass`, `strokeEdge`, as `CardView.draw` does for a
-/// popped card) and lays out the copy with Palette colors and the editor's fonts.
 private final class WelcomeView: NSView {
     let continueButton: ActionButton
     private let stack = NSStackView()
@@ -155,7 +139,6 @@ private final class WelcomeView: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// The height the stack needs at the width the view has now.
     var fittingHeight: CGFloat { ceil(stack.fittingSize.height + insets.top + insets.bottom) }
 
     override func layout() {

@@ -21,12 +21,8 @@ enum CardsApp {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let keys = KeyStore()
-    // `-CardsFolder <path>` on the command line points the app at another folder (for trying
-    // things out without touching ~/Documents/Ideator).
     private let launch = Launch(arguments: .standard, environment: ProcessInfo.processInfo.environment)
     private lazy var preferences = launch.preferences(standard: .standard)
-    /// Registered before the welcome and kept for the life of the app, so Settings can change it
-    /// at any time and the welcome can name what really works.
     private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in
         self?.withDesk { $0.toggleHidden() }
     }
@@ -37,12 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
-        statusItem = makeStatusItem()   // before the welcome, which points at it
+        statusItem = makeStatusItem()
         // A scratch run leaves the global shortcut to the owner's running Ideator.
         if !launch.isScratch { hotKey.register() }
-        // The launch order lives in `Launch.run`. `openNotes` is the only code that builds the
-        // controller, and so the only first touch of the notes folder: macOS's Documents prompt
-        // cannot come before the welcome, because nothing else here can start it.
+        // Building the controller is the first touch of the notes folder, which starts macOS's
+        // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
         launch.run(
             preferences: preferences,
             welcome: { [unowned self] onContinue in showWelcome(onContinue) },
@@ -67,8 +62,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.present()
     }
 
-    /// Runs `action` on the desk. Before the desk exists the welcome is up, and whatever asked
-    /// (the shortcut, the menu bar icon, opening the app again) brings it forward instead.
     private func withDesk(_ action: (DeskController) -> Void) {
         if let controller { action(controller) } else { welcome?.bringForward() }
     }

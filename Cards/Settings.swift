@@ -54,16 +54,11 @@ final class KeyStore {
     }
 }
 
-/// "Settings…": the global shortcut, then the API key with a plain statement of what summaries
-/// send. Calls `onChange` after the key store changes so the controller can start (or stop)
-/// summaries. The shortcut needs no callback: `HotKey` is its one owner and the window only
-/// reads it. The window is as tall as its rows need (the captions wrap and change), never a
-/// fixed height.
+/// Calls `onChange` after the key store changes so the controller can start (or stop) summaries.
 final class SettingsWindow: NSWindow {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
 
-    /// What Settings says under the key field, and what PRIVACY.md says in full.
     static let privacy = "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, "
         + "using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash "
         + "reports. The key stays in your login Keychain."
@@ -77,9 +72,7 @@ final class SettingsWindow: NSWindow {
     private let field = NSSecureTextField()
     private let status = NSTextField(wrappingLabelWithString: "")
     private let stack = NSStackView()
-    /// The verdict on the last pick ("… Still using ⌃⌥Space."), shown until the next one.
     private var rejected: String?
-    /// True while a recording holds a registration it released, so only that recording gives it back.
     private var releasedForRecording = false
 
     init(keys: KeyStore, hotKey: HotKey, onChange: @escaping () -> Void) {
@@ -113,9 +106,7 @@ final class SettingsWindow: NSWindow {
             refresh()
         }
         shortcutField.onRecordingChange = { [unowned self] recording in
-            // Released while recording, so the live combination reaches the field; retaken after,
-            // unless `choose` already registered the new one. A scratch run never registered one,
-            // so it has nothing to retake.
+            // Retake only what this recording released: a scratch run never registered one.
             if recording {
                 releasedForRecording = hotKey.unregister()
                 rejected = nil
@@ -156,14 +147,12 @@ final class SettingsWindow: NSWindow {
         refresh()
     }
 
-    /// A recording left open (⌘-Tab, closing the window) ends here, so the hotkey never stays
-    /// released.
+    /// ⌘-Tab or closing the window ends a recording, so the shortcut never stays released.
     override func resignKey() {
         super.resignKey()
         shortcutField.cancelRecording()
     }
 
-    /// Everything the window shows, derived from `HotKey` and the key store. Runs after each change.
     private func refresh() {
         shortcutField.shortcut = hotKey.shortcut
         defaultButton.isEnabled = hotKey.shortcut != .standard
@@ -179,7 +168,6 @@ final class SettingsWindow: NSWindow {
         setFrameTopLeftPoint(NSPoint(x: frame.minX, y: top))
     }
 
-    /// The line under the shortcut, first match wins. Pure, so the wording is tested without a window.
     static func shortcutCaption(shortcut: Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
                                 rejected: String?) -> String {
         if let rejected { return rejected }
@@ -215,20 +203,15 @@ final class SettingsWindow: NSWindow {
     }
 }
 
-/// The Settings row's control: a button that shows the shortcut and, once clicked, records a new
-/// one. While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the
+/// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the
 /// current combination reaches the recorder instead of hiding every card. A local monitor sees
-/// every key first, so ⌘, ⌘Q and Return never reach the menu or the default button; it also sees
-/// the modifiers held, and any click, which ends the recording.
+/// every key first, so ⌘, ⌘Q and Return never reach the menu or the default button.
 final class ShortcutField: NSButton {
     private static let prompt = "Type shortcut…"
 
     var shortcut: Shortcut = .standard { didSet { if monitor == nil { title = shortcut.display } } }
-    /// A legal combination was pressed. The window asks `HotKey.choose` and shows the verdict.
     var onPick: (Shortcut) -> Void = { _ in }
-    /// An illegal one was pressed, with the sentence that says so. The field keeps recording.
     var onReject: (String) -> Void = { _ in }
-    /// Recording began (true) or ended for any reason (false).
     var onRecordingChange: (Bool) -> Void = { _ in }
     private var monitor: Any?
 
@@ -244,8 +227,6 @@ final class ShortcutField: NSButton {
 
     @objc private func beginRecording() {
         guard monitor == nil else { return }
-        // The monitor goes in before the notification: `monitor != nil` is what keeps `shortcut`'s
-        // didSet from rewriting the title when the handler refreshes the field.
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown]) { [weak self] event in
             guard let self else { return event }
             switch event.type {
@@ -265,21 +246,19 @@ final class ShortcutField: NSButton {
                 } else if !event.isARepeat {
                     onReject(Shortcut.refusal(of: event))
                 }
-                return nil   // swallowed
+                return nil
             }
         }
         title = Self.prompt
         onRecordingChange(true)
     }
 
-    /// Esc, a click, the window losing key status: the same as pressing nothing. Idempotent.
     func cancelRecording() {
         if monitor != nil { finish(nil) }
     }
 
-    /// Order matters: end the monitor, then `onPick` (the hotkey is still released, so `choose`
-    /// claims the new combination first), then `onRecordingChange(false)` (`register()` retakes
-    /// the old one only if `choose` did not).
+    /// `onPick` runs while the old shortcut is still released, so `choose` claims the new one
+    /// before `onRecordingChange(false)` would retake the old.
     private func finish(_ picked: Shortcut?) {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil

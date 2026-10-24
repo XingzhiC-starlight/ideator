@@ -1,18 +1,11 @@
 import AppKit
 
-// Placeholder app icon. The owner replaces it with a real one before 1.0 (new PNGs under the same
-// names in Cards/Assets.xcassets/AppIcon.appiconset), and then this script can go.
-//
-// Drawn from Palette's tokens so the icon and the app share one set of colors. Run from the repo
-// root:
+// Draws the placeholder app icon from Palette's colors; it is replaced before 1.0. From the repo root:
 //   swiftc -parse-as-library scripts/make-icon.swift Cards/Palette.swift -o build/make-icon
 //   build/make-icon Cards/Assets.xcassets/AppIcon.appiconset
-// Each size is drawn at its own pixel size (not scaled down from one master), so the output is
-// the same every run and small sizes stay crisp.
 
 @main
 enum MakeIcon {
-    /// (file name, pixel size) for every slot of a macOS AppIcon.
     static let files: [(String, Int)] = [
         ("icon_16x16.png", 16), ("icon_16x16@2x.png", 32),
         ("icon_32x32.png", 32), ("icon_32x32@2x.png", 64),
@@ -40,8 +33,6 @@ enum MakeIcon {
         return rep.representation(using: .png, properties: [:])!
     }
 
-    /// The icon on an `s` x `s` canvas: a warm paper plate (the macOS 824/1024 body with its soft
-    /// shadow) holding a small fan of three cards, the front one with the tan ribbon and ink lines.
     static func draw(_ s: CGFloat) {
         func opaque(_ c: NSColor) -> NSColor { c.withAlphaComponent(1) }
         let body = NSRect(x: s * 0.0977, y: s * 0.0977, width: s * 0.8046, height: s * 0.8046)
@@ -65,7 +56,6 @@ enum MakeIcon {
         plate.lineWidth = max(1, s * 0.004)
         plate.stroke()
 
-        // Three cards, back to front, each a little lower and further left than the one behind.
         let w = s * 0.40, h = s * 0.46, r = s * 0.045
         let origin = NSPoint(x: s * 0.5 - w / 2 + s * 0.05, y: s * 0.5 - h / 2 - s * 0.04)
         for step in (0..<3).reversed() {

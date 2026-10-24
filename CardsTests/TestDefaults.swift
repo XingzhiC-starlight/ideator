@@ -1,7 +1,5 @@
 import Foundation
 
-/// UserDefaults suites for one test, so nothing a test writes reaches the app's own domain.
-/// Call `removeAll()` in tearDown.
 final class TestDefaults {
     private var names: [String] = []
 

@@ -69,7 +69,7 @@ launch() {
   fi
   local run_id folder evidence pid="" ready=New env=() mode="$*"
   if [[ "${1:-}" == "--welcome" ]]; then
-    # An environment variable, not an argument: the command line pgrep and ours() match stays as is.
+    # An environment variable, not an argument, so the command line pgrep and ours() match stays as is.
     env=(--env CARDS_SHOW_WELCOME=1)
     ready=Continue
     shift
@@ -96,8 +96,6 @@ launch() {
   [[ -n "$pid" ]] || die "Cards did not start; see $evidence/app.log"
   printf 'RUN_ID=%q\nPID=%q\nFOLDER=%q\nEVIDENCE=%q\n' "$run_id" "$pid" "$folder" "$evidence" > "$RUNS/current.env"
   current
-  # Ready = the stack window answers with its New button (the welcome card with its Continue
-  # button), not just a live process.
   for _ in $(seq 1 50); do
     if "$AX" tree "$PID" 2>/dev/null | grep -q "\"$ready\""; then
       log "launched run $RUN_ID pid $PID folder $FOLDER${mode:+ ($mode)}"

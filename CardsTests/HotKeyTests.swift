@@ -38,8 +38,6 @@ final class HotKeyTests: XCTestCase {
                          keyCode: UInt16(keyCode))!
     }
 
-    // MARK: Shortcut
-
     func testTheStandardShortcutIsControlOptionSpace() {
         XCTAssertEqual(Shortcut.standard.display, "⌃⌥Space")
         XCTAssertEqual(Shortcut(keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(optionKey | cmdKey))?.display, "⌥⌘C",
@@ -92,8 +90,6 @@ final class HotKeyTests: XCTestCase {
         XCTAssertTrue(Shortcut.standard.isUsedByMacOS(in: [(space, controlOption | 0x20_000)]),
                       "the fn bit macOS adds to its own entries does not make it a different shortcut")
     }
-
-    // MARK: HotKey
 
     func testRegisterTakesTheChosenShortcutAndAnotherHotKeyCannotHaveIt() {
         let first = HotKey(preferences: preferences(shortcut: combo(kVK_F13))) {}

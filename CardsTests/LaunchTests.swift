@@ -9,7 +9,6 @@ final class LaunchTests: XCTestCase {
         super.tearDown()
     }
 
-    /// A launch with the given command-line folder and environment.
     private func launch(folder: String? = nil, environment: [String: String] = [:]) -> Launch {
         let arguments = suites.make()
         if let folder { arguments.set(folder, forKey: "CardsFolder") }
@@ -52,8 +51,6 @@ final class LaunchTests: XCTestCase {
 
         XCTAssertEqual(Preferences(defaults: owners).shortcut, .standard)
     }
-
-    // MARK: The welcome and the folder gate
 
     func testAFreshOwnerSeesTheWelcomeUntilItIsAcknowledged() {
         let owners = suites.make()
