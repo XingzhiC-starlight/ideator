@@ -31,7 +31,7 @@ function defined in [../SKILL.md](../SKILL.md).
   fields that changed.
 - Record the feature ID and the entry point used with `cv note "<feature-id> via <entry>: <what
   you saw>"`.
-- Report an entry point you could not drive (the menu bar icon, ⌥⌘C, a real trackpad swipe) as
+- Report an entry point you could not drive (the menu bar icon, the global shortcut, a real trackpad swipe) as
   not verified, with the reason. Do not count it as verified through another entry point.
 
 ## Feature entry contract

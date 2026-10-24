@@ -179,8 +179,10 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   someone answers. Prefer one-line bodies when proving collapse (they show the line itself and
   never call the API). If `tree` hangs or shows nothing after a rebuild, tell the user to look
   for that prompt.
-- The global hotkey ⌥⌘C belongs to whichever Ideator instance registered it first, usually the owner's.
-  Prove Hide all with the ribbon button, not the hotkey.
+- A scratch run (`cv launch` passes `-CardsFolder`) does not register the global shortcut (⌃⌥Space by
+  default) and never reads or writes the owner's saved shortcut, so it cannot take the shortcut from
+  the owner's Ideator. The harness also cannot press it. Prove Hide all with the ribbon button, not
+  the hotkey.
 - The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has the same Settings… and
   Quit.
 - `click`, `focus`, `scroll` and `drag` move the real pointer and click the topmost window at that

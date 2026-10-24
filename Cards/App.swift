@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 
 // Entry point and app-level wiring: menu bar item, global hotkey, app events.
 // The build settings set LSUIElement = YES (menu bar app, no Dock icon).
@@ -22,21 +21,22 @@ enum CardsApp {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let keys = KeyStore()
+    // `-CardsFolder <path>` on the command line points the app at another folder (for trying
+    // things out without touching ~/Documents/Ideator).
+    private let launch = Launch(arguments: .standard)
+    private lazy var preferences = launch.preferences(standard: .standard)
+    private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in self?.controller?.toggleHidden() }
     private var controller: DeskController?
     private var statusItem: NSStatusItem?
-    private var hotKey: HotKey?
     private var settingsWindow: SettingsWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
-        // `-CardsFolder <path>` on the command line points the app at another folder (for trying
-        // things out without touching ~/Documents/Ideator).
-        let folder = UserDefaults.standard.string(forKey: "CardsFolder").map { URL(filePath: $0, directoryHint: .isDirectory) }
-        let controller = DeskController(library: Library(folder: folder ?? Library.defaultFolder), keys: keys,
-                                        appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
-        self.controller = controller
+        controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
+                                    appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
         statusItem = makeStatusItem()
-        hotKey = HotKey(keyCode: kVK_ANSI_C, modifiers: optionKey | cmdKey) { controller.toggleHidden() }
+        // A scratch run leaves the global shortcut to the owner's running Ideator.
+        if !launch.isScratch { hotKey.register() }
         NSApp.activate()
     }
 
@@ -123,26 +123,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
         window.center()
         window.makeKeyAndOrderFront(nil)
-    }
-}
-
-/// One system-wide hotkey through Carbon's RegisterEventHotKey: no Accessibility permission.
-final class HotKey {
-    private let action: () -> Void
-    private var hotKeyRef: EventHotKeyRef?
-    private var handlerRef: EventHandlerRef?
-
-    init(keyCode: Int, modifiers: Int, action: @escaping () -> Void) {
-        self.action = action
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, userData in
-            // A C callback, delivered on the main thread.
-            guard let userData else { return noErr }
-            MainActor.assumeIsolated { Unmanaged<HotKey>.fromOpaque(userData).takeUnretainedValue().action() }
-            return noErr
-        }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handlerRef)
-        RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers),
-                            EventHotKeyID(signature: OSType(0x4352_4453) /* "CRDS" */, id: 1),
-                            GetApplicationEventTarget(), 0, &hotKeyRef)
     }
 }

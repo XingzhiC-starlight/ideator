@@ -48,7 +48,9 @@ func send(_ command: Command) {
 | `CardWindow.swift`, `CardEditor.swift` | the card window, press routing, and the text view |
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
-| `Settings.swift`, `App.swift` | API key and settings; entry point, menu bar, hotkey, reopen |
+| `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
+| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run); the persisted shortcut, and no persistence at all in a scratch run |
+| `Settings.swift`, `App.swift` | API key and settings; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
@@ -99,7 +101,7 @@ func send(_ command: Command) {
   The stack window gets the `Visibility` value itself: its ribbon-only shape, the count badge's
   place and the toggle button's icon all derive from it. The icon shows the current state (an
   eye while cards show, a slashed eye while hidden); the tooltip names what a click does.
-  The toggle calls `DeskController.toggleHidden`, the path ⌥⌘C takes, not a `Command`.
+  The toggle calls `DeskController.toggleHidden`, the path the global shortcut takes, not a `Command`.
 - **Derived, idempotent side effects.** `render()` compares the desk with the real windows,
   `Library.save` with the disk, and `Summarizer.sync` with the requests in flight. Each is safe
   to run any number of times.

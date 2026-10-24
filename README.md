@@ -14,7 +14,7 @@ Requires macOS 15 or later and Xcode 26.
 3. Press **⌘R**.
 
 Ideator is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
-bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌥⌘C** hides or shows every card
+bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌃⌥Space** hides or shows every card
 from anywhere. Hide All leaves the stack's tan ribbon where the stack is, so New, Clarity and
 the menu stay in reach. Opening Ideator again from Finder or Spotlight shows everything.
 

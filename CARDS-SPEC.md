@@ -7,13 +7,13 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Cards behave as one group: clicking any card brings all cards forward; clicking another app drops them all behind it.
 - Clicking a card activates the app and takes keyboard focus. Return to other apps the normal way (click or ⌘-Tab).
 - Cards follow the user across Spaces and over full-screen apps.
-- App home: menu bar icon with Show all / Hide all / Open stack / Quit, and a Hide all / Show all button in the stack's ribbon (revised 2026-10-22). Global shortcut ⌥⌘C hides/shows every card.
+- App home: menu bar icon with Show all / Hide all / Open stack / Quit, and a Hide all / Show all button in the stack's ribbon (revised 2026-10-22). Global shortcut ⌃⌥Space hides/shows every card (revised 2026-10-24).
 
 ## Hide all (revised 2026-10-22)
-- Hide all (menu bar icon, the stack ribbon's button, or ⌥⌘C) hides every popped card, free ones included, and shrinks the stack to just its tan ribbon, at the top of wherever the stack is. The ribbon never hides.
-- The ribbon's button is a one-click toggle, the same as ⌥⌘C: the icon shows the current state, a plain eye (tooltip "Hide all") while cards are shown, an eye with a slash ("Show all") while they are hidden (revised 2026-10-22). It sits left of the menu button.
+- Hide all (menu bar icon, the stack ribbon's button, or the global shortcut) hides every popped card, free ones included, and shrinks the stack to just its tan ribbon, at the top of wherever the stack is. The ribbon never hides.
+- The ribbon's button is a one-click toggle, the same as the global shortcut: the icon shows the current state, a plain eye (tooltip "Hide all") while cards are shown, an eye with a slash ("Show all") while they are hidden (revised 2026-10-22). It sits left of the menu button.
 - While hidden, the ribbon keeps New, Clarity, the toggle and the menu button, plus the count badge, which moves into the ribbon beside the toggle because the card area is gone (on a very narrow stack the badge is dropped before it would cover the toolbar). The ribbon can still be dragged. There is no Pop while hidden: its button is on the stacked card, which is gone too (revised 2026-10-22).
-- Show all (the toggle or the menu bar icon), ⌥⌘C, or opening the app again (Spotlight, Finder, Launchpad) while it runs brings back the stack's card area and every popped card, and brings the app forward.
+- Show all (the toggle or the menu bar icon), the global shortcut, or opening the app again (Spotlight, Finder, Launchpad) while it runs brings back the stack's card area and every popped card, and brings the app forward.
 - New while hidden shows only that card; the rest stay hidden. Its slot is chosen as if the hidden cards were in place, free ones included (revised 2026-10-22: Pop is no longer here).
 - Hidden is not persisted: every launch starts with everything shown.
 

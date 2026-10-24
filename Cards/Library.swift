@@ -28,7 +28,7 @@ final class Library {
         return encoder
     }()
 
-    init(folder: URL = Library.defaultFolder) {
+    init(folder: URL) {
         self.folder = folder
     }
 
