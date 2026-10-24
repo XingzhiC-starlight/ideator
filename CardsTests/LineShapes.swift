@@ -1,4 +1,4 @@
-@testable import Cards
+@testable import Ideator
 
 // Short names for the shapes that tests write out by the dozen: `B(1)` is a bullet at level 1.
 

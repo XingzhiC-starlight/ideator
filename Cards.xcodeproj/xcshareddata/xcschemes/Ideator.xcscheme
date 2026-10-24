@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CA0000000000000000000006"
-               BuildableName = "Cards.app"
-               BlueprintName = "Cards"
+               BuildableName = "Ideator.app"
+               BlueprintName = "Ideator"
                ReferencedContainer = "container:Cards.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -69,8 +69,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CA0000000000000000000006"
-            BuildableName = "Cards.app"
-            BlueprintName = "Cards"
+            BuildableName = "Ideator.app"
+            BlueprintName = "Ideator"
             ReferencedContainer = "container:Cards.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -86,8 +86,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CA0000000000000000000006"
-            BuildableName = "Cards.app"
-            BlueprintName = "Cards"
+            BuildableName = "Ideator.app"
+            BlueprintName = "Ideator"
             ReferencedContainer = "container:Cards.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

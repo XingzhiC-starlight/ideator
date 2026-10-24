@@ -125,5 +125,5 @@ Preconditions:
 - A drag needs the pointer to keep moving in small steps; `dragat` moves in 30 steps. A drop at the
   list's very edge counts as outside it: release a few points inside.
 - `cv ax where` prints screen coordinates, the space `mouse` and `dragat` take.
-- The grip's open-hand cursor, VoiceOver's speech, Tab reaching the badge and a click while Cards is
+- The grip's open-hand cursor, VoiceOver's speech, Tab reaching the badge and a click while Ideator is
   inactive cannot be driven; report them as not verified.

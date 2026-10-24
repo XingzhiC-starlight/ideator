@@ -1,4 +1,4 @@
-# Cards: design notes
+# Ideator: design notes
 
 How the prototype in [CARDS-SPEC.md](CARDS-SPEC.md) is put together, and why.
 
@@ -43,7 +43,7 @@ func send(_ command: Command) {
 | `Note.swift` | a card's content, its Markdown format, the typing rules for lists, and the level tidy-up |
 | `Clipboard.swift` | copy and paste formats: a run of lines to and from Markdown text and HTML lists (pure) |
 | `DeskController.swift` | the single owner of the desk and of every window |
-| `Library.swift` | `~/Documents/Cards/*.md` and the hidden sidecar `.cards.json` |
+| `Library.swift` | `~/Documents/Ideator/*.md` and the hidden sidecar `.cards.json` |
 | `Summarizer.swift` | summary requests and the one Anthropic call |
 | `CardWindow.swift`, `CardEditor.swift` | the card window, press routing, and the text view |
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
@@ -149,7 +149,7 @@ The paper is frosted glass. `configureAsCard(_:content:)` puts every card and th
 `NSVisualEffectView` (`Palette.glassMaterial`, blurring what is behind the window), cut to
 `CardShape` by a mask image. `CardShape.fillGlass` lays the translucent tint, the ribbon and a
 white sheen at the top; `CardShape.strokeEdge` draws the outline and a white specular rim just
-inside it. The glass stays `.active`, because Cards is rarely the active app and inactive glass
+inside it. The glass stays `.active`, because Ideator is rarely the active app and inactive glass
 turns flat gray. Of three prototypes (frosted paper, clear glass, beige glass), frosted paper was
 chosen: it stays beige over white windows and only hints at what is behind.
 

@@ -17,8 +17,8 @@ is on the stacked card, which hidden removes.
 
 - The eye button in the stack's ribbon (tooltip `Hide all`, then `Show all`).
 - The menu bar icon's Show All / Hide All (not driven by this skill).
-- ⌥⌘C anywhere (not driven: the owner's Cards usually holds the hotkey).
-- Opening Cards again from Finder or Spotlight shows everything (not driven).
+- ⌥⌘C anywhere (not driven: the owner's Ideator usually holds the hotkey).
+- Opening Ideator again from Finder or Spotlight shows everything (not driven).
 
 ## Driving it with cards-verify
 
@@ -49,4 +49,4 @@ Preconditions:
   `windows`, since screenshots of a hidden window cannot be taken.
 - The toggle button's name changes with the state. `press "Hide all"` fails while hidden; that
   failure is itself evidence of the state.
-- Do not use ⌥⌘C to prove this feature: with the owner's Cards running, the hotkey goes to theirs.
+- Do not use ⌥⌘C to prove this feature: with the owner's Ideator running, the hotkey goes to theirs.

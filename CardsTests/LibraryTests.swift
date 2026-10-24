@@ -1,5 +1,5 @@
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 final class LibraryTests: XCTestCase {
     private var folder: URL!

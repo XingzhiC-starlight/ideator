@@ -96,8 +96,8 @@ final class StackArranger: NSObject {
     static let visibleRows = 10
     static let width: CGFloat = 260
     private static let verticalInset: CGFloat = 6
-    /// Private to Cards, so a row dropped on a card's text view inserts nothing.
-    static let rowType = NSPasteboard.PasteboardType("com.xingzhicheng.Cards.stack-row")
+    /// Private to Ideator, so a row dropped on a card's text view inserts nothing.
+    static let rowType = NSPasteboard.PasteboardType("com.systemlabs.Ideator.stack-row")
 
     /// `spoken` replaces the VoiceOver announcement, for tests.
     init(send: @escaping (Command) -> Void, spoken: ((String) -> Void)? = nil) {
@@ -114,7 +114,7 @@ final class StackArranger: NSObject {
     func toggle(relativeTo rect: NSRect, of view: NSView) {
         if popover.isShown { close(); return }
         guard !arrangement.rows.isEmpty else { return }
-        // The first click can arrive while Cards is inactive, and an inactive app's popover gets no keys.
+        // The first click can arrive while Ideator is inactive, and an inactive app's popover gets no keys.
         NSApp.activate()
         anchorView = view
         anchorRect = rect
@@ -452,7 +452,7 @@ final class ArrangerTable: NSTableView {
     }
 }
 
-/// The row's background: the keyboard's row in Cards' own highlight rather than the system's blue,
+/// The row's background: the keyboard's row in Ideator's own highlight rather than the system's blue,
 /// and the shown card's row fainter.
 final class ArrangerRow: NSTableRowView {
     static let reuse = NSUserInterfaceItemIdentifier("arranger-row")

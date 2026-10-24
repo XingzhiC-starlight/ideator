@@ -1,5 +1,5 @@
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 /// The arranger's pure rules, and its keyboard and VoiceOver paths driven without a popover.
 /// Opening it, grip drags, the insertion line and the popover following the badge need a shown

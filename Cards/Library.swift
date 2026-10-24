@@ -1,6 +1,6 @@
 import Foundation
 
-/// The card folder: one `<CardID>.md` per card in ~/Documents/Cards/ plus the hidden sidecar
+/// The card folder: one `<CardID>.md` per card in ~/Documents/Ideator/ plus the hidden sidecar
 /// `.cards.json` (a `SavedDesk`). Owns file naming, the sidecar encoding, atomic writes, and
 /// the snapshot that makes saving idempotent. Nothing outside this file touches the folder.
 ///
@@ -11,7 +11,7 @@ import Foundation
 /// for a folder that is merely behind.
 final class Library {
     static let defaultFolder = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: "Documents/Cards", directoryHint: .isDirectory)
+        .appending(path: "Documents/Ideator", directoryHint: .isDirectory)
 
     let folder: URL
     /// What the folder held after our last read or write. `save` writes only what differs.
@@ -133,6 +133,6 @@ final class Library {
     }
 
     private func log(_ message: String) {
-        NSLog("Cards: %@", message)
+        NSLog("Ideator: %@", message)
     }
 }

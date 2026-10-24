@@ -1,5 +1,5 @@
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 /// The stack's ribbon, count badge and shown card's buttons, in a window that is never shown.
 final class StackLayoutTests: XCTestCase {

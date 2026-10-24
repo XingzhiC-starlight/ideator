@@ -1,5 +1,5 @@
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 final class VisibilityTests: XCTestCase {
     private func id(_ name: String) -> CardID { CardID(rawValue: name) }

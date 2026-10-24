@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
         // `-CardsFolder <path>` on the command line points the app at another folder (for trying
-        // things out without touching ~/Documents/Cards).
+        // things out without touching ~/Documents/Ideator).
         let folder = UserDefaults.standard.string(forKey: "CardsFolder").map { URL(filePath: $0, directoryHint: .isDirectory) }
         let controller = DeskController(library: Library(folder: folder ?? Library.defaultFolder), keys: keys,
                                         appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
@@ -56,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Hide all as a button and a menu with the rest.
     private func makeStatusItem() -> NSStatusItem {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "rectangle.stack", accessibilityDescription: "Cards")
+        item.button?.image = NSImage(systemSymbolName: "rectangle.stack", accessibilityDescription: "Ideator")
         item.menu = makeAppMenu(for: .menuBar)
         return item
     }
@@ -76,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Cards", action: #selector(quit), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Quit Ideator", action: #selector(quit), keyEquivalent: "").target = self
         return menu
     }
 
@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let app = NSMenu()
         app.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
-        app.addItem(withTitle: "Quit Cards", action: #selector(quit), keyEquivalent: "q").target = self
+        app.addItem(withTitle: "Quit Ideator", action: #selector(quit), keyEquivalent: "q").target = self
 
         let edit = NSMenu(title: "Edit")
         edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")

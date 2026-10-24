@@ -1,5 +1,5 @@
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 final class ClipboardTests: XCTestCase {
     private func at(_ paragraph: Int, _ offset: Int) -> Clipboard.Position { .init(paragraph: paragraph, offset: offset) }

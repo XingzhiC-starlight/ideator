@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 /// The real text view in a window that is never shown, driven through the calls the keyboard,
 /// the Edit menu and the pasteboard make. Each `key` is one event, so one undo group, as in the app.

@@ -51,7 +51,7 @@ Preconditions:
 
 ## Gotchas
 
-- `type` sends keys to whichever Cards window is key. After `press New` that is the new card;
+- `type` sends keys to whichever Ideator window is key. After `press New` that is the new card;
   after a flip, the stack has no caret until `cv ax focus stack`.
 - File names are the creation time to the second. Two cards made in the same second get ` 2`
   appended; match by content, not by name.
