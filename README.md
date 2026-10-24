@@ -57,8 +57,8 @@ or that carries the `get-task-allow` debug entitlement (either one lets other pr
 key from Ideator's memory), checks that the app has both `arm64` and `x86_64` slices and its icon,
 and verifies the disk image. It runs from any folder, and running it again replaces the old image.
 
-The app icon is a placeholder, drawn by `scripts/make-icon.swift` from the app's own colors. It gets
-replaced before 1.0.
+The app icon, a card and a spark on an ink plate, is drawn by `scripts/make-icon.swift` from the
+app's own colors.
 
 Send that one file. The other person needs a Mac with macOS 15 or later, Apple silicon or Intel.
 They do this:
