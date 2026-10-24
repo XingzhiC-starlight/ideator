@@ -1,5 +1,5 @@
 import XCTest
-@testable import Cards
+@testable import Ideator
 
 final class DeskTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)

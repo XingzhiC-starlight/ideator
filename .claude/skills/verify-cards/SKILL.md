@@ -1,15 +1,15 @@
 ---
 name: verify-cards
-description: Drive the real Cards macOS app (menu bar app, card windows, the stack) the way a user does, from the shell, and capture proof (screenshots, accessibility trees, the Markdown files and sidecar it writes). Use after any change to Cards/*.swift that a user could see or that changes what is saved, before saying the change works, or to reproduce a UI bug.
+description: Drive the real Ideator macOS app (menu bar app, card windows, the stack) the way a user does, from the shell, and capture proof (screenshots, accessibility trees, the Markdown files and sidecar it writes). Use after any change to Cards/*.swift that a user could see or that changes what is saved, before saying the change works, or to reproduce a UI bug.
 ---
 
-# Verify Cards
+# Verify Ideator
 
-Cards is a native AppKit menu bar app: each card is a borderless window, the stack is one more
+Ideator is a native AppKit menu bar app: each card is a borderless window, the stack is one more
 window with a tan ribbon (New, Clarity, Hide all, ⋯), and every card is a Markdown file in a
 folder plus a hidden sidecar `.cards.json`. This skill starts an isolated copy of the app on an
 empty temp folder and drives it through macOS Accessibility, by pid, so it never touches the
-owner's own Cards or `~/Documents/Cards`.
+owner's own Ideator or `~/Documents/Ideator`.
 
 Everything goes through one script. From the repo root:
 
@@ -54,7 +54,7 @@ cv doctor
 
 Read-only. Checks that the pid is this run's binary on this run's folder, that no Swift source is
 newer than the binary, that the folder exists, and that the stack window answers. It lists other
-Cards processes, such as the owner's Xcode run, as a note. Never drive those. Run `doctor` first
+Ideator processes, such as the owner's Xcode run, as a note. Never drive those. Run `doctor` first
 whenever a step fails or anything looks off. It must print `healthy` before any proof counts.
 
 ## Drive
@@ -67,9 +67,9 @@ whenever a step fails or anything looks off. It must print `healthy` before any 
 | `cv ax tree` | Every window and element: role, name, value, `[disabled]`, `[focused]`, frame |
 | `cv ax press NAME [WINDOW]` | Accessibility press on the first button whose title, description or tooltip is NAME |
 | `cv ax text [WINDOW]` | The text of each text area, one JSON string per line |
-| `cv ax focus WINDOW` | A real click into that card's text (activates Cards) |
+| `cv ax focus WINDOW` | A real click into that card's text (activates Ideator) |
 | `cv ax type 'TEXT'` | Key events to the app; `\n` is Return |
-| `cv ax key COMBO` | One key: `cmd+b`, `cmd+z`, `tab`, `shift+tab`, `return`, `delete`, arrows (`shift+down`, `cmd+left`)…; a `cmd+` combo activates Cards first, since menu shortcuts need it |
+| `cv ax key COMBO` | One key: `cmd+b`, `cmd+z`, `tab`, `shift+tab`, `return`, `delete`, arrows (`shift+down`, `cmd+left`)…; a `cmd+` combo activates Ideator first, since menu shortcuts need it |
 | `cv ax click WINDOW FX FY` | A real mouse click at a fraction of the window (0..1 from top-left) |
 | `cv ax scroll WINDOW DX DY` | One scroll-wheel event over the window |
 | `cv ax drag WINDOW FX FY DX DY` | Press at a fraction of the window, drag by DX,DY points, release |
@@ -116,7 +116,7 @@ Stable handles in this app, all from the code:
   edit another card, `focus` it first.
 
 The first line of a card's text is its title, saved as `# <title>`. Saves are debounced by one
-second, and also happen when Cards resigns active. Wait 1.5 s before reading files.
+second, and also happen when Ideator resigns active. Wait 1.5 s before reading files.
 
 The feature map in [`features/`](features/README.md) has the recipe for each user-facing feature.
 Start from its README.
@@ -165,7 +165,7 @@ cv stop
 ```
 
 Kills only the pid this run started (it checks the command line first), deletes the run's temp
-card folder, and keeps `build/verify-evidence/<run>/`. Never `pkill Cards` or kill by name: the
+card folder, and keeps `build/verify-evidence/<run>/`. Never `pkill Ideator` or kill by name: the
 owner's Xcode run is also called Cards. Run `stop` after every failed attempt too, before the next
 `launch`.
 
@@ -173,18 +173,18 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
 
 - Deleting a card through the app moves its `.md` to the user's real Trash (that is the feature).
   Those files are named by timestamp and are harmless. Leave them, and say so in the report.
-- Cards reads the Anthropic API key from the login Keychain at launch. If the owner stored one,
+- Ideator reads the Anthropic API key from the login Keychain at launch. If the owner stored one,
   collapsed cards with two or more body lines call the real API. A rebuilt debug binary may also
-  make macOS ask whether Cards may read the Keychain, and that prompt blocks the app's UI until
+  make macOS ask whether Ideator may read the Keychain, and that prompt blocks the app's UI until
   someone answers. Prefer one-line bodies when proving collapse (they show the line itself and
   never call the API). If `tree` hangs or shows nothing after a rebuild, tell the user to look
   for that prompt.
-- The global hotkey ⌥⌘C belongs to whichever Cards registered it first, usually the owner's.
+- The global hotkey ⌥⌘C belongs to whichever Ideator instance registered it first, usually the owner's.
   Prove Hide all with the ribbon button, not the hotkey.
 - The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has the same Settings… and
   Quit.
 - `click`, `focus`, `scroll` and `drag` move the real pointer and click the topmost window at that
-  point. The helper brings Cards forward first, but a window the user drags on top in between
+  point. The helper brings Ideator forward first, but a window the user drags on top in between
   would take the click. `press`, `type`, `key` and `tree` don't depend on the pointer.
 - Accessibility builds the app's tree lazily; the helper retries the first read for up to 3 s.
 - The Accessibility and Screen Recording permissions belong to the app that runs the shell. If

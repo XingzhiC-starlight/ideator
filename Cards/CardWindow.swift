@@ -65,7 +65,7 @@ func configureAsCard(_ window: NSWindow, content: NSView) {
     let glass = NSVisualEffectView()
     glass.material = Palette.glassMaterial
     glass.blendingMode = .behindWindow
-    glass.state = .active   // Cards is rarely the active app; inactive glass would go flat
+    glass.state = .active   // Ideator is rarely the active app; inactive glass would go flat
     glass.maskImage = CardShape.maskImage
     content.frame = glass.bounds
     content.autoresizingMask = [.width, .height]

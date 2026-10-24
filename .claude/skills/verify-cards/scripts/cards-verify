@@ -6,8 +6,8 @@ set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="$(cd "$SKILL_DIR/../../.." && pwd)"
 DERIVED="$REPO/build/VerifyDerivedData"
-APP="$DERIVED/Build/Products/Debug/Cards.app"
-BIN="$APP/Contents/MacOS/Cards"
+APP="$DERIVED/Build/Products/Debug/Ideator.app"
+BIN="$APP/Contents/MacOS/Ideator"
 AX="$REPO/build/verify-tools/cards-ax"
 CLIP="$REPO/build/verify-tools/cards-clip"
 RUNS="$REPO/build/verify-runs"
@@ -15,7 +15,7 @@ EVIDENCE_ROOT="$REPO/build/verify-evidence"
 
 usage() {
   cat <<'EOF'
-cards-verify build                  build Cards into build/VerifyDerivedData and compile cards-ax
+cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax
 cards-verify launch [--seed [SIDECAR]]  start an isolated instance on an empty temp folder (--seed: two stacked cards; SIDECAR: a .cards.json to start from)
 cards-verify doctor                 read-only health check of the current run
 cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, where, mouse, dragat, listen)
@@ -48,7 +48,7 @@ ours() {  # true when PID is alive and is the binary this run launched on this r
 log() { echo "$(date '+%H:%M:%S') $*" | tee -a "$EVIDENCE/log.txt"; }
 
 build() {
-  xcodebuild -project "$REPO/Cards.xcodeproj" -scheme Cards -configuration Debug \
+  xcodebuild -project "$REPO/Cards.xcodeproj" -scheme Ideator -configuration Debug \
     -derivedDataPath "$DERIVED" build -quiet
   local tool src
   for tool in cards-ax cards-clip; do
@@ -120,7 +120,7 @@ doctor() {
   fi
   rm -f /tmp/cards-verify-doctor.$$
   local others
-  others="$(pgrep -f 'Cards.app/Contents/MacOS/Cards' | grep -vx "$PID" | tr '\n' ' ' || true)"
+  others="$(pgrep -f 'Ideator.app/Contents/MacOS/Ideator' | grep -vx "$PID" | tr '\n' ' ' || true)"
   [[ -n "$others" ]] && echo "others    note: other Cards processes (not ours, never drive them): $others"
   [[ $ok == 1 ]] && echo "healthy" || { echo "UNHEALTHY"; return 1; }
 }

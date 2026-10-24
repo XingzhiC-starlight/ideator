@@ -67,7 +67,7 @@ Preconditions:
 
 ## Gotchas
 
-- ⌘C and ⌘V need Cards to be the active app; `cv ax key cmd+…` activates it first.
+- ⌘C and ⌘V need Ideator to be the active app; `cv ax key cmd+…` activates it first.
 - `"$(cat file)"` drops the file's last newline, which a paste drops anyway (one trailing line
   break is ignored).
 - Dragging text in or out of a card goes through the same copy and paste code, but cards-verify

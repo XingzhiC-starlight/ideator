@@ -12,12 +12,12 @@
 			containerPortal = CA000000000000000000000A /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = CA0000000000000000000006;
-			remoteInfo = Cards;
+			remoteInfo = Ideator;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		CA0000000000000000000001 /* Cards.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cards.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA0000000000000000000001 /* Ideator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ideator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA0000000000000000000010 /* CardsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CardsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -64,7 +64,7 @@
 		CA0000000000000000000005 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				CA0000000000000000000001 /* Cards.app */,
+				CA0000000000000000000001 /* Ideator.app */,
 				CA0000000000000000000010 /* CardsTests.xctest */,
 			);
 			name = Products;
@@ -73,9 +73,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		CA0000000000000000000006 /* Cards */ = {
+		CA0000000000000000000006 /* Ideator */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CA0000000000000000000007 /* Build configuration list for PBXNativeTarget "Cards" */;
+			buildConfigurationList = CA0000000000000000000007 /* Build configuration list for PBXNativeTarget "Ideator" */;
 			buildPhases = (
 				CA0000000000000000000008 /* Sources */,
 				CA0000000000000000000003 /* Frameworks */,
@@ -88,11 +88,11 @@
 			fileSystemSynchronizedGroups = (
 				CA0000000000000000000002 /* Cards */,
 			);
-			name = Cards;
+			name = Ideator;
 			packageProductDependencies = (
 			);
-			productName = Cards;
-			productReference = CA0000000000000000000001 /* Cards.app */;
+			productName = Ideator;
+			productReference = CA0000000000000000000001 /* Ideator.app */;
 			productType = "com.apple.product-type.application";
 		};
 		CA0000000000000000000015 /* CardsTests */ = {
@@ -151,7 +151,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				CA0000000000000000000006 /* Cards */,
+				CA0000000000000000000006 /* Ideator */,
 				CA0000000000000000000015 /* CardsTests */,
 			);
 		};
@@ -194,7 +194,7 @@
 /* Begin PBXTargetDependency section */
 		CA000000000000000000001A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = CA0000000000000000000006 /* Cards */;
+			target = CA0000000000000000000006 /* Ideator */;
 			targetProxy = CA0000000000000000000019 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -250,14 +250,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Cards;
+				INFOPLIST_KEY_CFBundleDisplayName = Ideator;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xingzhicheng.Cards;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemlabs.Ideator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -276,14 +276,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Cards;
+				INFOPLIST_KEY_CFBundleDisplayName = Ideator;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xingzhicheng.Cards;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemlabs.Ideator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -305,12 +305,12 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xingzhicheng.CardsTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemlabs.IdeatorTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cards.app/Contents/MacOS/Cards";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ideator.app/Contents/MacOS/Ideator";
 			};
 			name = Debug;
 		};
@@ -327,19 +327,19 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xingzhicheng.CardsTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemlabs.IdeatorTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cards.app/Contents/MacOS/Cards";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ideator.app/Contents/MacOS/Ideator";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		CA0000000000000000000007 /* Build configuration list for PBXNativeTarget "Cards" */ = {
+		CA0000000000000000000007 /* Build configuration list for PBXNativeTarget "Ideator" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CA000000000000000000000E /* Debug */,

@@ -82,7 +82,7 @@ Preconditions:
 - **Old file.** While the app runs, write a `.md` into the run's folder (`source
   build/verify-runs/current.env; printf ... > "$FOLDER/old.md"`) with 2-space and tab indents.
   Activate another app (`osascript -e 'tell application "Finder" to activate'`), then
-  `cv ax click stack 0.5 0.03` so Cards rescans. The new card joins the bottom of the stack. After a
+  `cv ax click stack 0.5 0.03` so Ideator rescans. The new card joins the bottom of the stack. After a
   plain `cv launch` the stack was empty and showed its blank page, so it now shows the new card
   with no flip; from a seeded launch, run `cv ax click stack 0.985 0.6` until it shows. `cv ax
   text stack` shows its lines and `cv shot` shows them
@@ -97,10 +97,10 @@ Preconditions:
   shallower line, or check the selection with `cv shot` before copying.
 - After `cmd+z` the undone lines can stay selected, and a list button then changes every line in
   the selection. Move the caret (`cmd+right`) before pressing a button.
-- ⌘ shortcuts (⌘Z, ⌘C, ⌘V) only work while Cards is the active app; `cv ax key` activates it
+- ⌘ shortcuts (⌘Z, ⌘C, ⌘V) only work while Ideator is the active app; `cv ax key` activates it
   first for any `cmd+` combo. Plain keys (`tab`, `return`, arrows) reach it without that.
 - An empty last list item keeps its shape only while the caret is in it. The file shows it, but
   after a relaunch it shows as plain, and takes the shape of the line above once the caret enters
   it. Undoing typing in it can show that inherited shape too, until the next undo.
-- The card being edited shows the formatting bar only while Cards is active; a shot taken right
+- The card being edited shows the formatting bar only while Ideator is active; a shot taken right
   after `type` may not show it.

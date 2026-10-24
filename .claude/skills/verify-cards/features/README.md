@@ -1,6 +1,6 @@
-# Cards verification map
+# Ideator verification map
 
-This folder is where the recipes for verifying what Cards users see are kept up to date. Read this
+This folder is where the recipes for verifying what Ideator users see are kept up to date. Read this
 index before driving the app, then use the matching feature file as the recipe. `cv` is the
 function defined in [../SKILL.md](../SKILL.md).
 
@@ -11,7 +11,7 @@ function defined in [../SKILL.md](../SKILL.md).
   stack holds `Alpha card` (body `alpha body`) on top and `Beta card` (body `beta line one`,
   `beta line two`) under it, the count badge reads 2, Clarity is off, and no card is popped.
 - The stack window is in its home slot, the top-right cell of the screen.
-- Never drive a Cards instance that `cv launch` did not start.
+- Never drive an Ideator instance that `cv launch` did not start.
 
 ## Driving conventions
 

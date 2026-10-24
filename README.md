@@ -1,4 +1,4 @@
-# Cards
+# Ideator
 
 A macOS prototype where every note is its own small window, laid out on an invisible 5 × 4 grid,
 with a stack of the rest in the top-right corner. Native Swift and AppKit, no dependencies.
@@ -10,13 +10,13 @@ Requires macOS 15 or later and Xcode 26.
 ## Open and run in Xcode
 
 1. Open `Cards.xcodeproj`.
-2. Pick the **Cards** scheme and **My Mac** as the destination.
+2. Pick the **Ideator** scheme and **My Mac** as the destination.
 3. Press **⌘R**.
 
-Cards is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
+Ideator is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
 bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌥⌘C** hides or shows every card
 from anywhere. Hide All leaves the stack's tan ribbon where the stack is, so New, Clarity and
-the menu stay in reach. Opening Cards again from Finder or Spotlight shows everything.
+the menu stay in reach. Opening Ideator again from Finder or Spotlight shows everything.
 
 On a MacBook with a crowded menu bar, macOS may hide the icon behind the camera notch. The stack's
 tan ribbon has what you need: the eye button hides or shows everything (an open eye while cards
@@ -25,67 +25,71 @@ show, a slashed eye while they are hidden), and **⋯** at its right opens Setti
 ## Build from the command line
 
 ```bash
-xcodebuild -project Cards.xcodeproj -scheme Cards -configuration Debug -derivedDataPath build/DerivedData build
+xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derivedDataPath build/DerivedData build
 ```
 
 ```bash
 open build/DerivedData/Build/Products/Debug/Cards.app
 ```
 
-Run the unit tests (they use the app as their host and never touch `~/Documents/Cards`):
+Run the unit tests (they use the app as their host and never touch `~/Documents/Ideator`):
 
 ```bash
-xcodebuild test -project Cards.xcodeproj -scheme Cards -derivedDataPath build/DerivedData
+xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs on every pull request and every push to
 `main`. It runs these tests, the desk invariant check and its mutants, and `scripts/package.sh`, and
-it keeps the disk image as a downloadable artifact named `Cards-dmg`.
+it keeps the disk image as a downloadable artifact named `Ideator-dmg`.
 
-## Share Cards with someone
+## Share Ideator with someone
 
 ```bash
 scripts/package.sh
 ```
 
-This makes a Release build and writes `build/release/Cards-<version>.dmg`. The version is the app's
+This makes a Release build and writes `build/release/Ideator-<version>.dmg`. The version is the app's
 `CFBundleShortVersionString`. The script checks the app's signature, refuses an app that is not
 signed with the hardened runtime or that carries the `get-task-allow` debug entitlement (either one
-lets other programs read the API key from Cards' memory), checks that the app has both `arm64` and
+lets other programs read the API key from Ideator's memory), checks that the app has both `arm64` and
 `x86_64` slices, and verifies the disk image. It runs from any folder, and running it
 again replaces the old image.
 
 Send that one file. The other person needs a Mac with macOS 15 or later, Apple silicon or Intel.
 They do this:
 
-1. Open the dmg and drag **Cards** to **Applications**.
-2. Open Cards from Applications. macOS blocks it, because Apple has not notarized the app.
-3. Open **System Settings › Privacy & Security**, scroll to the message about Cards, click **Open
+1. Open the dmg and drag **Ideator** to **Applications**.
+2. Open Ideator from Applications. macOS blocks it, because Apple has not notarized the app.
+3. Open **System Settings › Privacy & Security**, scroll to the message about Ideator, click **Open
    Anyway**, and confirm.
-4. If macOS asks whether Cards can access the Documents folder, allow it. Notes live in
-   `~/Documents/Cards`.
+4. If macOS asks whether Ideator can access the Documents folder, allow it. Notes live in
+   `~/Documents/Ideator`.
 5. For summaries, choose **Settings…** from the menu bar icon and paste their own Anthropic API key.
    The image holds no key.
 
 Each new version you send repeats the Open Anyway step. If they saved a key, macOS may also ask again
-whether Cards can read its Keychain item. They choose **Always Allow**.
+whether Ideator can read its Keychain item. They choose **Always Allow**.
 
 ## Where to paste the API key
 
 Summaries use the Anthropic API (model `claude-haiku-5-5`). Click the menu bar icon (or **⋯** on
 the stack's tan ribbon), choose **Settings…**, paste your key into **Anthropic API key**, and click **Save**.
 
-The key is stored in your login Keychain (service "Cards"), never in the project or the notes
+The key is stored in your login Keychain (service "Ideator"), never in the project or the notes
 folder. Without a key everything works; collapsed cards just say "Summary unavailable". Debug
-builds are not signed with a stable identity, so after a rebuild macOS may ask once whether Cards
+builds are not signed with a stable identity, so after a rebuild macOS may ask once whether Ideator
 may read its Keychain item; choose **Always Allow**.
 
 ## Where notes live
 
-Each card is a Markdown file in `~/Documents/Cards/`. Slot positions, stack order, collapsed
-state and cached summaries live in the hidden file `~/Documents/Cards/.cards.json`. To try the app
+Each card is a Markdown file in `~/Documents/Ideator/`. Slot positions, stack order, collapsed
+state and cached summaries live in the hidden file `~/Documents/Ideator/.cards.json`. To try the app
 against another folder, pass `-CardsFolder /path/to/folder` as a launch argument (in Xcode: Product
 › Scheme › Edit Scheme › Run › Arguments).
+
+Builds from before the rename were called Cards and used `~/Documents/Cards` and the Keychain
+service "Cards". Ideator does not read either: quit Cards, move the files (including the hidden
+`.cards.json`) into `~/Documents/Ideator`, and paste the API key into Settings again.
 
 ## Using it
 
@@ -106,7 +110,7 @@ card at the bottom of the stack; leaving it empty makes nothing.
 
 ## License
 
-Cards is becoming **Ideator**. It is source-available under the
+Ideator (formerly Cards) is source-available under the
 [PolyForm Shield License 1.0.0](LICENSE.md), not an open source license. You may use, change and
 share it for any purpose, including at work, except to offer a product that competes with it. The
 name and icon are not covered by the license; see [TRADEMARKS.md](TRADEMARKS.md).

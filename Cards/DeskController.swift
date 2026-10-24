@@ -191,7 +191,7 @@ final class DeskController {
 
     /// Hover follows the pointer's real position, not per-view enter/exit events: a fast pointer
     /// can skip a window's exit event, which would leave its hover buttons showing. A global
-    /// monitor sees moves while another app is active, a local one while Cards is; watching the
+    /// monitor sees moves while another app is active, a local one while Ideator is; watching the
     /// mouse needs no special permission.
     private func trackPointer() {
         let moved: (NSEvent) -> Void = { [weak self] _ in
@@ -227,8 +227,8 @@ final class DeskController {
         if firstFailure {
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "Cards can't save your notes"
-            alert.informativeText = "Cards couldn't write to \(library.folder.path). "
+            alert.messageText = "Ideator can't save your notes"
+            alert.informativeText = "Ideator couldn't write to \(library.folder.path). "
                 + "Your cards stay in memory until a save succeeds."
             NSApp.activate()
             alert.runModal()

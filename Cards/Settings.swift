@@ -1,11 +1,11 @@
 import AppKit
 import Security
 
-/// The Anthropic API key. Lives in the login Keychain (generic password, service "Cards",
+/// The Anthropic API key. Lives in the login Keychain (generic password, service "Ideator",
 /// account "anthropic-api-key"): never in code, in the card folder, or in user defaults.
 /// Read once at launch and cached; `set` is the only writer.
 final class KeyStore {
-    private static let service = "Cards"
+    private static let service = "Ideator"
     private static let account = "anthropic-api-key"
 
     /// nil = no key: the app works fully, it just never requests summaries.
@@ -68,7 +68,7 @@ final class SettingsWindow: NSWindow {
         self.onChange = onChange
         super.init(contentRect: NSRect(x: 0, y: 0, width: 440, height: 150),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        title = "Cards Settings"
+        title = "Ideator Settings"
         isReleasedWhenClosed = false
 
         let label = NSTextField(labelWithString: "Anthropic API key")
@@ -122,7 +122,7 @@ final class SettingsWindow: NSWindow {
 
     private func refreshStatus() {
         status.stringValue = keys.apiKey == nil
-            ? "No key saved. Cards works without one; collapsed cards show “Summary unavailable”."
+            ? "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
             : "A key is saved in your Keychain. Paste a new one to replace it."
     }
 }

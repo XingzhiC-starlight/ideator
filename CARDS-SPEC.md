@@ -1,4 +1,4 @@
-# Cards — prototype spec (agreed 2026-10-21, revised 2026-10-23)
+# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-23)
 
 Personal-use macOS prototype. Native Swift app built with Xcode.
 
@@ -130,7 +130,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - While generating: small spinner in the summary area. On failure: "Summary unavailable", hover shows the reason.
 
 ## Storage
-- One Markdown (.md) file per card in ~/Documents/Cards/.
+- One Markdown (.md) file per card in ~/Documents/Ideator/.
 - One hidden sidecar file for positions (each card's and the stack's slot or free spot), stack order, collapsed state, and cached summaries.
 
 ## Look
