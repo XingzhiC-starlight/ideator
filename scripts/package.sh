@@ -40,6 +40,11 @@ for arch in arm64 x86_64; do
 done
 echo "architectures: $archs"
 
+[[ -f "$APP/Contents/Resources/AppIcon.icns" ]] || die "Ideator has no AppIcon.icns"
+icon="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP/Contents/Info.plist" 2>/dev/null || true)"
+[[ "$icon" == AppIcon ]] || die "Ideator's CFBundleIconName is '$icon', expected AppIcon"
+echo "icon: AppIcon"
+
 rm -rf "$STAGE" "$OUT"
 mkdir -p "$STAGE/root" "$OUT"
 ditto "$APP" "$STAGE/root/Ideator.app"
