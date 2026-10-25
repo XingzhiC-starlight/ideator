@@ -51,7 +51,8 @@ func send(_ command: Command) {
 | `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
 | `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run); the persisted shortcut, and no persistence at all in a scratch run |
 | `Welcome.swift` | the first-launch card and its copy |
-| `Settings.swift`, `App.swift` | the API key, the shortcut recorder and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
+| `Build.swift` | what the build says about itself: version, number and the commit `package.sh` stamped, parsed strictly (pure) |
+| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the privacy line and the version line in one window sized to its rows; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
@@ -292,6 +293,17 @@ Later changes, after trying the app:
   move. ⌃⌥I is on none of macOS's symbolic hotkeys. `SettingsWindow` also refreshes whenever it
   becomes key, since the cached window kept showing the macOS-shortcut advisory and key status
   from its first opening.
+- 2026-10-25, build stamp: the build number is a commit count, so a branch build and `main` after
+  its squash merge share one, and the laptop's copy could not be told from the release. `package.sh`
+  now passes the commit and whether the tree has changes (untracked files included) as the build
+  settings `IDEATOR_COMMIT` and `IDEATOR_TREE_DIRTY`. `Config/Info.plist`, outside the synchronized
+  `Cards/` group, turns them into `IdeatorCommit` and `IdeatorTreeDirty`, so they are inside the
+  signature: a plist edited after signing would not verify. The project defaults are `none` and
+  `unknown`, which is what an Xcode build carries. `BuildInfo` parses the two keys at the boundary and
+  has a stamp only for a 40-digit lowercase hex commit with a tree state of YES or NO, so a half-valid
+  stamp reads as a development build and "unknown" is never clean. Settings shows the version line,
+  and `scripts/installed-build.sh` compares an installed app with `origin/main` by commit, then by
+  tree, then by ancestry. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 

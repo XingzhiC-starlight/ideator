@@ -75,7 +75,7 @@ final class SettingsWindow: NSWindow {
     private var rejected: String?
     private var releasedForRecording = false
 
-    init(keys: KeyStore, hotKey: HotKey, onChange: @escaping () -> Void) {
+    init(keys: KeyStore, hotKey: HotKey, build: BuildInfo, onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
         self.onChange = onChange
@@ -130,13 +130,15 @@ final class SettingsWindow: NSWindow {
         let buttons = NSStackView(views: [remove, save])
 
         for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("Anthropic API key"), field,
-                     caption(NSTextField(wrappingLabelWithString: Self.privacy)), caption(status), buttons] {
+                     caption(NSTextField(wrappingLabelWithString: Self.privacy)), caption(status), buttons,
+                     caption(NSTextField(wrappingLabelWithString: build.versionLine))] {
             stack.addArrangedSubview(view)
         }
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
         stack.setCustomSpacing(18, after: shortcutNote)
+        stack.setCustomSpacing(18, after: buttons)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         NSLayoutConstraint.activate([
             stack.widthAnchor.constraint(equalToConstant: Self.width),

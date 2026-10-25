@@ -52,7 +52,9 @@ scripts/package.sh
 This makes a Release build and writes `build/release/Ideator-<version>-<build>.dmg`. The version is
 the app's `CFBundleShortVersionString` (`MARKETING_VERSION` in the project); the build number is the
 number of commits on `HEAD`, so it rises with every release from `main` and needs a full clone.
-The script checks the app's signature, refuses an app that is not signed with the hardened runtime
+The script stamps the app with the commit it builds from and whether the tree has uncommitted
+changes, untracked files included, then reads both back from the finished app and stops if they
+differ. It checks the app's signature, refuses an app that is not signed with the hardened runtime
 or that carries the `get-task-allow` debug entitlement (either one lets other programs read the API
 key from Ideator's memory), checks that the app has both `arm64` and `x86_64` slices and its icon,
 and verifies the disk image. It runs from any folder, and running it again replaces the old image.
@@ -74,6 +76,36 @@ They do this:
 
 Each new version you send repeats the Open Anyway step. If they saved a key, macOS may also ask again
 whether Ideator can read its Keychain item. They choose **Always Allow**.
+
+## Is the installed app current?
+
+```bash
+scripts/installed-build.sh
+```
+
+The script reads the commit that `scripts/package.sh` stamped into `/Applications/Ideator.app` and
+compares it with `origin/main`, which it fetches first. Pass another app's path to check that copy.
+It prints one of these verdicts and exits 0 only for "current":
+
+| Verdict | Meaning |
+| --- | --- |
+| current | The app was built from the tip of `origin/main`, or from a commit with the same files, as a branch build has after its squash merge. |
+| behind by N commits | The app's commit is on `origin/main`, and N commits came after it. |
+| not on origin/main | The app was built from a branch, or from before a squash merge. |
+| not current | The app was built with local changes, so its files are not any commit's. |
+| can't tell | The app has no stamp. It is older than the stamp, or `scripts/package.sh` did not make it. |
+
+Settings shows the same stamp on its last line: `Version 0.9 (57), commit 1a2b3c4`, `… with local
+changes`, or `Version 0.9 (1), a development build` for a build without one, such as a run from
+Xcode. To read the stamp yourself:
+
+```bash
+defaults read /Applications/Ideator.app/Contents/Info.plist IdeatorCommit
+defaults read /Applications/Ideator.app/Contents/Info.plist IdeatorTreeDirty
+```
+
+`IdeatorTreeDirty` is `YES` or `NO`. A build that did not come from `scripts/package.sh` carries
+`none` and `unknown`, and `unknown` never means clean.
 
 ## Where to paste the API key
 

@@ -19,6 +19,7 @@
 /* Begin PBXFileReference section */
 		CA0000000000000000000001 /* Ideator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ideator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA0000000000000000000010 /* CardsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CardsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA000000000000000000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +58,7 @@
 			children = (
 				CA0000000000000000000002 /* Cards */,
 				CA0000000000000000000011 /* CardsTests */,
+				CA000000000000000000001B /* Config */,
 				CA0000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -68,6 +70,14 @@
 				CA0000000000000000000010 /* CardsTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CA000000000000000000001B /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				CA000000000000000000001C /* Info.plist */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -251,6 +261,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				IDEATOR_COMMIT = none;
+				IDEATOR_TREE_DIRTY = unknown;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Ideator;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "Ideator saves each card as a Markdown file in a folder named Ideator.";
@@ -279,6 +292,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				IDEATOR_COMMIT = none;
+				IDEATOR_TREE_DIRTY = unknown;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Ideator;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "Ideator saves each card as a Markdown file in a folder named Ideator.";
