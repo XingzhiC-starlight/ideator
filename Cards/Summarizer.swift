@@ -12,6 +12,7 @@ final class Summarizer {
 
     private let apiKey: () -> String?
     private let deliver: (CardID, Summary) -> Void
+    private let summarize: (Note, String) async -> Summary.Outcome
     private var jobs: [CardID: Job] = [:]
 
     /// A request for one version of one note: waiting out the quiet period, then in flight.
@@ -20,9 +21,12 @@ final class Summarizer {
         let task: Task<Void, Never>
     }
 
-    init(apiKey: @escaping () -> String?, deliver: @escaping (CardID, Summary) -> Void) {
+    /// `summarize` is the request itself, given the key it is sent with; tests answer it by hand.
+    init(apiKey: @escaping () -> String?, deliver: @escaping (CardID, Summary) -> Void,
+         summarize: @escaping (Note, String) async -> Summary.Outcome = Anthropic.summarize) {
         self.apiKey = apiKey
         self.deliver = deliver
+        self.summarize = summarize
     }
 
     /// Reconciles jobs with `cards` (every card, stacked or popped). A card wants a job when a key
@@ -44,11 +48,11 @@ final class Summarizer {
         }
         for card in wanted where jobs[card.id] == nil {
             let delay: Duration = card.id == typing ? Self.quietPeriod : .zero
-            let (id, note, source) = (card.id, card.note, card.digest)
+            let (id, note, source, summarize) = (card.id, card.note, card.digest, summarize)
             jobs[id] = Job(source: source, task: Task { [weak self] in
                 try? await Task.sleep(for: delay)
                 guard !Task.isCancelled else { return }
-                let outcome = await Anthropic.summarize(note, apiKey: key)
+                let outcome = await summarize(note, key)
                 guard !Task.isCancelled, let self else { return }
                 self.jobs[id] = nil
                 self.deliver(id, Summary(source: source, outcome: outcome))
