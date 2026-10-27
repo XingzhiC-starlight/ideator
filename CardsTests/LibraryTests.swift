@@ -99,4 +99,62 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(reopened.load(), desk, "the sidecar this build wrote places the card again")
         XCTAssertFalse(reopened.sidecarIsNewer, "and is not mistaken for a newer one")
     }
+
+    func testASidecarANewerIdeatorWritesAfterLaunchIsNotOverwritten() async throws {
+        try Data("# Groceries\n".utf8).write(to: cardFile)
+        let library = Library(folder: folder)
+        var desk = library.load()
+        desk.apply(.pop)
+        XCTAssertTrue(library.save(desk), "this build writes its own sidecar first")
+        XCTAssertFalse(library.sidecarIsNewer)
+        // Another Mac's newer Ideator arranges the shared folder while this one keeps running.
+        let sidecar = folder.appending(path: ".cards.json")
+        let newer = Data(#"{"version":3,"layout":{"kind":"something this build has never seen"}}"#.utf8)
+        try newer.write(to: sidecar)
+
+        desk.apply(.toggleClarity)
+        desk.apply(.edit(CardID(rawValue: "card"), Note(header: "Groceries", body: [Line(runs: [Run(text: "eggs")])])))
+        XCTAssertTrue(library.save(desk), "leaving the newer sidecar alone is not a failed save")
+
+        XCTAssertTrue(library.sidecarIsNewer, "the save noticed the newer sidecar")
+        XCTAssertEqual(try Data(contentsOf: sidecar), newer, "and left it byte for byte")
+        XCTAssertEqual(try String(contentsOf: cardFile, encoding: .utf8), "# Groceries\n\neggs\n",
+                       "while the card still saved")
+    }
+
+    func testAFolderThatCannotBeListedOpensEmptyAndNeverOverwritesItsSidecar() async throws {
+        try Data("# Groceries\n".utf8).write(to: cardFile)
+        let arranged = Library(folder: folder)
+        var earlier = arranged.load()
+        earlier.apply(.pop)
+        arranged.save(earlier)
+        let sidecar = folder.appending(path: ".cards.json")
+        let original = try Data(contentsOf: sidecar)
+        // Writable but not listable, as a folder macOS has not let the app see yet.
+        try FileManager.default.setAttributes([.posixPermissions: 0o300], ofItemAtPath: folder.path)
+
+        let library = Library(folder: folder)
+        var desk = library.load()
+        XCTAssertTrue(desk.allCards.isEmpty, "a folder that can't be listed opens empty rather than guessing")
+        let written = Note(markdown: "# Written meanwhile\n")
+        desk.apply(.writeBlank(written, at: Date()))
+        library.save(desk)
+        XCTAssertEqual(try Data(contentsOf: sidecar), original,
+                       "a save never writes the sidecar over an arrangement it never read")
+
+        // The folder becomes readable: the app saves, rescans and takes the files in, as on activation.
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+        XCTAssertTrue(library.save(desk), "the card written meanwhile saves once the folder allows it")
+        let found = try XCTUnwrap(library.rescan(), "a rescan now lists the folder")
+        XCTAssertEqual(found.count, 2, "and finds both cards")
+        desk.apply(.syncFiles(found))
+        XCTAssertTrue(library.save(desk), "saving the merged desk succeeds")
+        XCTAssertEqual(try Data(contentsOf: sidecar), original,
+                       "but still leaves the sidecar for the next launch, which read it, to update")
+
+        let reopened = Library(folder: folder).load()
+        XCTAssertEqual(reopened.popped.map(\.card.id), [CardID(rawValue: "card")],
+                       "the next launch finds Groceries where it was")
+        XCTAssertEqual(reopened.stack.map(\.note), [written], "and the card written meanwhile in the stack")
+    }
 }
