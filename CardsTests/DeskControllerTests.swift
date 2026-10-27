@@ -36,6 +36,14 @@ final class DeskControllerTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: writable ? 0o755 : 0o555], ofItemAtPath: folder.path)
     }
 
+    private func write(_ name: String, _ text: String) throws {
+        try Data(text.utf8).write(to: folder.appending(path: name))
+    }
+
+    private func note(of id: CardID, in controller: DeskController) -> Note? {
+        controller.desk.allCards.first { $0.id == id }?.note
+    }
+
     func testQuitWaitsWhileASaveFailsUnlessTheUserInsists() async throws {
         let controller = makeController()
         controller.send(.edit(card, Note(markdown: "# Groceries\n\neggs\n")))
@@ -84,5 +92,56 @@ final class DeskControllerTests: XCTestCase {
         controller.send(.writeBlank(Note(markdown: "# Written meanwhile\n"), at: Date()))
         controller.flush()
         XCTAssertEqual(shown, ["Ideator couldn't read your notes"], "saving does not repeat it")
+    }
+
+    func testBecomingActiveAfterAFailedSaveKeepsWhatIsUnsavedInsteadOfRescanningIt() async throws {
+        let controller = makeController()
+        let edited = Note(markdown: "# Groceries\n\neggs\n")
+        let written = Note(markdown: "# Written meanwhile\n")
+        controller.send(.edit(card, edited))
+        controller.send(.flipStack(.previous))   // writeBlank applies only on the blank page
+        controller.send(.writeBlank(written, at: Date()))
+        try makeFolder(writable: false)
+
+        controller.appDidBecomeActive()
+
+        XCTAssertEqual(note(of: card, in: controller), edited, "the stale file did not replace the edit")
+        XCTAssertTrue(controller.desk.allCards.contains { $0.note == written }, "the unwritten card was not deleted")
+        XCTAssertEqual(try String(contentsOf: cardFile, encoding: .utf8), "# Groceries\n", "nothing reached the disk")
+        XCTAssertEqual(shown, ["Ideator can't save your notes"], "the failed save was reported")
+    }
+
+    func testBecomingActiveSavesTheEditThenTakesInWhatChangedOutsideTheApp() async throws {
+        try write("other.md", "# Other\n")
+        let controller = makeController()
+        let edited = Note(markdown: "# Groceries\n\neggs\n")
+        controller.send(.edit(card, edited))
+        try makeFolder(writable: false)
+        controller.appDidBecomeActive()
+        try makeFolder(writable: true)
+        try write("other.md", "# Other\n\nedited elsewhere\n")
+        try write("added.md", "# Added elsewhere\n")
+
+        controller.appDidBecomeActive()
+
+        XCTAssertEqual(try String(contentsOf: cardFile, encoding: .utf8), "# Groceries\n\neggs\n", "the edit is on disk")
+        XCTAssertEqual(note(of: card, in: controller), edited, "and the rescan did not undo it")
+        XCTAssertEqual(note(of: CardID(rawValue: "other"), in: controller), Note(markdown: "# Other\n\nedited elsewhere\n"),
+                       "the file edited outside replaced the card's text")
+        XCTAssertEqual(note(of: CardID(rawValue: "added"), in: controller), Note(markdown: "# Added elsewhere\n"),
+                       "the file added outside became a card")
+    }
+
+    func testADeletedCardLeavesTheFolderAndTheOthersStay() async throws {
+        try write("doomed.md", "# Delete me (an Ideator test)\n")
+        let controller = makeController()
+
+        controller.send(.delete(CardID(rawValue: "doomed")))
+        XCTAssertTrue(controller.flush())
+
+        // The file goes to the Trash, the user's own, so the test checks only that it left the folder.
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appending(path: "doomed.md").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: cardFile.path), "the other card's file stayed")
+        XCTAssertEqual(controller.desk.allCards.map(\.id), [card])
     }
 }
