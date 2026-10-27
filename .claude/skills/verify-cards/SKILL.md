@@ -179,12 +179,12 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
 
 - Deleting a card through the app moves its `.md` to the user's real Trash (that is the feature).
   Those files are named by timestamp and are harmless. Leave them, and say so in the report.
-- Ideator reads the Anthropic API key from the login Keychain at launch. If the owner stored one,
-  collapsed cards with two or more body lines call the real API. A rebuilt debug binary may also
-  make macOS ask whether Ideator may read the Keychain, and that prompt blocks the app's UI until
-  someone answers. Prefer one-line bodies when proving collapse (they show the line itself and
-  never call the API). If `tree` hangs or shows nothing after a rebuild, tell the user to look
-  for that prompt.
+- A scratch run (`cv launch` passes `-CardsFolder`) never reads or writes the login Keychain, so
+  it starts with no key, whatever the owner has saved, and no macOS Keychain prompt can block the
+  UI. Collapsed cards with two or more body lines show "Summary unavailable" unless you paste a
+  key into Settings, which then lasts for that run only (Settings says "held for this run only").
+  Pasting a real key makes the run call the real API, so prefer one-line bodies when proving
+  collapse (they show the line itself and never call the API).
 - A scratch run (`cv launch` passes `-CardsFolder`) does not register the global shortcut (⌃⌥I by
   default) and never reads or writes the owner's saved shortcut, so it cannot take the shortcut from
   the owner's Ideator. The harness also cannot press it. Prove Hide all with the ribbon button, not

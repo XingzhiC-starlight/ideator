@@ -4,6 +4,10 @@ import Security
 /// The Anthropic API key. Lives in the login Keychain (generic password, service "Ideator",
 /// account "anthropic-api-key"): never in code, in the card folder, or in user defaults.
 /// Read once at launch and cached; `set` is the only writer.
+///
+/// A scratch run gets `inKeychain: false`: the key lives in memory for that run only, starts empty,
+/// and no Keychain call is ever made, so a verify run can't trigger macOS's access prompt for the
+/// owner's key or touch it.
 final class KeyStore {
     private static let service = "Ideator"
     private static let account = "anthropic-api-key"
@@ -11,7 +15,11 @@ final class KeyStore {
     /// nil = no key: the app works fully, it just never requests summaries.
     private(set) var apiKey: String?
 
-    init() {
+    let inKeychain: Bool
+
+    init(inKeychain: Bool) {
+        self.inKeychain = inKeychain
+        guard inKeychain else { return }
         var query = Self.baseQuery
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -26,6 +34,10 @@ final class KeyStore {
     @discardableResult
     func set(_ key: String?) -> Bool {
         let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard inKeychain else {
+            apiKey = trimmed.isEmpty ? nil : trimmed
+            return true
+        }
         let status: OSStatus
         if trimmed.isEmpty {
             status = SecItemDelete(Self.baseQuery as CFDictionary)
@@ -170,7 +182,9 @@ final class SettingsWindow: NSWindow {
                                                         rejected: rejected)
         status.stringValue = keys.apiKey == nil
             ? "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
-            : "A key is saved in your Keychain. Paste a new one to replace it."
+            : keys.inKeychain
+            ? "A key is saved in your Keychain. Paste a new one to replace it."
+            : "A key is held for this run only. Paste a new one to replace it."
         contentView?.layoutSubtreeIfNeeded()
         let top = frame.maxY
         setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))

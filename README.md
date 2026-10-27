@@ -60,10 +60,9 @@ key from Ideator's memory), checks that the app has both `arm64` and `x86_64` sl
 and verifies the disk image. It also checks that `Sparkle.framework` is embedded at the version
 `Package.resolved` pins, that `ThirdPartyNotices.txt` names it, and the signing policy below. Then it
 runs the packaged app once on an empty temporary folder, as a scratch run (no preferences, no
-shortcut), and stops unless the app is still running after 3 seconds with Sparkle loaded. A
-signature can verify and still belong to an app macOS refuses to start. If you saved an API key,
-macOS may ask whether that copy of Ideator can read it. It runs from any folder, and running it
-again replaces the old image.
+shortcut, no Keychain), and stops unless the app is still running after 3 seconds with Sparkle
+loaded. A signature can verify and still belong to an app macOS refuses to start. It runs from any
+folder, and running it again replaces the old image.
 
 The app icon, a card and a spark on an ink plate, is drawn by `scripts/make-icon.swift` from the
 app's own colors.
@@ -138,7 +137,9 @@ the stack's tan ribbon), choose **Settings…**, paste your key into **Anthropic
 The key is stored in your login Keychain (service "Ideator"), never in the project or the notes
 folder. Without a key everything works; collapsed cards just say "Summary unavailable". Debug
 builds are not signed with a stable identity, so after a rebuild macOS may ask once whether Ideator
-may read its Keychain item; choose **Always Allow**.
+may read its Keychain item; choose **Always Allow**. A run started with `-CardsFolder` never reads
+or writes the Keychain: it starts with no key, and a key pasted into Settings lasts until that run
+quits.
 
 [PRIVACY.md](PRIVACY.md) lists what Ideator stores and the one thing it sends.
 

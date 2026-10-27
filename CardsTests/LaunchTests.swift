@@ -36,6 +36,24 @@ final class LaunchTests: XCTestCase {
         XCTAssertNil(owners.object(forKey: "WelcomeSeen"))
     }
 
+    func testAScratchRunGetsAnEmptyKeyStoreThatNeverTouchesTheKeychain() {
+        let keys = launch(folder: "/tmp/scratch-folder").keys()
+
+        XCTAssertFalse(keys.inKeychain)
+        XCTAssertNil(keys.apiKey)
+    }
+
+    func testAKeySavedInAScratchRunIsHeldForThatRunOnly() {
+        let keys = launch(folder: "/tmp/scratch-folder").keys()
+
+        XCTAssertTrue(keys.set("  sk-ant-test\n"))
+        XCTAssertEqual(keys.apiKey, "sk-ant-test")
+        XCTAssertNil(launch(folder: "/tmp/scratch-folder").keys().apiKey)
+
+        XCTAssertTrue(keys.set(""))
+        XCTAssertNil(keys.apiKey)
+    }
+
     func testAnOrdinaryRunKeepsTheShortcutAcrossLaunches() {
         let owners = suites.make()
         let chosen = Shortcut(keyCode: 4, modifiers: 4352)!

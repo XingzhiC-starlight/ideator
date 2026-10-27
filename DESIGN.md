@@ -49,7 +49,7 @@ func send(_ command: Command) {
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
 | `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
-| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run); the persisted shortcut, and no persistence at all in a scratch run |
+| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run, which also picks the key store); the persisted shortcut, and no persistence at all in a scratch run |
 | `Welcome.swift` | the first-launch card and its copy |
 | `Build.swift` | what the build says about itself: version, number and the commit `package.sh` stamped, parsed strictly (pure) |
 | `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the privacy line and the version line in one window sized to its rows; entry point, menu bar, reopen |
@@ -111,7 +111,8 @@ func send(_ command: Command) {
   to find out would be the access. The flag is set after the notes open, so a launch killed inside the
   prompt shows the welcome again instead of a bare prompt. A scratch run (`-CardsFolder`) gets
   `Preferences(defaults: nil)`: factory values, nothing written, no welcome, and no global shortcut,
-  so a verify run can neither change nor take anything of the owner's.
+  and a `KeyStore` that never calls the Keychain, so a verify run can neither change nor take
+  anything of the owner's.
 - **One owner for the global shortcut.** `Shortcut` is legal by construction (⌘ or ⌃ plus one more
   modifier, so a hotkey never swallows ordinary typing). `HotKey` owns the chosen shortcut, its Carbon
   registration and why it is not registered. `choose` claims the new combination before it drops the
@@ -323,6 +324,11 @@ Later changes, after trying the app:
   gained the one entitlement above, `package.sh` gained the signing policy and a launch check, and
   Xcode's own embed was kept after checking that it copies and signs the framework. `Desk` is
   unchanged.
+- 2026-10-26, scratch runs and the Keychain: a scratch run already had detached preferences, but
+  `KeyStore` still read the login Keychain at launch, so on a Mac with a saved key every new ad-hoc
+  build raised macOS's access prompt and froze the unattended verify runs and the `package.sh`
+  launch check. `Launch.keys()` now gives a scratch run a `KeyStore` that keeps the key in memory
+  and makes no Keychain call. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
@@ -336,7 +342,9 @@ Later changes, after trying the app:
 - We accept a burst of summary requests at launch when many stacked cards have none cached, in
   exchange for every card having a summary under the same rules.
 - We accept the Keychain for the API key, which may ask for access again after each rebuild of an
-  unsigned debug build.
+  unsigned debug build. A scratch run gets `KeyStore(inKeychain: false)`, as it gets
+  `Preferences(defaults: nil)`: the key lives in memory for that run, nothing reaches the Keychain,
+  so no prompt can block a verify run or the `package.sh` launch check.
 - We accept that ad-hoc Release builds do not validate the libraries they load, in exchange for
   embedding Sparkle before the Developer ID exists. The hardened runtime stays on, so debuggers and
   `DYLD_INSERT_LIBRARIES` still cannot reach the process. `package.sh` fails a build that has a Team
