@@ -6,5 +6,21 @@
 	<string>$(IDEATOR_COMMIT)</string>
 	<key>IdeatorTreeDirty</key>
 	<string>$(IDEATOR_TREE_DIRTY)</string>
+	<key>SUAllowsAutomaticUpdates</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/XingzhiC-starlight/ideator/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>aU79Ryz97RGp9XiQfDRmXkV4198Z8g6cp+8nhrIpaJ4=</string>
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

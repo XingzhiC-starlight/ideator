@@ -14,10 +14,10 @@ Requires macOS 15 or later and Xcode 26.
 3. Press **⌘R**.
 
 Ideator is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
-bar: it has Show All, Hide All, Open Stack, Settings… and Quit. **⌃⌥I** hides or shows every card
-from anywhere (Settings… changes it). Hide All leaves the stack's tan ribbon where the stack is, so
-New, Clarity and the menu stay in reach. Opening Ideator again from Finder or Spotlight shows
-everything.
+bar: it has Show All, Hide All, Open Stack, Settings…, Check for Updates… and Quit. **⌃⌥I** hides
+or shows every card from anywhere (Settings… changes it). Hide All leaves the stack's tan ribbon
+where the stack is, so New, Clarity and the menu stay in reach. Opening Ideator again from Finder or
+Spotlight shows everything.
 
 On a MacBook with a crowded menu bar, macOS may hide the icon behind the camera notch. The stack's
 tan ribbon has what you need: the eye button hides or shows everything (an open eye while cards
@@ -58,11 +58,14 @@ differ. It checks the app's signature, refuses an app that is not signed with th
 or that carries the `get-task-allow` debug entitlement (either one lets other programs read the API
 key from Ideator's memory), checks that the app has both `arm64` and `x86_64` slices and its icon,
 and verifies the disk image. It also checks that `Sparkle.framework` is embedded at the version
-`Package.resolved` pins, that `ThirdPartyNotices.txt` names it, and the signing policy below. Then it
-runs the packaged app once on an empty temporary folder, as a scratch run (no preferences, no
-shortcut, no Keychain), and stops unless the app is still running after 3 seconds with Sparkle
-loaded. A signature can verify and still belong to an app macOS refuses to start. It runs from any
-folder, and running it again replaces the old image.
+`Package.resolved` pins, that `ThirdPartyNotices.txt` names it, and the signing policy below. It
+checks the updater's settings in the app's `Info.plist`: the production feed, the release key,
+system profiling and automatic installs off, no `IdeatorUpdateTest` flag and no
+`NSAppTransportSecurity` exception. Then it runs the packaged app once on an empty temporary folder,
+as a scratch run (no preferences, no shortcut, no Keychain, no update check), and stops unless the
+app is still running after 3 seconds with Sparkle loaded. A signature can verify and still belong
+to an app macOS refuses to start. It runs from any folder, and running it again replaces the old
+image.
 
 The app icon, a card and a spark on an ink plate, is drawn by `scripts/make-icon.swift` from the
 app's own colors.
@@ -141,7 +144,8 @@ may read its Keychain item; choose **Always Allow**. A run started with `-CardsF
 or writes the Keychain: it starts with no key, and a key pasted into Settings lasts until that run
 quits.
 
-[PRIVACY.md](PRIVACY.md) lists what Ideator stores and the one thing it sends.
+[PRIVACY.md](PRIVACY.md) lists what Ideator stores and the two things it sends: a card's text to
+Anthropic for its summary, and a daily update check to GitHub.
 
 ## First launch
 
@@ -149,8 +153,8 @@ The first time Ideator starts, it shows a welcome card before it creates `~/Docu
 macOS's Documents prompt comes after the card explains it. To see the card again, quit Ideator and
 run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
 `CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
-`-CardsFolder` shows no card on its own, remembers nothing, and does not register the global
-shortcut.
+`-CardsFolder` shows no card on its own, remembers nothing, does not register the global shortcut,
+and never checks for updates.
 
 ## Where notes live
 

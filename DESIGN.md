@@ -51,8 +51,9 @@ func send(_ command: Command) {
 | `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
 | `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run, which also picks the key store); the persisted shortcut, and no persistence at all in a scratch run |
 | `Welcome.swift` | the first-launch card and its copy |
-| `Build.swift` | what the build says about itself: version, number and the commit `package.sh` stamped, parsed strictly (pure) |
-| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the privacy line and the version line in one window sized to its rows; entry point, menu bar, reopen |
+| `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
+| `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
+| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
@@ -156,9 +157,20 @@ func send(_ command: Command) {
   stale. Spinner, failure and "no key" are derived, not stored as flags.
 - **One dependency.** Sparkle 2.10.0 is pinned exactly, `Package.resolved` is committed, and every
   `xcodebuild` passes `-disableAutomaticPackageResolution`, so a drifted pin fails the build instead
-  of changing what ships. It is linked and embedded and no code calls it yet. Xcode embeds and signs
-  the framework without a copy phase of ours. `Cards/ThirdPartyNotices.txt` is Sparkle's license
-  text and lands in Resources.
+  of changing what ships. Only `Updates.swift` imports it. Xcode embeds and signs the framework
+  without a copy phase of ours. `Cards/ThirdPartyNotices.txt` is Sparkle's license text and lands in
+  Resources.
+- **Whether a run checks for updates is a plan, decided once.** `BuildInfo.plan(isScratch:)` returns
+  `.check(Feed)` or `.off(.notPackaged | .scratchRun)`. A build without `package.sh`'s stamp has
+  build number 1, so every release would look newer and Sparkle would replace the copy Xcode built.
+  Sparkle keeps its state in `UserDefaults.standard`, the owner's domain in a scratch run. The one
+  exception is an update-test copy (`IdeatorUpdateTest` = YES, its own bundle id), which also may
+  use plain http, and only to localhost or 127.0.0.1. `Updates` makes a
+  `SPUStandardUpdaterController` only for `.check`, so an off plan has no Sparkle object at all,
+  and starts it in `Launch.run`'s `openNotes`, after the welcome has announced the check. The
+  Sparkle keys are literals in `Config/Info.plist`; `feedURLString(for:)` returns the plist's feed,
+  so a `SUFeedURL` default or argument cannot move it. Settings binds its checkbox to Sparkle's
+  `automaticallyChecksForUpdates` and keeps no copy.
 - **Signing has one policy, in `package.sh`.** Builds are ad-hoc signed with the hardened runtime
   until a Team ID exists, and dyld then refuses the embedded framework ("different Team IDs"). The
   Release configuration therefore carries `Config/Ideator-adhoc.entitlements`, one key:
@@ -329,6 +341,13 @@ Later changes, after trying the app:
   build raised macOS's access prompt and froze the unattended verify runs and the `package.sh`
   launch check. `Launch.keys()` now gives a scratch run a `KeyStore` that keeps the key in memory
   and makes no Keychain call. `Desk` is unchanged.
+- 2026-10-26, updates: Sparkle checks GitHub Releases once a day, announced by a fifth welcome
+  paragraph and started only after Continue. The menu bar icon's menu gained Check for Updates…
+  and Settings an Updates section; the ribbon's menu is unchanged. The privacy line moved to the
+  end of Settings and, with PRIVACY.md and the welcome card, now names GitHub as well as Anthropic
+  and what GitHub sees. `package.sh` refuses a release whose feed or key is not the production one,
+  or that turns on profiling, automatic installs, the update-test flag or an ATS exception. `Desk`
+  is unchanged.
 
 ## Tradeoffs accepted
 
