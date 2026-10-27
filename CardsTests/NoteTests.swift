@@ -174,4 +174,12 @@ final class NoteTests: XCTestCase {
         let note = Note(header: "Trip", body: [line(B(), "pack"), line(N(1), "socks"), line(D(2, done: true), "wool"), line(T, "end")])
         XCTAssertEqual(note.plainText, "Trip\n- pack\n  - socks\n    [x] wool\nend")
     }
+
+    func testEditorTextHoldsNoLineBreakButTheParagraphOnes() {
+        // A file edited elsewhere can carry U+2029 or a bare CR inside a line. The editor splits
+        // paragraphs on those as well as on "\n", so they must never reach it.
+        let note = Note(header: "h", body: [line(T, "a\u{2029}b\rc\u{2028}d\u{85}e")])
+        XCTAssertEqual(note.attributedText.string, "h\na b c d e")
+        XCTAssertEqual(Note(attributedText: note.attributedText), Note(header: "h", body: [line(T, "a b c d e")]))
+    }
 }

@@ -314,6 +314,13 @@ Later changes, after trying the app:
   can't be listed locks the sidecar for the run the way a newer one does, with its own notice; and
   `save` reads the sidecar's version again before every write. `DeskController` takes a `present`
   closure for its alerts so tests can answer them. `Desk` is unchanged.
+- 2026-10-27, paragraph separators: the audit reproduced a trap in copy and paste after an
+  HTML paste carrying U+2029. `Note(attributedText:)` splits paragraphs on "\n" alone, while
+  `allParagraphs()` uses `paragraphRange`, which also splits on CR and U+2029, so the storage had
+  one paragraph more than the note and `span(of:)` indexed past the end. The invariant now holds
+  at the storage boundary: `attributedParagraphs` shows every other line break as a space, whatever
+  put it in a run (an HTML paste, a file edited elsewhere), and `HTMLReader.add` collapses
+  Unicode's line breaks like HTML whitespace. The two splitters stay as they are.
 - 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
   explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
   whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records

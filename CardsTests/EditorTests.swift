@@ -199,4 +199,19 @@ final class EditorTests: XCTestCase {
         let note = Note(header: "h", body: [line(B(), "a"), line(N(1), ""), line(D(2, done: true), "c"), line(T, "d")])
         XCTAssertEqual(Note(attributedText: note.attributedText), note, "the editor's text holds every shape")
     }
+
+    func testPastedParagraphSeparatorsDoNotSplitTheStorage() {
+        let card = Card(Note(header: "h", body: [line(T, ""), line(T, "end")]))
+        let board = pasteboard()
+        board.declareTypes([.html], owner: nil)
+        board.setString("<ul><li>one\u{2029}two</li><li>three</li></ul>", forType: .html)
+        card.editor.setSelectedRange(NSRange(location: ("h\n" as NSString).length, length: 0))
+        card.key { XCTAssertTrue($0.readSelection(from: board, type: .html)) }
+        XCTAssertEqual(card.texts, ["one two", "three", "end"])
+        XCTAssertEqual(card.editor.string, card.editor.note.attributedText.string, "storage and note agree paragraph for paragraph")
+        card.editor.selectAll(nil)
+        XCTAssertTrue(card.editor.writeSelection(to: board, types: card.editor.writablePasteboardTypes), "copy after the paste must not trap")
+        XCTAssertEqual(board.string(forType: .string), "# h\n- one two\n- three\nend")
+        board.releaseGlobally()
+    }
 }
