@@ -119,6 +119,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Paste reads HTML first when it holds a list (a selection in the Claude app, web pages, Notes); otherwise the plain text is read as Markdown, also accepting `•` `◦` `▪` `·` `‣` bullets and `1)` numbering (terminal output such as Claude Code's).
 - From HTML: list items, nesting, ordered vs unordered, checkboxes, bold and italic are kept. Headings, links, code and table cells become plain lines with their text; images are dropped.
 - A paste with no line break is inserted as typed text and never starts a list.
+- Only a line break separates lines. A bare CR, U+2028, U+2029 or U+0085 inside pasted HTML, or inside a line of a file edited elsewhere, shows as a space (added 2026-10-27): the editor would otherwise split a paragraph the note does not have, and the next copy or paste crashed.
 - A multi-line paste: on an empty line, the first pasted line replaces it (kind and level); inside text, the first pasted line's text joins the current line, which keeps its kind. Later lines keep their own kinds, shifted by the current item's level, and anything past level 3 is tidied up. Pasting into the header puts the first line in the header and the rest in the body.
 
 ## Clarity mode

@@ -499,12 +499,14 @@ private enum HTMLReader {
         private var currentStyle: Style { styles.reduce([]) { $0.union($1.style) } }
 
         /// Whitespace collapses as HTML shows it, except a no-break space; a line never starts with
-        /// a collapsible space.
+        /// a collapsible space. Unicode's own line breaks (U+2028, U+2029, U+0085) are not HTML
+        /// whitespace, but they collapse too: the editor would split a paragraph on them.
         private mutating func add(_ text: String) {
             var collapsed = ""
             var afterSpace = runs.last.map { $0.text.last == " " } ?? true
             for c in text {
-                if c == " " || c == "\t" || c == "\n" || c == "\r" || c == "\r\n" || c == "\u{C}" {
+                if c == " " || c == "\t" || c == "\n" || c == "\r" || c == "\r\n" || c == "\u{C}"
+                    || c == "\u{2028}" || c == "\u{2029}" || c == "\u{85}" {
                     if !afterSpace { collapsed.append(" ") }
                     afterSpace = true
                 } else {

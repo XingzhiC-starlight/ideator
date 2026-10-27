@@ -103,7 +103,10 @@ extension Note {
     var attributedText: NSAttributedString { attributedParagraphs(0..<(body.count + 1)) }
 
     /// Paragraphs `range` of the editor's text (0 is the header). Each but the note's last ends in
-    /// a "\n" that carries its paragraph's attributes.
+    /// a "\n" that carries its paragraph's attributes. Any other line break inside a run (a bare
+    /// CR, U+2028, U+2029, U+0085, which a file edited elsewhere or an HTML paste can carry) shows
+    /// as a space: the text view would split a paragraph on it that the note does not have, and
+    /// then the two disagree on where paragraph N starts, which is how a copy or paste trapped.
     func attributedParagraphs(_ range: Range<Int>) -> NSAttributedString {
         let text = NSMutableAttributedString()
         for i in range {
@@ -112,11 +115,21 @@ extension Note {
                 i == 0 ? EditorStyle.headerAttributes : EditorStyle.bodyAttributes(shape: body[i - 1].shape, style: style)
             }
             for run in runs where !run.text.isEmpty {
-                text.append(NSAttributedString(string: run.text, attributes: attributes(run.style)))
+                text.append(NSAttributedString(string: Self.withoutLineBreaks(run.text), attributes: attributes(run.style)))
             }
             if i < body.count { text.append(NSAttributedString(string: "\n", attributes: attributes([]))) }
         }
         return text
+    }
+
+    /// Every character `NSString` ends a paragraph or line on, other than "\n", as a space.
+    static func withoutLineBreaks(_ text: String) -> String {
+        String(String.UnicodeScalarView(text.unicodeScalars.map { scalar in
+            switch scalar {
+            case "\r", "\u{2028}", "\u{2029}", "\u{85}": " "
+            default: scalar
+            }
+        }))
     }
 
     /// Inverse of `attributedText`. Paragraph 0 → `header` (plain string, attributes ignored).
