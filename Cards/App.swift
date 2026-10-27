@@ -76,7 +76,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) { controller?.appDidBecomeActive() }
     func applicationDidResignActive(_ notification: Notification) { controller?.flush() }
-    func applicationWillTerminate(_ notification: Notification) { controller?.flush() }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        controller?.shouldQuit() ?? true ? .terminateNow : .terminateCancel
+    }
     func applicationDidChangeScreenParameters(_ notification: Notification) { controller?.screensChanged() }
 
     /// Opening the app again (Finder, Spotlight, Launchpad) while it runs shows everything and

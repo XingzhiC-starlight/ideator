@@ -129,7 +129,7 @@ func click(_ at: CGPoint) {
 
 let keyCodes: [String: CGKeyCode] = ["return": 36, "tab": 48, "space": 49, "delete": 51, "escape": 53,
                                      "left": 123, "right": 124, "down": 125, "up": 126,
-                                     "a": 0, "b": 11, "c": 8, "h": 4, "i": 34, "k": 40, "v": 9, "x": 7, "z": 6, ",": 43]
+                                     "a": 0, "b": 11, "c": 8, "h": 4, "i": 34, "k": 40, "q": 12, "v": 9, "x": 7, "z": 6, ",": 43]
 
 func post(_ pid: pid_t, key: CGKeyCode, flags: CGEventFlags = [], unicode: String? = nil) {
     for down in [true, false] {

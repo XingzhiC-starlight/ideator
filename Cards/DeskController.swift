@@ -27,21 +27,26 @@ final class DeskController {
     private let keys: KeyStore
     /// The app's menu (Settings…, Quit) for the stack's ribbon button.
     private let appMenu: () -> NSMenu
+    /// Shows an alert and returns the button pressed. The default runs it modally; tests answer it.
+    private let present: (NSAlert) -> NSApplication.ModalResponse
     private var pendingSave: Task<Void, Never>?
     private var saveFailing = false
+    private var warnedAboutLayout = false
     private var pointerMonitors: [Any] = []
 
-    init(library: Library, keys: KeyStore, appMenu: @escaping () -> NSMenu) {
+    init(library: Library, keys: KeyStore, appMenu: @escaping () -> NSMenu,
+         present: @escaping (NSAlert) -> NSApplication.ModalResponse = { NSApp.activate(); return $0.runModal() }) {
         self.library = library
         self.keys = keys
         self.appMenu = appMenu
+        self.present = present
         desk = library.load()
         grid = Self.currentGrid() ?? Grid(area: CGRect(x: 0, y: 0, width: 1512, height: 949))
         summarizer.sync(desk.allCards, typing: nil)
         render()
         trackPointer()
         // After launch finishes, so the menu bar icon and hotkey exist while the alert is up.
-        if library.sidecarIsNewer { DispatchQueue.main.async { [weak self] in self?.warnNewerSidecar() } }
+        DispatchQueue.main.async { [weak self] in self?.warnIfLayoutIsLocked() }
     }
 
     // MARK: The one way state changes
@@ -118,6 +123,20 @@ final class DeskController {
     func flush() -> Bool {
         pendingSave?.cancel()
         return saveNow()
+    }
+
+    /// `applicationShouldTerminate`: saves, and while the folder still refuses, asks before the
+    /// unsaved changes are lost. False keeps Ideator open.
+    func shouldQuit() -> Bool {
+        if flush() { return true }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Quit without saving?"
+        alert.informativeText = "Ideator still can't write to \(library.folder.path). Quitting now loses every "
+            + "change since the last save that succeeded."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Quit Anyway")
+        return present(alert) == .alertSecondButtonReturn
     }
 
     // MARK: Derived side effects
@@ -232,33 +251,51 @@ final class DeskController {
             alert.alertStyle = .warning
             alert.messageText = "Ideator can't save your notes"
             alert.informativeText = Self.saveFailureText(folder: library.folder)
-            NSApp.activate()
-            alert.runModal()
+            present(alert)
         }
+        warnIfLayoutIsLocked()   // a save can be the first to see a newer sidecar
         return saved
     }
 
     /// Inside the user's Documents folder, a refused write is most often their answer to macOS's
     /// Documents prompt, so the alert says where to undo it.
     static func saveFailureText(folder: URL, documents: URL = URL.documentsDirectory) -> String {
-        var text = "Ideator couldn't write to \(folder.path). Your cards stay in memory until a save succeeds."
-        if folder.standardizedFileURL.path.hasPrefix(documents.standardizedFileURL.path + "/") {
-            text += " If you chose Don't Allow when macOS asked about your Documents folder, turn Ideator on in "
-                + "System Settings › Privacy & Security › Files & Folders."
-        }
-        return text
+        "Ideator couldn't write to \(folder.path). Your cards stay in memory until a save succeeds."
+            + documentsHint(folder: folder, documents: documents)
     }
 
-    /// Once per launch: card files still save, but places, Clarity and summaries do not.
-    private func warnNewerSidecar() {
+    /// Same cause as a refused write, so the same way out.
+    static func unreadFolderText(folder: URL, documents: URL = URL.documentsDirectory) -> String {
+        "Ideator couldn't list \(folder.path), so your cards don't appear. They are still there. Any card "
+            + "you write is saved when it can be, but where cards sit, Clarity and summaries are not, so the "
+            + "folder's own arrangement stays intact. Quit and reopen Ideator once the folder can be read."
+            + documentsHint(folder: folder, documents: documents)
+    }
+
+    private static func documentsHint(folder: URL, documents: URL) -> String {
+        guard folder.standardizedFileURL.path.hasPrefix(documents.standardizedFileURL.path + "/") else { return "" }
+        return " If you chose Don't Allow when macOS asked about your Documents folder, turn Ideator on in "
+            + "System Settings › Privacy & Security › Files & Folders."
+    }
+
+    /// Once per launch, when the library won't write the sidecar: card files still save, but
+    /// places, Clarity and summaries do not. Checked after launch and after every save, since a
+    /// newer sidecar can arrive while Ideator runs.
+    private func warnIfLayoutIsLocked() {
+        guard !warnedAboutLayout, library.folderUnread || library.sidecarIsNewer else { return }
+        warnedAboutLayout = true
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "These notes were arranged by a newer Ideator"
-        alert.informativeText = "Your notes open and save as usual, but where cards sit, Clarity and "
-            + "summaries won't be saved on this Mac, so the newer Ideator's arrangement stays intact. "
-            + "Update Ideator to arrange cards here again."
-        NSApp.activate()
-        alert.runModal()
+        if library.folderUnread {
+            alert.messageText = "Ideator couldn't read your notes"
+            alert.informativeText = Self.unreadFolderText(folder: library.folder)
+        } else {
+            alert.messageText = "These notes were arranged by a newer Ideator"
+            alert.informativeText = "Your notes open and save as usual, but where cards sit, Clarity and "
+                + "summaries won't be saved on this Mac, so the newer Ideator's arrangement stays intact. "
+                + "Update Ideator to arrange cards here again."
+        }
+        present(alert)
     }
 
     /// The menu-bar screen.
