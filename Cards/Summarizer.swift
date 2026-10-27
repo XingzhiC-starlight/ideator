@@ -15,9 +15,10 @@ final class Summarizer {
     private let summarize: (Note, String) async -> Summary.Outcome
     private var jobs: [CardID: Job] = [:]
 
-    /// A request for one version of one note: waiting out the quiet period, then in flight.
+    /// A request for one version of one note under one key: waiting out the quiet period, then in flight.
     private struct Job {
         let source: Digest
+        let key: String
         let task: Task<Void, Never>
     }
 
@@ -33,7 +34,9 @@ final class Summarizer {
     /// exists, its body wants a summary, and its latest attempt (success or failure) is for an
     /// older version of the note. `typing` is the card just edited: its job (re)starts the quiet
     /// period. Any other wanted card without a job starts at once. A job whose card no longer
-    /// wants it is cancelled, and a cancelled job never delivers. No key → nothing is requested.
+    /// wants it, or that was started under another key, is cancelled (the second case starts
+    /// again at once under the current key), and a cancelled job never delivers. No key → nothing
+    /// is requested.
     func sync(_ cards: [Card], typing: CardID?) {
         guard let key = apiKey() else {
             for job in jobs.values { job.task.cancel() }
@@ -42,14 +45,14 @@ final class Summarizer {
         }
         let wanted = cards.filter { $0.note.wantsSummary && $0.summary?.source != $0.digest }
         let wantedDigests = Dictionary(wanted.map { ($0.id, $0.digest) }, uniquingKeysWith: { first, _ in first })
-        for (id, job) in jobs where wantedDigests[id] != job.source || id == typing {
+        for (id, job) in jobs where wantedDigests[id] != job.source || job.key != key || id == typing {
             job.task.cancel()
             jobs[id] = nil
         }
         for card in wanted where jobs[card.id] == nil {
             let delay: Duration = card.id == typing ? Self.quietPeriod : .zero
             let (id, note, source, summarize) = (card.id, card.note, card.digest, summarize)
-            jobs[id] = Job(source: source, task: Task { [weak self] in
+            jobs[id] = Job(source: source, key: key, task: Task { [weak self] in
                 try? await Task.sleep(for: delay)
                 guard !Task.isCancelled else { return }
                 let outcome = await summarize(note, key)
