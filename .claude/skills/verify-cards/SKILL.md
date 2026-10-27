@@ -190,7 +190,11 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   the owner's Ideator. The harness also cannot press it. Prove Hide all with the ribbon button, not
   the hotkey.
 - The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has the same Settings… and
-  Quit.
+  Quit. Check for Updates… is only in the menu bar icon's menu; Settings' Check Now does the same.
+- A scratch run never starts Sparkle, and neither does any build `cv build` makes, which
+  `scripts/package.sh` did not stamp. No Sparkle object exists, so nothing goes to GitHub and no
+  `SU*` key reaches the owner's `com.systemlabs.Ideator` preferences. Settings' update controls
+  are dimmed, and the caption under them says why.
 - `click`, `focus`, `scroll` and `drag` move the real pointer and click the topmost window at that
   point. The helper brings Ideator forward first, but a window the user drags on top in between
   would take the click. `press`, `type`, `key` and `tree` don't depend on the pointer.

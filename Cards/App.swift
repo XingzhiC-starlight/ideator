@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in
         self?.withDesk { $0.toggleHidden() }
     }
+    private lazy var updates = Updates(build: .current, isScratch: launch.isScratch)
     private var controller: DeskController?
     private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
@@ -50,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openNotes: { [unowned self] in
                 controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
                                             appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
+                updates.start()
                 NSApp.activate()
             })
     }
@@ -97,7 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The app's menu. The ribbon's is Settings… and Quit: Hide all is a ribbon button, and Open
     /// stack means nothing on the stack. The menu bar icon's adds Show all / Hide all / Open
-    /// stack above them.
+    /// stack above them and Check for Updates… after Settings…, so the ribbon's stays what its
+    /// tooltip and the welcome card say. Settings has Check Now for a Mac whose notch hides the icon.
     private func makeAppMenu(for surface: MenuSurface) -> NSMenu {
         let menu = NSMenu()
         if surface == .menuBar {
@@ -107,6 +110,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(.separator())
         }
         menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: "").target = self
+        if surface == .menuBar {
+            menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "").target = self
+        }
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Ideator", action: #selector(quit), keyEquivalent: "").target = self
         return menu
@@ -148,14 +154,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func hideAll() { withDesk { $0.setHidden(true) } }
     @objc private func openStack() { withDesk { $0.openStack() } }
     @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func checkForUpdates() { updates.checkNow() }
 
     @objc private func openSettings() {
-        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, build: .current) { [weak self] in
+        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates) { [weak self] in
             self?.controller?.apiKeyChanged()
         }
         settingsWindow = window
         NSApp.activate()
         window.center()
         window.makeKeyAndOrderFront(nil)
+    }
+}
+
+extension AppDelegate: NSMenuItemValidation {
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard menuItem.action == #selector(checkForUpdates) else { return true }
+        menuItem.title = updates.menuTitle
+        return updates.canCheck
     }
 }

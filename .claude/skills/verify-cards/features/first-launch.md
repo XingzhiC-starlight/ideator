@@ -3,9 +3,10 @@
 The first time Ideator starts on a Mac it shows one card, "Welcome to Ideator", before it touches
 the notes folder. The card says where the app is (no Dock icon, the menu bar icon, the notch), which
 shortcut hides and shows the cards, that notes are Markdown files in `~/Documents/Ideator`, that
-macOS asks for the Documents folder after Continue, and that summaries are optional and what leaves
-the Mac. Continue, or Return, closes the card and opens the stack. Settings has the shortcut
-recorder and a line on what summaries send.
+macOS asks for the Documents folder after Continue, that summaries are optional, that Ideator asks
+GitHub once a day for updates, and that nothing else leaves the Mac. Continue, or Return, closes
+the card and opens the stack. Settings has the shortcut recorder, the update controls and a line on
+what leaves the Mac.
 
 ## Sub-features
 
@@ -14,7 +15,9 @@ recorder and a line on what summaries send.
 - `welcome-scratch` A scratch run shows no welcome on its own, and a forced one saves nothing.
 - `settings-shortcut` The shortcut button records a new combination, refuses an illegal one by name,
   and goes back to the default.
-- `settings-privacy` The privacy line sits under the API key field.
+- `settings-updates` The update controls are dimmed in a build that never checks, and the caption
+  says why.
+- `settings-privacy` The privacy line is the last row of Settings, under the Privacy heading.
 
 ## How to get to it (user POV)
 
@@ -31,10 +34,11 @@ Preconditions:
 - `cv build` ran after the last source change.
 - `cv launch --welcome` for the card recipes (add `--seed` for `welcome-gate`). The welcome shows in a
   scratch run only because `--welcome` forces it, and Continue saves nothing there.
-- Plain `cv launch` for `settings-shortcut` and `settings-privacy` is enough, and so is the welcome.
+- Plain `cv launch` for the `settings-*` recipes is enough, and so is the welcome.
 
 - **welcome-card.** Run `cv launch --welcome`. `cv ax tree` lists the text "Welcome to Ideator", the
-  four paragraphs (the second names `⌃⌥I`) and `AXButton "Continue"`, and no `New`.
+  five paragraphs (the second names `⌃⌥I`, the fifth starts "Updates come from GitHub." and ends
+  "Nothing else leaves your Mac.") and `AXButton "Continue"`, and no `New`.
   `cv ax windows` lists one window. `cv shot welcome` is the proof image.
 - **welcome-gate.** Run `cv launch --welcome --seed`. Before Continue, `cv ax windows` lists one window
   and `cv ax tree` has no `New` and no count badge: the seeded cards have not been read. Run
@@ -45,15 +49,22 @@ Preconditions:
   --welcome`, `cv ax press Continue`, `cv stop`, then plain `cv launch` (it waits for `New`, so it
   fails if a welcome shows), then `cv stop`. Run the `shasum` again: equal.
 - **settings-shortcut.** From any run, `cv ax key cmd+,` then `cv shot settings`: the shortcut row
-  (`⌃⌥I`, Use Default dimmed), the caption, the privacy line, and a window that fits its rows.
+  (`⌃⌥I`, Use Default dimmed), the caption, the Updates rows, the privacy line, and a window that
+  fits its rows.
   `cv ax press "⌃⌥I"` starts recording (the button reads `Type shortcut…`). `cv ax key
   ctrl+cmd+h`: the button reads `⌃⌘H` and Use Default is enabled; a scratch run saves nothing, so a
   relaunch is back to `⌃⌥I`. Press the button again and `cv ax key cmd+k`: the caption reads
   "⌘K can't be the shortcut. Use ⌃ or ⌘ with at least one other modifier key, so typing never
   triggers it." and the button is still recording. `cv ax key escape` cancels. `cv ax press "Use
   Default"` after a change restores `⌃⌥I`.
-- **settings-privacy.** `cv ax tree` of the Settings window has the static text beginning "Summaries
-  are optional. With a key saved, Ideator sends a card's text to Anthropic".
+- **settings-updates.** Take the `shasum` of the owner's preferences as in `welcome-scratch`. Open
+  Settings with `cv ax key cmd+,`. `cv ax tree` shows `AXCheckBox "Check for updates automatically"`
+  and `AXButton "Check Now"`, both `[disabled]`, and the static text "Version 0.9 (1), a development
+  build. Only builds made by scripts/package.sh check for updates." `cv shot settings-updates` is
+  the proof image. After `cv stop` the `shasum` is unchanged.
+- **settings-privacy.** `cv ax tree` of the Settings window has, after the Privacy heading, the
+  static text beginning "With a key saved, Ideator sends a card's text to Anthropic" and ending
+  "Nothing else leaves your Mac: no analytics, no crash reports."
 
 ## Gotchas
 

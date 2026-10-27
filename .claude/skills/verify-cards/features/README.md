@@ -61,7 +61,7 @@ commands and observable proof.
 - [Clarity](./clarity.md): the global Clarity button, per-card collapse and expand, and what a
   collapsed card shows.
 - [First launch](./first-launch.md): the welcome card and the folder it keeps closed until Continue,
-  and Settings' shortcut recorder and privacy line.
+  and Settings' shortcut recorder, update controls and privacy line.
 - [Delete a card](./delete-card.md): the trash button, its confirmation, and the file leaving the
   folder.
 - [Move cards and the stack](./drag.md): dragging a card or the stack to snap, swap, stay free

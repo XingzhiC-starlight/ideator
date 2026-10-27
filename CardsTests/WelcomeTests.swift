@@ -23,6 +23,17 @@ final class WelcomeTests: XCTestCase {
         XCTAssertFalse(text.contains("Press ⌃⌥I"))
     }
 
+    func testTheCopyAnnouncesTheDailyCheckWithGitHubAndPromisesNothingElseLeavesAfterBothServices() throws {
+        let paragraphs = copy().paragraphs
+        let text = paragraphs.map { $0.lead + " " + $0.text }.joined(separator: "\n")
+
+        XCTAssertTrue(text.contains("Only a card's text goes to Anthropic."))
+        XCTAssertTrue(text.contains("Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it installs one."))
+        XCTAssertTrue(text.contains("You can turn the daily check off in Settings."))
+        XCTAssertTrue(try XCTUnwrap(paragraphs.last).text.hasSuffix("Nothing else leaves your Mac."))
+        XCTAssertEqual(text.components(separatedBy: "Nothing else leaves your Mac").count, 2, "said once, last")
+    }
+
     func testTheCardFitsItsCopyAtTheStackWidth() {
         let window = WelcomeWindow(copy: copy()) {}
 

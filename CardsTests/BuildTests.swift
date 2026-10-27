@@ -163,6 +163,15 @@ final class BuildTests: XCTestCase {
         XCTAssertFalse(BuildInfo.current.isUpdateTest)
     }
 
+    func testTheShippedCheckIntervalIsTheOnceADayThatSettingsAndTheWelcomeCardSay() throws {
+        let plist = try XCTUnwrap(Bundle.main.infoDictionary)
+
+        XCTAssertEqual(plist["SUScheduledCheckInterval"] as? Int, 86400)
+        XCTAssertTrue(SettingsWindow.privacy.contains("Once a day"))
+        let welcome = WelcomeCopy(shortcut: .standard, shortcutWorks: true).paragraphs.map(\.text).joined()
+        XCTAssertTrue(welcome.contains("Once a day"))
+    }
+
     func testTheShippedPlistNeverProfilesTheMacOrInstallsWithoutAsking() throws {
         let plist = try XCTUnwrap(Bundle.main.infoDictionary)
 

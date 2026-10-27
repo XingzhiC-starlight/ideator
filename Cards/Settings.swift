@@ -71,25 +71,30 @@ final class SettingsWindow: NSWindow {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
 
-    static let privacy = "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, "
-        + "using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash "
-        + "reports. The key stays in your login Keychain."
+    static let privacy = "With a key saved, Ideator sends a card's text to Anthropic, using your own key, to "
+        + "write its summary. The key stays in your login Keychain. Once a day, and whenever you click Check "
+        + "Now, Ideator asks GitHub whether a newer version exists. GitHub sees your IP address and which "
+        + "version you have. Nothing else leaves your Mac: no analytics, no crash reports."
 
     private let keys: KeyStore
     private let hotKey: HotKey
+    private let updates: Updates
     private let onChange: () -> Void
     private let shortcutField = ShortcutField()
     private let defaultButton = NSButton(title: "Use Default", target: nil, action: nil)
     private let shortcutNote = NSTextField(wrappingLabelWithString: "")
     private let field = NSSecureTextField()
     private let status = NSTextField(wrappingLabelWithString: "")
+    private let autoCheck = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
+    private let checkNowButton = NSButton(title: "Check Now", target: nil, action: nil)
     private let stack = NSStackView()
     private var rejected: String?
     private var releasedForRecording = false
 
-    init(keys: KeyStore, hotKey: HotKey, build: BuildInfo, onChange: @escaping () -> Void) {
+    init(keys: KeyStore, hotKey: HotKey, updates: Updates, onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
+        self.updates = updates
         self.onChange = onChange
         super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -141,9 +146,17 @@ final class SettingsWindow: NSWindow {
         let remove = NSButton(title: "Remove Key", target: self, action: #selector(remove))
         let buttons = NSStackView(views: [remove, save])
 
+        autoCheck.target = self
+        autoCheck.action = #selector(toggleAutomaticChecks)
+        checkNowButton.target = self
+        checkNowButton.action = #selector(checkNow)
+        let updatesRow = NSStackView(views: [autoCheck, checkNowButton])
+        updatesRow.distribution = .equalSpacing
+        let updatesNote = NSTextField(wrappingLabelWithString: Self.updatesCaption(build: updates.build, plan: updates.plan))
+
         for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("Anthropic API key"), field,
-                     caption(NSTextField(wrappingLabelWithString: Self.privacy)), caption(status), buttons,
-                     caption(NSTextField(wrappingLabelWithString: build.versionLine))] {
+                     caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
+                     heading("Privacy"), caption(NSTextField(wrappingLabelWithString: Self.privacy))] {
             stack.addArrangedSubview(view)
         }
         stack.orientation = .vertical
@@ -151,18 +164,20 @@ final class SettingsWindow: NSWindow {
         stack.spacing = 10
         stack.setCustomSpacing(18, after: shortcutNote)
         stack.setCustomSpacing(18, after: buttons)
+        stack.setCustomSpacing(18, after: updatesNote)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         NSLayoutConstraint.activate([
             stack.widthAnchor.constraint(equalToConstant: Self.width),
             field.widthAnchor.constraint(equalToConstant: Self.inner),
             buttons.trailingAnchor.constraint(equalTo: field.trailingAnchor),
+            updatesRow.widthAnchor.constraint(equalToConstant: Self.inner),
         ])
         contentView = stack
         refresh()
     }
 
-    /// The window is kept between openings, and the macOS shortcuts and the saved key can change
-    /// meanwhile, so what it says is read again each time it comes forward.
+    /// The window is kept between openings, and the macOS shortcuts, the saved key and whether the
+    /// updater can check change meanwhile, so what it says is read again each time it comes forward.
     override func becomeKey() {
         super.becomeKey()
         refresh()
@@ -185,6 +200,9 @@ final class SettingsWindow: NSWindow {
             : keys.inKeychain
             ? "A key is saved in your Keychain. Paste a new one to replace it."
             : "A key is held for this run only. Paste a new one to replace it."
+        autoCheck.state = updates.checksAutomatically ? .on : .off
+        autoCheck.isEnabled = updates.plan.checks
+        checkNowButton.isEnabled = updates.canCheck
         contentView?.layoutSubtreeIfNeeded()
         let top = frame.maxY
         setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))
@@ -200,6 +218,24 @@ final class SettingsWindow: NSWindow {
                 + "Shortcuts). If it fires instead of Ideator, pick another here."
         }
         return "Hides or shows every card, from any app. Click it, then press the new keys."
+    }
+
+    static func updatesCaption(build: BuildInfo, plan: UpdatePlan) -> String {
+        switch plan {
+        case .check: "\(build.versionLine). Ideator asks before it installs an update."
+        case .off(.scratchRun): "\(build.versionLine). A scratch run (-CardsFolder) doesn't check for updates."
+        case .off(.notPackaged): "\(build.versionLine). Only builds made by scripts/package.sh check for updates."
+        }
+    }
+
+    @objc private func toggleAutomaticChecks() {
+        updates.checksAutomatically = autoCheck.state == .on
+        refresh()
+    }
+
+    @objc private func checkNow() {
+        updates.checkNow()
+        refresh()
     }
 
     @objc private func useDefaultShortcut() {
