@@ -101,6 +101,10 @@ validation off. With a Team ID the workaround has to go, and `scripts/package.sh
    `Sparkle.framework` itself but leaves the helper programs inside it (`Autoupdate`, `Updater.app`,
    the XPC services) as Sparkle shipped them, so expect the script to name them. Sign each with the
    same identity, innermost first, then run it again.
+4. TODO: notarize. `scripts/release.sh` does not notarize or staple anything yet. Add that between
+   `scripts/package.sh` and `generate_appcast`, because stapling changes the disk image's bytes and
+   the feed must sign the stapled file. Then the Open Anyway steps in "Share Ideator with someone"
+   can go.
 
 ## Is the installed app current?
 
@@ -168,6 +172,55 @@ that permission, the Mac has to be unlocked, and Ideator takes the focus while i
 the lock the Claude sessions share (`/tmp/claude-<uid>/ideator-live-ui.lock`) so that only one of
 them has a live Ideator open, and it does not run in CI. It does not prove that the release key signs
 what the release feed lists, GitHub's real redirects, or the Gatekeeper prompts of a downloaded build.
+
+## Releasing
+
+A release is a GitHub release named `v<version>-<build>` that holds the disk image and `appcast.xml`,
+the feed installed copies read. `SUFeedURL` in `Config/Info.plist` points at the newest published
+release's `appcast.xml`, and Sparkle accepts a feed and a disk image only when they are signed with
+the private key that matches `SUPublicEDKey` in the same file.
+
+The one-time setup is done. The signing key is in the login Keychain (service
+`https://sparkle-project.org`, account `ideator`), and its backup is in Apple Passwords as "Ideator
+Sparkle update key". `gh` is logged in with `gh auth login`.
+
+Each release, from `main` with nothing uncommitted and nothing newer on `origin/main`:
+
+1. If the updater changed (`Updates.swift`, `Config/Info.plist`, `package.sh`, `release.sh` or the
+   Sparkle version), run `scripts/package.sh` and then `scripts/verify-update.sh`.
+2. Write the release notes as a few Markdown bullets in a file outside the checkout. The notes are
+   shown in Sparkle's update window and on the GitHub release. A file inside the checkout would be
+   untracked, and `release.sh` refuses an unclean tree.
+3. Run `scripts/release.sh ~/Desktop/notes.md`. It runs `scripts/package.sh`, then checks that the
+   Keychain's key is the one the built app trusts and that the live feed offers a lower build (no
+   feed yet means this is the first release). It has Sparkle's `generate_appcast` sign the disk image
+   and write a one-item `build/release/appcast.xml`, and parses that file: one item, the app's
+   version and build, macOS 15.0 or later, the disk image's address and size, release notes and a
+   signature. `sign_update --verify` then checks the signature of the disk image and of the feed.
+   Last it creates a draft release with both files, downloads them back and compares them with the
+   local ones, and prints the draft's address. macOS may ask whether `generate_appcast` and
+   `sign_update` can use the key. Choose Always Allow. Installed copies cannot see a draft.
+4. Read the draft on GitHub.
+5. Run `scripts/release.sh --publish v0.9-<build>`, with the tag from step 3. It compares the draft's
+   files with the local ones again, so a build made since cannot go out under the draft's name. It
+   publishes the release as the latest one, then checks the feed for up to two minutes until it
+   serves exactly the local `appcast.xml`. Installed copies below that build are offered the update
+   at their next daily check, or at once through Check for Updates….
+
+`scripts/release.sh --dry-run ~/Desktop/notes.md` stops after the checks in step 3 and writes
+nothing to GitHub. Each run looks at what exists first, so running a command again carries on: an
+existing draft gets the new files, and a release that is already live prints "already released".
+A draft can be deleted on GitHub, but publishing cannot be taken back, because installed copies keep
+a published build. The way back from a bad release is a higher build.
+
+If the key is lost, installed copies cannot be updated again. They accept an update only when it is
+signed by the key behind their `SUPublicEDKey`, and Sparkle can move a copy to a new key only when
+the app is signed with a Developer ID, which these builds are not. Everyone would have to install the
+next version by hand from a disk image. So restore the key from the Apple Passwords backup instead of
+making a new one: `generate_keys --account ideator -f FILE`, with the tool from
+`build/ReleaseDerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin` after `scripts/package.sh`.
+`release.sh` stops when the Keychain's key is not the one in the app. Once a Developer ID signs the
+app, see "When the Developer ID arrives" below.
 
 ## Where to paste the API key
 

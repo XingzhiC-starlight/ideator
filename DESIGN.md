@@ -355,6 +355,14 @@ Later changes, after trying the app:
   path it proves is the shipped one. The feed names `localhost` and its server answers on both
   `::1` and `127.0.0.1`, so the app connects over `::1`: a connect to 127.0.0.1 once went
   unanswered for eight seconds on this Mac, with `::1` fine. `Desk` is unchanged.
+- 2026-10-26, releasing: `scripts/release.sh` turns the tip of `origin/main` into a draft GitHub
+  release holding the disk image and a signed one-item feed, and a second command, `--publish`,
+  makes it live, because publishing is the step nobody can take back and the draft is where a
+  person reads it. It takes the repository and the download address from `SUFeedURL`, the one place
+  the project names them, and refuses unless the Keychain's key is the one the app trusts. It parses
+  the feed it made instead of trusting it, and compares the draft's files with the local ones before
+  the draft goes live. Every step looks at what exists first, so a run that stopped carries on.
+  Notarization is not in it yet. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
