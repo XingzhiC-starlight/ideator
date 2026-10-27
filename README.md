@@ -132,6 +132,43 @@ defaults read /Applications/Ideator.app/Contents/Info.plist IdeatorTreeDirty
 `IdeatorTreeDirty` is `YES` or `NO`. A build that did not come from `scripts/package.sh` carries
 `none` and `unknown`, and `unknown` never means clean.
 
+## Testing updates
+
+```bash
+scripts/package.sh
+scripts/verify-update.sh
+```
+
+The second script proves, on this Mac, that an installed build updates itself to the next one through
+Sparkle. It takes the app out of the newest disk image in `build/release` (or the one you pass), and
+copies it twice as build N (one less than the shipped number) and N+1. The copies differ from the
+shipped app in five `Info.plist` keys: the bundle id `com.systemlabs.Ideator.UpdateTest`, the build
+number, a feed on `localhost`, the public half of a throwaway signing key, and `IdeatorUpdateTest`.
+Each is sealed again with the app's own entitlements, and the script checks that its code is the
+shipped code. A local server then plays GitHub's `releases/latest/download` redirect, and N is
+launched four times, each with a fresh preferences domain and no arguments, as a user would:
+
+| Phase | The feed | Expected |
+| --- | --- | --- |
+| up to date | lists N | Check Now says "You're up to date!", no disk image requested |
+| forged feed | N+1, signed by another key | Check Now says "The update feed is improperly signed", no disk image requested |
+| forged disk image | N+1, one byte of the disk image flipped after signing | Check Now offers it, Install Update downloads it, then "The update is improperly signed", N stays |
+| real update | N+1 | the check Sparkle makes at launch offers it with no click, then Install Update, Install and Relaunch, a new process running N+1 with the shipped code, and a Check Now that finds nothing |
+
+It prints a `PASS` line per phase, then one for the owner: `/Applications/Ideator.app`, the
+`com.systemlabs.Ideator` preferences, the running Ideator processes and `~/Documents/Ideator` are
+hashed before and after and must not change. The test build keeps its state in its own preferences
+domain, runs on a temporary notes folder, and gets a decoy `SUFeedURL` default that must never be
+requested. Servers, test processes, that domain, its caches and the temporary files are removed on
+the way out, even after a failure. Server logs, accessibility trees, screenshots and Sparkle's log
+are kept in `build/verify-evidence/update-<time>/`.
+
+It drives Sparkle's windows through Accessibility, as `verify-cards` does, so the terminal needs
+that permission, the Mac has to be unlocked, and Ideator takes the focus while it runs. It takes
+the lock the Claude sessions share (`/tmp/claude-<uid>/ideator-live-ui.lock`) so that only one of
+them has a live Ideator open, and it does not run in CI. It does not prove that the release key signs
+what the release feed lists, GitHub's real redirects, or the Gatekeeper prompts of a downloaded build.
+
 ## Where to paste the API key
 
 Summaries use the Anthropic API (model `claude-haiku-5-5`). Click the menu bar icon (or **⋯** on

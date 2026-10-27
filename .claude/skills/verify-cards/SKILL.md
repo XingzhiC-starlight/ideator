@@ -195,6 +195,8 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   `scripts/package.sh` did not stamp. No Sparkle object exists, so nothing goes to GitHub and no
   `SU*` key reaches the owner's `com.systemlabs.Ideator` preferences. Settings' update controls
   are dimmed, and the caption under them says why.
+  Updating is proved by `scripts/verify-update.sh`, not by `cv`; see
+  [features/updates.md](features/updates.md).
 - `click`, `focus`, `scroll` and `drag` move the real pointer and click the topmost window at that
   point. The helper brings Ideator forward first, but a window the user drags on top in between
   would take the click. `press`, `type`, `key` and `tree` don't depend on the pointer.

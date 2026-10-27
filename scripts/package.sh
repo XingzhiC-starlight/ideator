@@ -4,7 +4,6 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 DERIVED=build/ReleaseDerivedData
-STAGE=build/dmg-staging
 OUT=build/release
 APP="$DERIVED/Build/Products/Release/Ideator.app"
 RESOLVED=Cards.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
@@ -125,15 +124,9 @@ grep -q '/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle$' <<<"$mapped
   || die "Ideator is running without Sparkle.framework mapped in"
 echo "launch: ran for 3 seconds on an empty folder, with Sparkle loaded"
 
-rm -rf "$STAGE" "$OUT"
-mkdir -p "$STAGE/root" "$OUT"
-ditto "$APP" "$STAGE/root/Ideator.app"
-ln -s /Applications "$STAGE/root/Applications"
-
-# The image is verified before it moves into $OUT, so a failed check never leaves a dmg there.
-hdiutil create -quiet -volname Ideator -srcfolder "$STAGE/root" -format UDZO "$STAGE/Ideator.dmg"
-hdiutil verify -quiet "$STAGE/Ideator.dmg"
+rm -rf "$OUT"
+mkdir -p "$OUT"
+scripts/make-dmg.sh "$APP" "$dmg"
 echo "disk image: verified"
-mv "$STAGE/Ideator.dmg" "$dmg"
 
 echo "$PWD/$dmg"
