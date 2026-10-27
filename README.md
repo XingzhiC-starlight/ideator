@@ -1,9 +1,9 @@
 # Ideator
 
 A macOS prototype where every note is its own small window, laid out on an invisible 5 × 4 grid,
-with a stack of the rest in the top-right corner. Native Swift and AppKit, no dependencies.
-The behaviour is specified in [CARDS-SPEC.md](CARDS-SPEC.md); how the code is put together is in
-[DESIGN.md](DESIGN.md).
+with a stack of the rest in the top-right corner. Native Swift and AppKit, with one dependency,
+[Sparkle](https://sparkle-project.org/), for updates. The behaviour is specified in
+[CARDS-SPEC.md](CARDS-SPEC.md); how the code is put together is in [DESIGN.md](DESIGN.md).
 
 Requires macOS 15 or later and Xcode 26.
 
@@ -57,7 +57,13 @@ changes, untracked files included, then reads both back from the finished app an
 differ. It checks the app's signature, refuses an app that is not signed with the hardened runtime
 or that carries the `get-task-allow` debug entitlement (either one lets other programs read the API
 key from Ideator's memory), checks that the app has both `arm64` and `x86_64` slices and its icon,
-and verifies the disk image. It runs from any folder, and running it again replaces the old image.
+and verifies the disk image. It also checks that `Sparkle.framework` is embedded at the version
+`Package.resolved` pins, that `ThirdPartyNotices.txt` names it, and the signing policy below. Then it
+runs the packaged app once on an empty temporary folder, as a scratch run (no preferences, no
+shortcut), and stops unless the app is still running after 3 seconds with Sparkle loaded. A
+signature can verify and still belong to an app macOS refuses to start. If you saved an API key,
+macOS may ask whether that copy of Ideator can read it. It runs from any folder, and running it
+again replaces the old image.
 
 The app icon, a card and a spark on an ink plate, is drawn by `scripts/make-icon.swift` from the
 app's own colors.
@@ -76,6 +82,23 @@ They do this:
 
 Each new version you send repeats the Open Anyway step. If they saved a key, macOS may also ask again
 whether Ideator can read its Keychain item. They choose **Always Allow**.
+
+## When the Developer ID arrives
+
+Until a Team ID signs the build, the app is ad-hoc signed with the hardened runtime, and macOS then
+refuses to load the Sparkle framework inside it ("different Team IDs"). The Release configuration
+works around that with `Config/Ideator-adhoc.entitlements`, whose one entitlement turns library
+validation off. With a Team ID the workaround has to go, and `scripts/package.sh` fails until it does.
+
+1. Delete `Config/Ideator-adhoc.entitlements` (in Xcode, Move to Trash, which also drops its
+   reference), and clear `CODE_SIGN_ENTITLEMENTS` on the Ideator target's Release configuration.
+2. On that configuration set `CODE_SIGN_IDENTITY` to `Developer ID Application` and
+   `DEVELOPMENT_TEAM` to the Team ID. Keep manual signing and the hardened runtime.
+3. Run `scripts/package.sh`. The signing policy in it now wants no `disable-library-validation`
+   entitlement and the app's Team ID on every Mach-O under `Contents/Frameworks`. Xcode signs
+   `Sparkle.framework` itself but leaves the helper programs inside it (`Autoupdate`, `Updater.app`,
+   the XPC services) as Sparkle shipped them, so expect the script to name them. Sign each with the
+   same identity, innermost first, then run it again.
 
 ## Is the installed app current?
 

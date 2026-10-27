@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: xcodebuild -version
-      - run: xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData
+      - run: xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData -disableAutomaticPackageResolution
 
   desk-invariants:
     name: Desk invariants
