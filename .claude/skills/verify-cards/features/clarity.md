@@ -67,10 +67,9 @@ Preconditions:
 
 ## Gotchas
 
-- The API key comes from the login Keychain at launch. On 2026-10-22 this machine had none. On
-  2026-10-23 it had one that the API rejected (`HTTP 401: invalid x-api-key`), so Beta showed
-  `Summary unavailable` either way. With a working key stored, Beta first shows a spinner and then
-  real text from the Anthropic API, which costs a request. Use Alpha (one body line) when a
+- A scratch run starts with no API key (it never reads the login Keychain), so Beta shows
+  `Summary unavailable`. Pasting a working key into Settings makes Beta show a spinner and then real
+  text from the Anthropic API, which costs a request. Use Alpha (one body line) when a
   deterministic proof is enough.
 - A collapsed card has no text area, so `cv ax text` prints nothing for it, and
   `card=<title>` finds it by its header text instead.

@@ -20,6 +20,10 @@ struct Launch {
         Preferences(defaults: isScratch ? nil : standard)
     }
 
+    func keys() -> KeyStore {
+        KeyStore(inKeychain: !isScratch)
+    }
+
     func showsWelcome(seen: Bool) -> Bool { forcesWelcome || !seen }
 
     /// The launch order, with both effects passed in so a test can watch the order:

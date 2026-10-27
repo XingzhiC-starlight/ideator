@@ -1,4 +1,4 @@
-# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-25)
+# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-26)
 
 Personal-use macOS prototype. Native Swift app built with Xcode.
 
@@ -149,6 +149,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - If the saved shortcut cannot be registered, the line under the button says why and that there is no shortcut until another is chosen. If macOS has its own shortcut on the combination (⌃⌥Space, for Select next source in Input menu), the line says so; Ideator still registers it.
 - API key: a secure field, Save and Remove Key. Under it, a line says what summaries send: "Summaries are optional. With a key saved, Ideator sends a card's text to Anthropic, using your own key, to write its summary. Nothing else leaves your Mac: no analytics, no crash reports. The key stays in your login Keychain." PRIVACY.md says the same in full.
 - A scratch run (`-CardsFolder`) reads the default shortcut, saves nothing of Settings' shortcut, and does not register the global shortcut until one is chosen in Settings.
+- A scratch run never reads or writes the login Keychain (revised 2026-10-26): it starts with no key whatever the owner has saved. A key saved in Settings works for that run only, and the status line then says "A key is held for this run only. Paste a new one to replace it."
 - Version line (new 2026-10-25): the last line under the rows, in the same small type, names the build. `Version 0.9 (57), commit 1a2b3c4` is a build `scripts/package.sh` made from a clean tree, and `Version 0.9 (57), commit 1a2b3c4 with local changes` one made from a tree with changes, untracked files included. `Version 0.9 (1), a development build` is any build without a valid stamp, such as a run from Xcode. A valid stamp is a 40-digit lowercase hex commit and a tree state of exactly YES or NO, so a tree state of "unknown" never reads as clean. A scratch run shows the same line.
 
 ## Storage

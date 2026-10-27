@@ -20,8 +20,8 @@ enum CardsApp {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let keys = KeyStore()
-    private let launch = Launch(arguments: .standard, environment: ProcessInfo.processInfo.environment)
+    private let launch: Launch
+    private let keys: KeyStore
     private lazy var preferences = launch.preferences(standard: .standard)
     private lazy var hotKey = HotKey(preferences: preferences) { [weak self] in
         self?.withDesk { $0.toggleHidden() }
@@ -30,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
     private var settingsWindow: SettingsWindow?
+
+    override init() {
+        launch = Launch(arguments: .standard, environment: ProcessInfo.processInfo.environment)
+        keys = launch.keys()
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
