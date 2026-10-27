@@ -62,6 +62,8 @@ commands and observable proof.
   collapsed card shows.
 - [First launch](./first-launch.md): the welcome card and the folder it keeps closed until Continue,
   and Settings' shortcut recorder, update controls and privacy line.
+- [Updates](./updates.md): Check Now and Sparkle's windows, the refused forged feed and disk image,
+  and the install that relaunches as the next build, proved by `scripts/verify-update.sh`.
 - [Delete a card](./delete-card.md): the trash button, its confirmation, and the file leaving the
   folder.
 - [Move cards and the stack](./drag.md): dragging a card or the stack to snap, swap, stay free

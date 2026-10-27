@@ -348,6 +348,13 @@ Later changes, after trying the app:
   and what GitHub sees. `package.sh` refuses a release whose feed or key is not the production one,
   or that turns on profiling, automatic installs, the update-test flag or an ATS exception. `Desk`
   is unchanged.
+- 2026-10-26, update proof: `scripts/verify-update.sh` updates an installed build N to N+1 through
+  Sparkle against a local feed, with a forged feed and a forged disk image as negative cases. It
+  copies the shipped app twice with a test bundle id, feed, throwaway key and `IdeatorUpdateTest`,
+  seals each with the original entitlements and checks their code equals the shipped code, so the
+  path it proves is the shipped one. The feed names `localhost` and its server answers on both
+  `::1` and `127.0.0.1`, so the app connects over `::1`: a connect to 127.0.0.1 once went
+  unanswered for eight seconds on this Mac, with `::1` fine. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
