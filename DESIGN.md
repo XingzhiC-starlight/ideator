@@ -153,6 +153,20 @@ func send(_ command: Command) {
   the prompt that wrote it; it is fresh only while both match. Bumping the prompt version
   therefore regenerates every summary once, and a saved summary without a version counts as
   stale. Spinner, failure and "no key" are derived, not stored as flags.
+- **One dependency.** Sparkle 2.10.0 is pinned exactly, `Package.resolved` is committed, and every
+  `xcodebuild` passes `-disableAutomaticPackageResolution`, so a drifted pin fails the build instead
+  of changing what ships. It is linked and embedded and no code calls it yet. Xcode embeds and signs
+  the framework without a copy phase of ours. `Cards/ThirdPartyNotices.txt` is Sparkle's license
+  text and lands in Resources.
+- **Signing has one policy, in `package.sh`.** Builds are ad-hoc signed with the hardened runtime
+  until a Team ID exists, and dyld then refuses the embedded framework ("different Team IDs"). The
+  Release configuration therefore carries `Config/Ideator-adhoc.entitlements`, one key:
+  `com.apple.security.cs.disable-library-validation`. The policy block in `package.sh` is the only
+  code that knows about it. With no Team ID the entitlements must be exactly that key. With one the
+  key must be gone and every Mach-O under `Contents/Frameworks` must carry the app's Team ID.
+  `codesign --verify` passes an app that dies at launch, so `package.sh` also runs the packaged app
+  as a scratch run and checks that it is alive with Sparkle mapped in. README, "When the Developer
+  ID arrives", lists what to delete.
 
 ## Color and glass
 
@@ -304,6 +318,11 @@ Later changes, after trying the app:
   stamp reads as a development build and "unknown" is never clean. Settings shows the version line,
   and `scripts/installed-build.sh` compares an installed app with `origin/main` by commit, then by
   tree, then by ancestry. `Desk` is unchanged.
+- 2026-10-26, Sparkle embedded: updates start with the framework in the app and nothing using it. A
+  Release build with the hardened runtime and an ad-hoc signature could not load it, so Release
+  gained the one entitlement above, `package.sh` gained the signing policy and a launch check, and
+  Xcode's own embed was kept after checking that it copies and signs the framework. `Desk` is
+  unchanged.
 
 ## Tradeoffs accepted
 
@@ -318,6 +337,10 @@ Later changes, after trying the app:
   exchange for every card having a summary under the same rules.
 - We accept the Keychain for the API key, which may ask for access again after each rebuild of an
   unsigned debug build.
+- We accept that ad-hoc Release builds do not validate the libraries they load, in exchange for
+  embedding Sparkle before the Developer ID exists. The hardened runtime stays on, so debuggers and
+  `DYLD_INSERT_LIBRARIES` still cannot reach the process. `package.sh` fails a build that has a Team
+  ID and still carries the entitlement, so the exception cannot outlive its reason.
 - We accept that an empty last list item keeps its shape only in the typing attributes, as an
   empty last line's kind always did: it has no character to hold the attribute. It is lost on
   reload, and after typing in it then undoing, it shows the shape of the line above until the
@@ -335,6 +358,9 @@ Later changes, after trying the app:
 - **Literal marker characters** in the text: native-feeling copy/paste, but the user can edit a
   marker out of sync and every edit needs a renumbering pass that shifts the selection. Copy and
   paste get the markers from `Clipboard` instead.
+- **Turning the hardened runtime off for ad-hoc builds** instead of adding the entitlement: also
+  lets the framework load, but it lets debuggers and injected libraries read the API key out of
+  the app's memory, which the hardened-runtime check exists to prevent.
 - **Nesting as a tree** (`Line` with children): moving a block would be one splice, but every
   editor paragraph would need a path, and the text view is flat. A level per line plus
   `tidyLevels` keeps the flat model.
