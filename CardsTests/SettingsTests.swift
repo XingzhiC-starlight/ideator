@@ -60,6 +60,34 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(updates.menuTitle, "Check for Updates…")
     }
 
+    func testRemoveKeyKeepsTheKeyAndTellsNobodyWhenTheKeychainRefuses() async throws {
+        let keys = RefusableKeyStore()
+        keys.set("sk-ant-test")
+        var changes = 0
+        let window = settings(keys: keys) { changes += 1 }
+
+        keys.refuses = true
+        try button("Remove Key", in: window).performClick(nil)
+
+        XCTAssertEqual(keys.apiKey, "sk-ant-test", "the key is still saved, so it still sends")
+        XCTAssertEqual(changes, 0, "the summarizer must not be told the key is gone")
+        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("A key is held") }, "the status line still says a key is saved")
+        XCTAssertFalse(texts(in: window).contains { $0.hasPrefix("No key saved") })
+    }
+
+    func testRemoveKeyDeletesTheKeyAndTellsTheControllerOnce() async throws {
+        let keys = RefusableKeyStore()
+        keys.set("sk-ant-test")
+        var changes = 0
+        let window = settings(keys: keys) { changes += 1 }
+
+        try button("Remove Key", in: window).performClick(nil)
+
+        XCTAssertNil(keys.apiKey)
+        XCTAssertEqual(changes, 1)
+        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("No key saved") })
+    }
+
     func testTheShortcutFieldShowsThatItIsRecordingEvenWhenTheHandlerRefreshesTheShortcut() {
         let field = ShortcutField()
         field.shortcut = .standard
@@ -72,7 +100,29 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(field.title, Shortcut.standard.display)
     }
 
+    private func settings(keys: KeyStore, onChange: @escaping () -> Void) -> SettingsWindow {
+        SettingsWindow(keys: keys, hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
+                       updates: Updates(build: .current, isScratch: false), onChange: onChange)
+    }
+
+    private func button(_ title: String, in window: SettingsWindow) throws -> NSButton {
+        let buttons = descendants(of: try XCTUnwrap(window.contentView)).compactMap { $0 as? NSButton }
+        return try XCTUnwrap(buttons.first { $0.title == title }, title)
+    }
+
+    private func texts(in window: SettingsWindow) -> [String] {
+        descendants(of: window.contentView!).compactMap { ($0 as? NSTextField)?.stringValue }
+    }
+
     private func descendants(of view: NSView) -> [NSView] {
         view.subviews + view.subviews.flatMap(descendants(of:))
     }
+}
+
+private final class RefusableKeyStore: KeyStore {
+    var refuses = false
+
+    init() { super.init(inKeychain: false) }
+
+    override func set(_ key: String?) -> Bool { refuses ? false : super.set(key) }
 }

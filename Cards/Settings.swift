@@ -8,7 +8,7 @@ import Security
 /// A scratch run gets `inKeychain: false`: the key lives in memory for that run only, starts empty,
 /// and no Keychain call is ever made, so a verify run can't trigger macOS's access prompt for the
 /// owner's key or touch it.
-final class KeyStore {
+class KeyStore {
     private static let service = "Ideator"
     private static let account = "anthropic-api-key"
 
