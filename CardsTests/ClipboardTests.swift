@@ -314,4 +314,12 @@ final class ClipboardTests: XCTestCase {
         let pasted = Clipboard.paste(lines, into: Note(header: "h", body: [line(T, "")]), replacing: span(at(1, 0), at(1, 0)), typing: [])
         XCTAssertEqual(shapes(pasted.note.body), [B(), B(1), B(1), N(2), B()])
     }
+
+    func testHTMLLineAndParagraphSeparatorsAreSpaces() {
+        // Unicode's own line breaks are not HTML whitespace, but inside the editor they would split
+        // a paragraph the note does not have.
+        let lines = read(html: "<ul><li>one\u{2029}two\u{2028}three\u{85}four</li></ul>")
+        XCTAssertEqual(texts(lines), ["one two three four"])
+        XCTAssertEqual(texts(read(html: "<ul><li>a&#8233;b&#13;c</li></ul>")), ["a b c"], "as entities too")
+    }
 }
