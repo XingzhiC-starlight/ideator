@@ -307,6 +307,13 @@ Later changes, after trying the app:
   sidecar's `version` on its own, since a newer file may not decode as a `SavedDesk`. Above this
   build's version, it places cards as best it can, never writes the sidecar, and still saves card
   files; `DeskController` says so once per launch. `Desk` is unchanged.
+- 2026-10-27, three ways to lose a note, from the pre-release audit: quit ignored a failed save,
+  `Library.load` treated a folder it could not list as empty (so the next save wrote a sidecar
+  that knew none of the places), and the newer-sidecar check ran only at launch. Now
+  `applicationShouldTerminate` asks "Quit without saving?" while the folder refuses; a folder that
+  can't be listed locks the sidecar for the run the way a newer one does, with its own notice; and
+  `save` reads the sidecar's version again before every write. `DeskController` takes a `present`
+  closure for its alerts so tests can answer them. `Desk` is unchanged.
 - 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
   explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
   whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records

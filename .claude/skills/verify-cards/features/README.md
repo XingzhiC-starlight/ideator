@@ -70,6 +70,9 @@ commands and observable proof.
   between slots, or hang off a screen edge, and the places the sidecar saves.
 - [Nested lists](./nested-lists.md): typing lists, Tab and Shift-Tab, Enter and Backspace on
   nested items, numbering per parent, undo, and the 4-space indents in the file.
+- [Saving fails](./save-failure.md): the alert at the first failed save, the question at quit while
+  saves still fail, the silent quit once the folder is writable again, and a newer sidecar left
+  alone mid-run.
 - [Copy and paste](./clipboard.md): Markdown and HTML on copy, pasting HTML lists and terminal
   text, one-line and header pastes, and undoing a paste, with the owner's clipboard restored.
 

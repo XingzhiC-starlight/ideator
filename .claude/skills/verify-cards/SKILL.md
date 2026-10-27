@@ -75,7 +75,7 @@ whenever a step fails or anything looks off. It must print `healthy` before any 
 | `cv ax text [WINDOW]` | The text of each text area, one JSON string per line |
 | `cv ax focus WINDOW` | A real click into that card's text (activates Ideator) |
 | `cv ax type 'TEXT'` | Key events to the app; `\n` is Return |
-| `cv ax key COMBO` | One key: `cmd+b`, `cmd+z`, `tab`, `shift+tab`, `return`, `delete`, arrows (`shift+down`, `cmd+left`)…; a `cmd+` combo activates Ideator first, since menu shortcuts need it |
+| `cv ax key COMBO` | One key: `cmd+b`, `cmd+z`, `cmd+q`, `tab`, `shift+tab`, `return`, `delete`, arrows (`shift+down`, `cmd+left`)…; a `cmd+` combo activates Ideator first, since menu shortcuts need it |
 | `cv ax click WINDOW FX FY` | A real mouse click at a fraction of the window (0..1 from top-left) |
 | `cv ax scroll WINDOW DX DY` | One scroll-wheel event over the window |
 | `cv ax drag WINDOW FX FY DX DY` | Press at a fraction of the window, drag by DX,DY points, release |

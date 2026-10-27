@@ -21,6 +21,11 @@ final class Library {
     /// share the folder and one is not updated yet. This build can't know what that file holds, so
     /// it places cards as best it can and never overwrites it. Card files are still saved.
     private(set) var sidecarIsNewer = false
+    /// `load` could not list the folder (macOS refused, a volume was not mounted), so the desk
+    /// started empty while the sidecar on disk still describes the real arrangement. This run
+    /// never writes the sidecar; the next launch reads it. Card files are still saved, and a
+    /// rescan still takes the folder's cards in, into the stack.
+    private(set) var folderUnread = false
 
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -33,14 +38,21 @@ final class Library {
     }
 
     /// Creates the folder if needed, reads every card file and the sidecar, rebuilds the desk.
-    /// A missing or corrupt sidecar is not an error: every card simply starts in the stack.
+    /// A missing or corrupt sidecar is not an error: every card simply starts in the stack. A
+    /// folder that can't be listed opens empty and sets `folderUnread`.
     func load() -> Desk {
         createFolder()
-        let notes = (try? readNotes()) ?? [:]
+        let notes: [CardID: Note]
+        do {
+            notes = try readNotes()
+            folderUnread = false
+        } catch {
+            log("Could not list \(folder.path): \(error.localizedDescription)")
+            notes = [:]
+            folderUnread = true
+        }
         let data = try? Data(contentsOf: sidecarURL)
-        // Read the version on its own: a newer sidecar may not decode as a SavedDesk at all.
-        let version = data.flatMap { try? JSONDecoder().decode(SidecarVersion.self, from: $0) }?.version
-        sidecarIsNewer = (version ?? 0) > SavedDesk().version
+        sidecarIsNewer = Self.isNewer(data)
         let saved = data.flatMap { try? JSONDecoder().decode(SavedDesk.self, from: $0) } ?? SavedDesk()
         notesOnDisk = notes
         savedOnDisk = saved
@@ -53,8 +65,10 @@ final class Library {
     /// - a card whose note differs from `notesOnDisk` (or is new) → write `<id>.md` atomically;
     /// - an id in `notesOnDisk` the desk no longer has → move that file to the Trash
     ///   (recoverable; a file already gone is fine);
-    /// - `desk.saved != savedOnDisk` → write the sidecar atomically, unless `sidecarIsNewer`: then
-    ///   it is left alone and counts as matching, since not writing it is the point.
+    /// - `desk.saved != savedOnDisk` → read the sidecar's version again, since another Mac may have
+    ///   written the file while this one ran, then write the sidecar atomically, unless it is
+    ///   newer or `folderUnread`: then it is left alone and counts as matching, since not writing
+    ///   it is the point.
     /// Each successful step updates the snapshot; a failed one leaves it, so the next save retries,
     /// and the result is false.
     @discardableResult
@@ -64,6 +78,7 @@ final class Library {
             notesOnDisk = [:]
             savedOnDisk = nil
             sidecarIsNewer = false   // the newer sidecar went with the folder
+            folderUnread = false     // and the new folder is known to be empty
         }
         var matches = true
         let current = Dictionary(desk.allCards.map { ($0.id, $0.note) }, uniquingKeysWith: { first, _ in first })
@@ -90,13 +105,17 @@ final class Library {
             notesOnDisk[id] = nil
         }
         let saved = desk.saved
-        if saved != savedOnDisk, !sidecarIsNewer {
-            do {
-                try encoder.encode(saved).write(to: sidecarURL, options: .atomic)
-                savedOnDisk = saved
-            } catch {
-                log("Could not save the sidecar: \(error.localizedDescription)")
-                matches = false
+        if saved != savedOnDisk, !folderUnread {
+            // Another Mac may have arranged the folder since we read it: check the version again.
+            sidecarIsNewer = Self.isNewer(try? Data(contentsOf: sidecarURL))
+            if !sidecarIsNewer {
+                do {
+                    try encoder.encode(saved).write(to: sidecarURL, options: .atomic)
+                    savedOnDisk = saved
+                } catch {
+                    log("Could not save the sidecar: \(error.localizedDescription)")
+                    matches = false
+                }
             }
         }
         return matches
@@ -107,6 +126,8 @@ final class Library {
     /// transient failure never looks like "every card was deleted". Resets the note snapshot to
     /// what it read, so the following `save` doesn't write those notes straight back.
     /// The caller saves first, so anything that differs now was changed outside the app.
+    /// `folderUnread` stays: the cards found go to the stack, not to the places the sidecar
+    /// holds for them, so writing it now would still lose that arrangement.
     func rescan() -> [CardID: Note]? {
         guard let notes = try? readNotes() else { return nil }
         notesOnDisk = notes
@@ -125,6 +146,13 @@ final class Library {
     }
 
     private var sidecarURL: URL { folder.appending(path: ".cards.json") }
+
+    /// Whether sidecar `data` was written by a newer Ideator. Reads the version on its own: a
+    /// newer sidecar may not decode as a SavedDesk at all. No file, or no version, is not newer.
+    private static func isNewer(_ data: Data?) -> Bool {
+        let version = data.flatMap { try? JSONDecoder().decode(SidecarVersion.self, from: $0) }?.version
+        return (version ?? 0) > SavedDesk().version
+    }
 
     private func url(of id: CardID) -> URL { folder.appending(path: id.rawValue + ".md") }
 
