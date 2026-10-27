@@ -38,6 +38,18 @@ info() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" 2>/de
 [[ "$(info IdeatorTreeDirty)" == "$dirty" ]] || die "the app's tree state is '$(info IdeatorTreeDirty)', expected $dirty"
 echo "stamp: commit $commit, local changes: $dirty"
 
+# Sparkle's settings live in Config/Info.plist. A copy of the release key sits here on purpose: changing
+# the key strands every installed copy, so it takes an edit in two places.
+production_feed=https://github.com/XingzhiC-starlight/ideator/releases/latest/download/appcast.xml
+release_key=aU79Ryz97RGp9XiQfDRmXkV4198Z8g6cp+8nhrIpaJ4=
+[[ "$(info SUFeedURL)" == "$production_feed" ]] || die "the app's SUFeedURL is '$(info SUFeedURL)', not $production_feed"
+[[ "$(info SUPublicEDKey)" == "$release_key" ]] || die "the app's SUPublicEDKey is '$(info SUPublicEDKey)', not the release key"
+[[ "$(info SUEnableSystemProfiling)" == false ]] || die "SUEnableSystemProfiling must be false (PRIVACY.md)"
+[[ "$(info SUAllowsAutomaticUpdates)" == false ]] || die "SUAllowsAutomaticUpdates must be false: Ideator asks before it installs"
+[[ "$(info IdeatorUpdateTest)" =~ ^(NO)?$ ]] || die "IdeatorUpdateTest is '$(info IdeatorUpdateTest)': a release is not an update-test build"
+[[ -z "$(info NSAppTransportSecurity)" ]] || die "Info.plist has NSAppTransportSecurity: the feed is https only"
+echo "updates: the production feed and release key, no system profile, no automatic installs"
+
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 # A debuggable build lets any program running as the user read the API key out of Ideator's memory.
