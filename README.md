@@ -286,7 +286,7 @@ service "Cards". Ideator does not read either: quit Cards, move the files (inclu
 | Hide every card | Click the eye on the stack's ribbon, press ⌃⌥I, or choose **Hide All** from the menu bar icon; the stack shrinks to its ribbon, and the same again shows everything |
 | Format | ⌘B, ⌘I, or start a line with `- `, `* `, `1. `, `[] ` or `[ ] `; the bar at the bottom of the card has the same five actions |
 | Nest a list item | **Tab** moves it one level deeper, up to three levels, and **Shift-Tab** one level up |
-| Copy and paste | ⌘C copies the selected lines as Markdown and as an HTML list, so Notes and Mail paste a real list and Markdown apps paste Markdown; ⌘V reads lists from Notes, web pages, the Claude app and terminal output |
+| Copy and paste | ⌘C on a selection inside one line copies just its text. A selection across a line break copies every line it touches as Markdown and as an HTML list, so Notes and Mail paste a real list and Markdown apps paste Markdown; ⌘V reads lists from Notes, web pages, the Claude app and terminal output |
 
 The stack is a loop with one blank page after the last card. Swiping past the last card shows the
 blank page, and swiping once more shows the top card again. Typing on the blank page makes a new

@@ -41,12 +41,14 @@ Preconditions:
 
 Frames are `cv ax windows` output on the owner's 1710 × 1107 display (menu bar 34, Dock
 auto-hidden). There one cell is 342 × 268.25, windows list as 342x268, and slot `n` is at
-`@342*(n%5),34+268*(n/5)`. The stack's `y` in the precondition's `cv ax windows` is the menu
-bar's height. If it is not 34, or the display is another size, recompute every frame below from
-cell width = screen width / 5 and cell height = (screen height − menu bar) / 4. Every drag below
-moves the item by whole cells, plus a small offset where noted. Wait 1 s after each drag before
-`cv ax windows`, because the snap animates. Wait 1.5 s before `cv files`. Each step starts from
-where the previous one left off. Run `cv shot drag-before` first.
+`@342*(n%5),34+268*(n/5)` in the top three rows, the only ones used below (the fourth row starts
+at 839, because cell edges round to whole points). The stack's `y` in the precondition's
+`cv ax windows` is the menu bar's height. If it is not 34, or the display is another size,
+recompute every frame below from cell width = screen width / 5 and cell height = (screen height −
+menu bar) / 4. Every drag below moves the item by whole cells, plus a small offset where noted.
+Wait 1 s after each drag before `cv ax windows`, because the snap animates. Wait 1.5 s before
+`cv files`. Each step starts from where the previous one left off. Run `cv shot drag-before`
+first.
 
 - **Pop both.** Run `cv ax press "↗ Pop" stack` twice. `cv ax windows` lists Alpha `@0,34`
   (slot 0), Beta `@342,34` (slot 1) and the stack `@1368,34`. The badge reads 0.

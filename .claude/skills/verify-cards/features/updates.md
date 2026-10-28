@@ -22,7 +22,7 @@ an error and nothing changes on disk.
 - Settings (⌘,) › Updates › Check Now. It is user-initiated, so Sparkle answers every outcome with a
   window.
 - The menu bar icon › Check for Updates…, which is Check Now from anywhere. After a scheduled check
-  has found an update, it reads "Update to 0.9 (58)…".
+  has found an update, it reads "Update to 0.9 (N+1)…".
 - The daily scheduled check, which opens its window behind other apps.
 
 ## Driving it with cards-verify
