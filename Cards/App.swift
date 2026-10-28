@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var aiTools = AIToolsChoice(preferences: preferences)
     private let held = HeldCards()
     private var inbox: ToolInbox?
+    private var terminationSource: DispatchSourceSignal?
     private var controller: DeskController?
     private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
@@ -51,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder)) { [unowned self] request, reply in
             if let answer = answer(request.card) { reply(answer) } else { held.hold(request, reply: reply) }
         }
+        terminationSource = inbox.map { Self.removeOnSIGTERM($0.file) }
         // Building the controller is the first touch of the notes folder, which starts macOS's
         // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
         launch.run(
@@ -72,6 +74,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) { inbox?.close() }
+
+    /// `kill`, as cards-verify and package.sh end a scratch run, skips `applicationWillTerminate`, and
+    /// each scratch folder's socket file has a name of its own, so none is ever reused. Off the main
+    /// thread, so a blocked main thread never delays the kill; the process then ends as SIGTERM ends it.
+    private nonisolated static func removeOnSIGTERM(_ file: ToolInbox.File) -> DispatchSourceSignal {
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+        source.setEventHandler {
+            file.remove()
+            signal(SIGTERM, SIG_DFL)
+            raise(SIGTERM)
+        }
+        source.resume()
+        return source
+    }
 
     /// The welcome card. Continue closes it first and opens the folder on the next turn of the run
     /// loop: the Documents prompt blocks the main thread until it is answered, and the card must

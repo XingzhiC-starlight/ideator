@@ -102,10 +102,19 @@ final class HeldCards {
 final class ToolInbox {
     typealias Receive = @MainActor (HandOffRequest, @escaping @Sendable (ToolReply) -> Void) -> Void
 
+    /// The socket file this instance made, so no instance removes a newer one's.
+    nonisolated struct File: Sendable {
+        let path: String
+        let inode: ino_t
+
+        func remove() {
+            var info = stat()
+            if stat(path, &info) == 0, info.st_ino == inode { unlink(path) }
+        }
+    }
+
+    let file: File
     private let source: DispatchSourceRead
-    private let path: String
-    /// The socket file this instance made, so `close` never removes a newer instance's.
-    private let file: ino_t
     private let connections = Connections()
 
     /// Nil when another instance answers on `endpoint`, or the socket could not be made.
@@ -116,16 +125,14 @@ final class ToolInbox {
             Darwin.close(listener)
             return nil
         }
-        path = endpoint.path
-        file = info.st_ino
+        file = File(path: endpoint.path, inode: info.st_ino)
         source = Self.serve(listener, connections, receive)
     }
 
     func close() {
         guard connections.close() else { return }
         source.cancel()
-        var info = stat()
-        if stat(path, &info) == 0, info.st_ino == file { unlink(path) }
+        file.remove()
     }
 
     /// Off the main thread: accepting and reading never wait on the UI, and only a parsed card reaches it.
