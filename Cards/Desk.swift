@@ -177,10 +177,11 @@ struct Desk: Equatable {
     /// Rebuilds the desk from disk. `notes` decides which cards exist; `saved` only places them.
     /// Total over any input: unknown ids, invalid or doubly-used slots and duplicates are dropped,
     /// and cards the sidecar never heard of join the bottom of the stack in id (that is, creation)
-    /// order. A missing sidecar (`SavedDesk()`) puts every card in the stack and the stack top-right.
-    /// A saved summary from another prompt (or none, in a sidecar older than the stamp) is dropped,
-    /// so `Summarizer` asks for it again.
+    /// order. A missing sidecar (`SavedDesk()`), or one older than this build's version, puts every
+    /// card in the stack and the stack top-right. A saved summary from another prompt (or none, in a
+    /// sidecar older than the stamp) is dropped, so `Summarizer` asks for it again.
     init(notes: [CardID: Note], saved: SavedDesk) {
+        let saved = saved.version < SavedDesk().version ? SavedDesk() : saved
         let collapsed = Set(saved.collapsed)
         var summaries: [CardID: Summary] = [:]
         for s in saved.summaries where s.prompt == Summary.prompt {
@@ -190,15 +191,11 @@ struct Desk: Equatable {
             notes[id].map { Card(id: id, note: $0, collapsed: collapsed.contains(id), summary: summaries[id]) }
         }
 
-        // Version 1 numbered 19 slots after the stack's fixed top-left cell, so it stays there.
-        let isVersion1 = saved.version < 2
-        let shift = isVersion1 ? 1 : 0
         func place(slot: Int?, free: GridPoint?) -> Place? {
             if let free { return .free(free) }
-            return slot.flatMap { Slot(index: $0 + shift) }.map(Place.slot)
+            return slot.flatMap(Slot.init(index:)).map(Place.slot)
         }
-        let stackPlace = place(slot: saved.stackSlot, free: saved.stackFree)
-            ?? .slot(isVersion1 ? Slot.all[0] : Slot.stackHome)
+        let stackPlace = place(slot: saved.stackSlot, free: saved.stackFree) ?? .slot(Slot.stackHome)
         var snapped: Set<Slot> = if case .slot(let slot) = stackPlace { [slot] } else { [] }
         var placed = Set<CardID>()
         var popped: [PoppedCard] = []
@@ -575,12 +572,11 @@ enum Visibility: Equatable {
 /// The part of the desk that is not in the Markdown files. `Library` stores it as JSON in the
 /// hidden sidecar; `Desk.init(notes:saved:)` is the only reader and validates everything.
 struct SavedDesk: Codable, Equatable {
-    /// 2: 20 slots with the stack in one of them, free points. 1: 19 slots after the stack's
-    /// fixed top-left cell, so its slot numbers are one less.
+    /// 2: 20 slots with the stack in one of them, and free points. `Desk.init` reads an older
+    /// sidecar as none; `Library` never writes over a newer one.
     var version = 2
     var clarity = false
-    /// The stack's place: `stackFree` if set, else `stackSlot`, else `Slot.stackHome` (the top-left
-    /// cell for version 1).
+    /// The stack's place: `stackFree` if set, else `stackSlot`, else `Slot.stackHome`.
     var stackSlot: Int?
     var stackFree: GridPoint?
     var placements: [SavedPlacement] = []

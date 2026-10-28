@@ -32,7 +32,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 
 ## Grid and sizing
 - Screen is an invisible 5 × 4 grid. Card width = screen width / 5; height = (screen height below menu bar) / 4.
-- 20 equal slots. The stack takes one (top-right by default, so Pop still fills from the top-left; revised 2026-10-22), so at most 19 cards are on the desktop. A version-1 sidecar keeps the stack top-left, and any saved place of the stack is kept.
+- 20 equal slots. The stack takes one (top-right by default, so Pop still fills from the top-left; revised 2026-10-22), so at most 19 cards are on the desktop. Any saved place of the stack is kept; a sidecar older than version 2 is read as none (revised 2026-10-27).
 - Recomputed when the display setup changes; snapped cards re-snap to their slots, free cards and a free stack keep their place as a fraction of the screen (revised 2026-10-22).
 
 ## Stack
