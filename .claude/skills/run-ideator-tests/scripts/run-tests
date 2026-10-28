@@ -1,0 +1,75 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Run Ideator's unit tests in a throwaway copy outside ~/Desktop.
+
+  run-tests                          every test in CardsTests
+  run-tests DeskTests                one class
+  run-tests DeskTests/testNewCard    one test (repeat the argument for more)
+  run-tests -n 20 SwipeTests         run 20 times, to chase a flaky test
+
+Exit 0 only when tests ran, all passed, and the build gave no warning in Cards/.
+USAGE
+}
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+iterations=1
+only=()
+while (($#)); do
+  case "$1" in
+    -n) iterations="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "run-tests: unknown option $1" >&2; usage >&2; exit 2 ;;
+    IdeatorTests*) echo "run-tests: the test target is CardsTests; pass the class name alone" >&2; exit 2 ;;
+    *) only+=("-only-testing:CardsTests/${1#CardsTests/}"); shift ;;
+  esac
+done
+extra=(${only[@]+"${only[@]}"})
+((iterations > 1)) && extra+=(-test-iterations "$iterations")
+
+copy="$(mktemp -d "${TMPDIR:-/tmp}/ideator-tests.XXXXXX")"
+here="/$(basename "$copy")/"
+trap 'rm -rf "$copy"' EXIT
+trap 'exit 130' INT TERM
+
+mkdir -p "$REPO/build/test-logs"
+log="$REPO/build/test-logs/$(date +%Y%m%d-%H%M%S)-$$.log"
+rsync -a --exclude .git --exclude build "$REPO/" "$copy/"
+
+set +e
+(cd "$copy" && xcodebuild test -project Cards.xcodeproj -scheme Ideator \
+  -derivedDataPath "$copy/build/DerivedData" -disableAutomaticPackageResolution \
+  ${extra[@]+"${extra[@]}"}) 2>&1 | grep -v com.apple.linkd > "$log"
+status=${PIPESTATUS[0]}
+set -e
+
+ours() { grep -F "$here" | sed "s|^.*$here||" | sort -u; }
+grep -F ': error: ' "$log" | ours || true
+compiler="$(grep -E ':[0-9]+:[0-9]+: warning: ' "$log" | ours || true)"
+warnings="$(grep '^Cards/' <<<"$compiler" || true)"
+[[ -n "$warnings" ]] && echo "$warnings"
+echo "Compiler warnings in CardsTests/: $(grep -c '^CardsTests/' <<<"$compiler" || true)"
+if grep -qE 'Restarting after unexpected exit|encountered an error \(Crash|The test runner exited' "$log"; then
+  echo "The test host crashed. Newest reports:"
+  ls -t "$HOME"/Library/Logs/DiagnosticReports/Ideator* 2>/dev/null | head -3 || true
+fi
+executed="$(grep -Eo 'Executed [0-9]+ tests?, with [0-9]+ failures? .*seconds' "$log" | sort -k2,2n | tail -1 || true)"
+echo "${executed:-No 'Executed' line: the build or the test host failed before any test ran.}"
+echo "Log: $log"
+
+unmatched=()
+for f in ${only[@]+"${only[@]}"}; do
+  t="${f#-only-testing:CardsTests/}"
+  case "$t" in
+    */*) grep -qF -- "Test Case '-[CardsTests.${t%%/*} ${t#*/}]' started" "$log" || unmatched+=("$t") ;;
+    *) grep -qF -- "Test Suite '$t' started" "$log" || unmatched+=("$t") ;;
+  esac
+done
+
+if ((status != 0)); then echo "FAIL (xcodebuild exit $status)"; exit "$status"; fi
+if [[ -z "$executed" || "$executed" == "Executed 0 tests"* ]]; then echo "FAIL: no test ran"; exit 1; fi
+if ((${#unmatched[@]})); then echo "FAIL: no test matched ${unmatched[*]} (names are in CardsTests/*.swift)"; exit 1; fi
+if [[ -n "$warnings" ]]; then echo "FAIL: compiler warnings in Cards/"; exit 1; fi
+echo PASS

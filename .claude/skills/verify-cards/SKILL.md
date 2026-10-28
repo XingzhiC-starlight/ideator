@@ -17,11 +17,12 @@ Everything goes through one script. From the repo root:
 .claude/skills/verify-cards/scripts/cards-verify
 ```
 
-prints its usage. The examples below call it `cv`. Define that first in each shell:
+prints its usage. The examples below write `cv` as shorthand for that path. In every command, type
+the path itself from the repo root. The Bash tool keeps no shell function between calls, and
+worktree isolation refuses a function or a variable as the command name.
 
-```bash
-cv() { "$(git rev-parse --show-toplevel)/.claude/skills/verify-cards/scripts/cards-verify" "$@"; }
-```
+Unit tests are not this skill's job. Run them with the
+[run-ideator-tests](../run-ideator-tests/SKILL.md) skill.
 
 ## Launch
 
@@ -200,6 +201,10 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
 - `click`, `focus`, `scroll` and `drag` move the real pointer and click the topmost window at that
   point. The helper brings Ideator forward first, but a window the user drags on top in between
   would take the click. `press`, `type`, `key` and `tree` don't depend on the pointer.
+- The pointer, keyboard focus and screen are shared with the owner and with every other agent's
+  app or test host. A one-off input anomaly (a stray character, an odd selection, buttons left
+  showing, a test-host crash) stays INCONCLUSIVE until it repeats, or goes away, in a run with
+  nothing else driving the Mac. Do not blame it on someone's input without that run.
 - Accessibility builds the app's tree lazily; the helper retries the first read for up to 3 s.
 - The Accessibility and Screen Recording permissions belong to the app that runs the shell. If
   `cards-ax` says it has no Accessibility permission, or screenshots come out as wallpaper only,

@@ -104,6 +104,9 @@ unless the user asked for a fix.
   mutant's text no longer exists in `Desk.swift`, update that line in `MUTANTS` in `run.sh` to an
   equivalent break of the new code. If a mutant is not caught, the check has lost its teeth: fix
   the check before trusting a pass.
+- Each clause a property row in the table claims needs a `MUTANTS` entry in `run.sh` that breaks
+  only that clause. A clause with no caught mutant goes under "What a pass does not cover" until it
+  gets one.
 
 ## What a pass does not cover
 
@@ -115,5 +118,7 @@ unless the user asked for a fix.
   are outside it. Use the `verify-cards` skill for those.
 - P5 checks that the sidecar the desk writes reads back. It does not check old or hand-edited
   sidecars.
+- P5's clause that a load drops a summary stamped with another prompt has no mutant and no starting
+  desk with such a summary. Deleting that filter from `Desk.init` still passes.
 - Note text is short plain text. The Markdown round trip of bold, italic and lists is
   `NoteTests.swift`'s job.
