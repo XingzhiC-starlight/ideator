@@ -72,6 +72,21 @@ final class EditorTests: XCTestCase {
         XCTAssertEqual(card.editor.note.header, "h", "Shift-Tab in the header does nothing")
     }
 
+    func testTabOnASelectionInAListsFirstItemReplacesNothing() {
+        let note = Note(header: "Trip plan", body: [line(B(), "pack socks"), line(B(), "book")])
+        let card = Card(note)
+        card.select(from: "plan", through: "pack")
+        card.key { $0.insertTab(nil) }
+        XCTAssertEqual(card.editor.note, note, "a selection from the header into the first item keeps both lines")
+        card.select(from: "socks", through: "socks")
+        card.key { $0.insertTab(nil) }
+        XCTAssertEqual(card.editor.note, note, "a selection inside the first item keeps its text")
+        card.select(from: "book", through: "book")
+        card.key { $0.insertTab(nil) }
+        XCTAssertEqual(card.shapes, [B(), B(1)], "a selection inside an item that can nest nests it")
+        XCTAssertEqual(card.texts, ["pack socks", "book"])
+    }
+
     func testUndoAfterTabIsOneStep() {
         let card = Card(Note(header: "h", body: [line(B(), "a"), line(B(), "b"), line(B(1), "c")]))
         card.caret(before: "b")
