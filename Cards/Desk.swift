@@ -241,7 +241,6 @@ struct Desk: Equatable {
     /// The stacked card that shows. Nil while the blank page shows.
     var selectedCard: Card? { stack.indices.contains(selection) ? stack[selection] : nil }
 
-    /// The cards on the desktop, in the order they arrived.
     var poppedCards: [Card] { popped.map(\.card) }
 
     /// Where `item` is; nil for a card that is not on the desktop.
@@ -301,7 +300,7 @@ struct Desk: Equatable {
             selection = stack.count   // New refuses when the desktop is full; the blank page takes over
             return nil
         }
-        let card = Card(id: freshID(at: date), note: .blank, collapsed: false)   // always expanded
+        let card = Card(id: freshID(at: date), note: .blank, collapsed: false)
         popped.append(PoppedCard(card: card, place: .slot(slot)))
         return card.id
     }

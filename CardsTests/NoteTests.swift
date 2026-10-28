@@ -50,7 +50,7 @@ final class NoteTests: XCTestCase {
 
             1. again
 
-            """, "a flat note writes what it wrote before levels, so its digest and cached summary survive")
+            """, "a flat note writes what it wrote before levels")
     }
 
     func testAFileIdeatorWroteReadsBackToTheSameBytes() {

@@ -35,7 +35,6 @@ struct Slot: Hashable {
         index = row * Slot.columns + column
     }
 
-    /// The cell's center.
     var center: GridPoint {
         GridPoint(x: (Double(column) + 0.5) / Double(Slot.columns), y: (Double(row) + 0.5) / Double(Slot.rows))
     }

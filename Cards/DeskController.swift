@@ -303,7 +303,6 @@ final class DeskController {
         present(alert)
     }
 
-    /// The menu-bar screen.
     private static func currentGrid() -> Grid? {
         Grid(screen: NSScreen.screens.first)
     }

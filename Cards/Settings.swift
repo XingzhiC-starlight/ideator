@@ -66,7 +66,6 @@ class KeyStore {
     }
 }
 
-/// Calls `onChange` after the key store changes so the controller can start (or stop) summaries.
 final class SettingsWindow: NSWindow {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
