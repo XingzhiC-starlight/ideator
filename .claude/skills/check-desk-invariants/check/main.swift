@@ -127,6 +127,13 @@ func commands(_ desk: Desk) -> [Command] {
     }
     files[cid("zz added")] = note("Added", "by hand")
     list.append(.syncFiles(files))
+
+    // A card from an AI tool: Top while the user types in the stacked card, Top, Bottom. Last, so the
+    // older mutants keep the counterexample they had, and Top while typing first, so a card that
+    // misses the top fails P4 before the page it shows fails P3.
+    list += [.addFromTool(note("Tool typing", "x"), at: now, to: .top, typing: true),
+             .addFromTool(note("Tool top", "x"), at: now, to: .top, typing: false),
+             .addFromTool(note("Tool bottom", "x"), at: now, to: .bottom, typing: false)]
     return list
 }
 
@@ -162,6 +169,9 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     case .new, .writeBlank:
         if added.count > 1 { try fail("P1 conservation", "one command added \(added.count) cards") }
         expected = beforeIDs.union(added)
+    case .addFromTool:
+        if added.count != 1 { try fail("P1 conservation", "a card from an AI tool added \(added.count) cards") }
+        expected = beforeIDs.union(added)
     case .delete(let id): expected = beforeIDs.subtracting([id])
     case .syncFiles(let files): expected = Set(files.keys)
     case .pop, .returnToStack, .flipStack, .arrange, .showStacked, .move, .edit, .setCollapsed,
@@ -178,6 +188,7 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         case .syncFiles(let files): files[id]
         case .new where added.contains(id): .blank
         case .writeBlank(let typed, _) where added.contains(id): typed
+        case .addFromTool(let given, _, _, _) where added.contains(id): given
         default: beforeNotes[id]
         }
         if note != want { try fail("P1 conservation", "card \"\(id.rawValue)\" has text it was never given") }
@@ -202,6 +213,7 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     case .returnToStack(let id) where before.popped.contains(where: { $0.card.id == id }): want = id
     case .showStacked(let id) where before.stack.contains(where: { $0.id == id }): want = id
     case .writeBlank where !added.isEmpty: want = added.first
+    case .addFromTool(_, _, .top, false): want = added.first
     case .new where arrived == nil: want = nil
     default:
         if let was = shown(before), !after.stack.contains(where: { $0.id == was }) { want = underneath }
@@ -217,6 +229,9 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     // P4 The stack's order changes only by cards entering or leaving, and by the arranger's move:
     // the cards that stay keep their order, Return puts its card on top, new cards join at the
     // bottom, and a move lands its card at the clamped index with the others in their old order.
+    if case .addFromTool = command, after.popped != before.popped || after.stackPlace != before.stackPlace {
+        try fail("P4 stack order", "a card from an AI tool changed the desktop")
+    }
     let kept = before.stack.map(\.id).filter { id in after.stack.contains { $0.id == id } }
     let afterKept = after.stack.map(\.id).filter { id in before.stack.contains { $0.id == id } }
     if case .arrange(let id, let index) = command {
@@ -242,6 +257,10 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     switch command {
     case .returnToStack(let id) where !entered.isEmpty:
         if entered != [id] || after.stack.first?.id != id { try fail("P4 stack order", "↩ Stack did not put \"\(id.rawValue)\" on top") }
+    case .addFromTool(_, _, .top, _):
+        if entered.count != 1 || after.stack.first?.id != entered.first {
+            try fail("P4 stack order", "a card from an AI tool with Top did not join at the top: \(after.stack.map(\.id.rawValue))")
+        }
     default:
         if let first = entered.first, let i = after.stack.firstIndex(where: { $0.id == first }),
            after.stack.count - i != entered.count {
@@ -259,6 +278,11 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         if after.clarity != before.clarity { try fail("P6 clarity", "a per-card change moved the Clarity button") }
         if beforeIDs.contains(id), after.allCards.first(where: { $0.id == id })?.collapsed != collapsed {
             try fail("P6 clarity", "the per-card button did not change \"\(id.rawValue)\"")
+        }
+    case .addFromTool:
+        if after.clarity != before.clarity { try fail("P6 clarity", "the Clarity button changed without being pressed") }
+        if after.allCards.contains(where: { added.contains($0.id) && $0.collapsed != after.clarity }) {
+            try fail("P6 clarity", "a card from an AI tool did not take Clarity's state (\(after.clarity ? "on" : "off"))")
         }
     default:
         if after.clarity != before.clarity { try fail("P6 clarity", "the Clarity button changed without being pressed") }
@@ -372,6 +396,7 @@ func label(_ command: Command) -> String {
     case .syncFiles(let files): ".syncFiles(\(files.keys.map(\.rawValue).sorted()))"
     case .edit(let id, _): ".edit(\"\(id.rawValue)\")"
     case .storeSummary(let id, let s): ".storeSummary(\"\(id.rawValue)\", \(s.outcome), source \(s.source.rawValue.prefix(8)))"
+    case .addFromTool(_, _, let landing, let typing): ".addFromTool(\(landing)\(typing ? ", typing in the stacked card" : ""))"
     default: "\(command)".replacingOccurrences(of: "main.", with: "")
     }
 }
