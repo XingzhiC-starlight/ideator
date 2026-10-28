@@ -131,9 +131,9 @@ It prints one of these verdicts and exits 0 only for "current":
 | not current | The app was built with local changes, so its files are not any commit's. |
 | can't tell | The app has no stamp. It is older than the stamp, or `scripts/package.sh` did not make it. |
 
-Settings shows the same stamp on its last line: `Version 0.9 (57), commit 1a2b3c4`, `… with local
-changes`, or `Version 0.9 (1), a development build` for a build without one, such as a run from
-Xcode. To read the stamp yourself:
+Settings shows the same stamp at the start of the caption under its Updates rows: `Version 0.9 (57),
+commit 1a2b3c4`, `… with local changes`, or `Version 0.9 (1), a development build` for a build
+without one, such as a run from Xcode. To read the stamp yourself:
 
 ```bash
 defaults read /Applications/Ideator.app/Contents/Info.plist IdeatorCommit
