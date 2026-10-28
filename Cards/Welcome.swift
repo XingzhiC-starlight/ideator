@@ -1,6 +1,11 @@
 import AppKit
 
 struct WelcomeCopy: Equatable {
+    /// Raise it whenever the paragraphs about Anthropic or GitHub change what they say Ideator
+    /// sends or asks, so a Mac that acknowledged an older card sees this one before Ideator does
+    /// anything the older card did not announce. 1 is the card from before the GitHub paragraph.
+    static let version = 2
+
     let title = "Welcome to Ideator"
     let buttonTitle = "Continue"
     var shortcut: Shortcut
