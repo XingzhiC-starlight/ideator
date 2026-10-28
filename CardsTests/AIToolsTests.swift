@@ -101,17 +101,22 @@ final class AIToolsTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
 
         var second: ToolReply?
+        var alertIsUp = false
         var answeredWhileUp = false
         let next = try card("Next")
         whileAlertIsUp = {
-            Task { @MainActor in second = controller.add(next, landing: .top) }
+            alertIsUp = true
+            Task { @MainActor in
+                second = controller.add(next, landing: .top)
+                answeredWhileUp = alertIsUp
+            }
             let deadline = Date().addingTimeInterval(3)
             while second == nil, Date() < deadline { RunLoop.current.run(mode: .modalPanel, before: Date().addingTimeInterval(0.05)) }
-            answeredWhileUp = second != nil
+            alertIsUp = false
         }
 
         let deadline = Date().addingTimeInterval(10)
-        while alerts.isEmpty || second == nil, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        while alerts.isEmpty || second == nil || alertIsUp, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertEqual(alerts, ["Ideator can't save your notes"])
         XCTAssertTrue(answeredWhileUp, "the second card is answered while the alert is still up")
         XCTAssertEqual(second, .done("Added \"Next\" to the top of the stack."))

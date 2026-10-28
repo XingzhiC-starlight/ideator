@@ -268,7 +268,10 @@ final class DeskController {
             alert.messageText = "Ideator can't save your notes"
             alert.informativeText = Self.saveFailureText(folder: library.folder)
             if alertLater {
-                DispatchQueue.main.async { [present] in _ = present(alert) }
+                // A run loop block, not the main queue: the main queue is serial, so a modal loop
+                // inside one of its blocks would hold back every card that arrives while the alert is up.
+                CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue) { [present] in _ = present(alert) }
+                CFRunLoopWakeUp(CFRunLoopGetMain())
             } else {
                 _ = present(alert)
             }
