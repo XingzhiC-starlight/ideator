@@ -121,6 +121,80 @@ final class EditorTests: XCTestCase {
         XCTAssertEqual(card.shapes, [B(), T], "b comes back plain")
     }
 
+    func testUndoingAJoinIntoTheHeaderKeepsBoldAndItalic() {
+        let note = Note(header: "Title", body: [
+            Line(runs: [Run(text: "bold", style: .bold), Run(text: " and "), Run(text: "italic", style: .italic)]),
+            line(T, "next"),
+        ])
+        let card = Card(note)
+        card.caret(before: "bold")
+        card.key { $0.deleteBackward(nil) }
+        XCTAssertEqual(card.editor.note.header, "Titlebold and italic", "Backspace joins the line into the header")
+        card.undo.undo()
+        XCTAssertEqual(card.editor.note, note, "undo gives the line back with its bold and italic")
+        XCTAssertTrue(card.editor.note.markdown.contains("\n**bold** and *italic*\n"), card.editor.note.markdown)
+        card.undo.redo()
+        XCTAssertEqual(card.editor.note.header, "Titlebold and italic")
+        card.undo.undo()
+        XCTAssertEqual(card.editor.note, note, "undo after redo is exact too")
+    }
+
+    func testUndoingEveryRandomEditGivesBackTheNote() {
+        let note = Note(header: "Title", body: [
+            Line(runs: [Run(text: "bold", style: .bold), Run(text: " and "), Run(text: "italic", style: .italic)]),
+            Line(runs: [Run(text: "plain "), Run(text: "both", style: [.bold, .italic])]),
+        ])
+        var random = SplitMix(state: 1500)
+        for trial in 0..<300 {
+            let card = Card(note)
+            var steps: [String] = []
+            for _ in 0..<Int.random(in: 1...10, using: &random) {
+                let string = card.editor.string as NSString
+                let location = Int.random(in: 0...string.length, using: &random)
+                let length = Int.random(in: 0...min(4, string.length - location), using: &random)
+                let paragraphStart = string.paragraphRange(for: NSRange(location: location, length: 0)).location
+                switch Int.random(in: 0..<9, using: &random) {
+                case 0:
+                    steps.append("type x at \(location)")
+                    card.editor.setSelectedRange(NSRange(location: location, length: 0))
+                    card.key { $0.insertText("x", replacementRange: $0.selectedRange()) }
+                case 1:
+                    steps.append("delete \(location)+\(length)")
+                    card.editor.setSelectedRange(NSRange(location: location, length: length))
+                    card.key { $0.deleteBackward(nil) }
+                case 2:
+                    steps.append("join at \(paragraphStart)")
+                    card.editor.setSelectedRange(NSRange(location: paragraphStart, length: 0))
+                    card.key { $0.deleteBackward(nil) }
+                case 3:
+                    steps.append("forward delete at \(location)")
+                    card.editor.setSelectedRange(NSRange(location: location, length: 0))
+                    card.key { $0.deleteForward(nil) }
+                case 4:
+                    steps.append("bold \(location)+\(length)")
+                    card.editor.setSelectedRange(NSRange(location: location, length: length))
+                    card.key { $0.toggle(.bold) }
+                case 5:
+                    steps.append("tab over \(location)+\(length)")
+                    card.editor.setSelectedRange(NSRange(location: location, length: length))
+                    card.key { $0.insertTab(nil) }
+                case 6:
+                    steps.append("enter at \(location)")
+                    card.editor.setSelectedRange(NSRange(location: location, length: 0))
+                    card.key { $0.insertNewline(nil) }
+                case 7:
+                    steps.append("undo")
+                    if card.undo.canUndo { card.undo.undo() }
+                default:
+                    steps.append("redo")
+                    if card.undo.canRedo { card.undo.redo() }
+                }
+            }
+            while card.undo.canUndo { card.undo.undo() }
+            XCTAssertEqual(card.editor.note, note, "trial \(trial): \(steps)")
+        }
+    }
+
     func testListButtonChangesOnlyThatLine() {
         let card = Card(Note(header: "h", body: [line(B(), "parent"), line(B(1), "kid")]))
         card.caret(before: "parent")
