@@ -349,7 +349,9 @@ Later changes, after trying the app:
   the new reader reads back, so a card Ideator wrote keeps its bytes, its digest and its cached
   summary. The one non-CommonMark rule left is the writer's own `\1.` before a plain line that
   starts like a numbered item. Paste lost `keepingLiteralBackslashes` with it, since `Note`'s
-  reader now applies that rule itself.
+  reader now applies that rule itself. That reader also decides `*` in a paste of several lines,
+  so `2 * 3 * 4` and `** spaced bold **` paste as typed where the old one styled them and dropped
+  their stars, and `*a *b*` pastes as italic `a *b`.
 - 2026-10-27, undo and inline styles: bold and italic lived only in the fonts, read back by point
   size, and `restyle()` re-derives every font after each change without registering undo. Text
   joined into the header took the header's font, so undo brought its characters back plain and
