@@ -2,7 +2,7 @@
 # Bounded exhaustive check of the real Desk rules. See SKILL.md.
 #
 #   run.sh [DEPTH]        build against the current Cards/*.swift and check (default depth 3, ~10 s)
-#   run.sh --mutants      break the code twelve known ways; each must be caught by its property
+#   run.sh --mutants      break the code thirteen known ways; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
 set -euo pipefail

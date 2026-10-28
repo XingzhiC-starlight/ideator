@@ -14,7 +14,7 @@ sequences someone wrote down. This check runs **every** sequence, within a state
 ## What it checks
 
 `check/main.swift` compiles together with the real `Cards/Desk.swift`, `Grid.swift` and
-`Note.swift`, no copies and no model. It starts from four desks, built by `Desk(notes:saved:)` as
+`Note.swift`, no copies and no model. It starts from five desks, built by `Desk(notes:saved:)` as
 a launch builds them:
 
 - `empty`: no cards.
@@ -22,6 +22,11 @@ a launch builds them:
 - `mixed`: Clarity on, the stack at a free point, one card snapped to slot 0, one free, one stacked.
 - `near full`: 17 snapped cards plus one free card over an occupied slot, so Pop's 19-card
   ceiling is two steps away.
+- `summaries under two prompts`: three stacked cards whose sidecar holds two summaries of their
+  current text, one written under the current `Summary.prompt` and one under another prompt. The
+  `ok` line prints how many the sidecar held, how many were under another prompt, and how many the
+  load kept. Before the search, the check compares each starting desk with its own sidecar: the
+  load must keep exactly the text summaries the current prompt wrote.
 
 From each desk it applies every command in its list to every reachable desk, breadth-first, up to
 the depth (default 3), and skips desks it has already seen. The commands are New, Pop, both flips,
@@ -99,7 +104,7 @@ unless the user asked for a fix.
   - Then run `run.sh`, then `run.sh --mutants`, and only then `run.sh --reviewed`.
   - CI runs `run.sh --require-reviewed` and fails until `reviewed.sha256` is recorded again, so
     commit it with the change.
-- `run.sh --mutants` breaks `Desk.swift` twelve known ways in a scratch copy under
+- `run.sh --mutants` breaks `Desk.swift` thirteen known ways in a scratch copy under
   `build/desk-check/` (never the real file) and needs every property to catch its break. If a
   mutant's text no longer exists in `Desk.swift`, update that line in `MUTANTS` in `run.sh` to an
   equivalent break of the new code. If a mutant is not caught, the check has lost its teeth: fix
@@ -110,7 +115,7 @@ unless the user asked for a fix.
 
 ## What a pass does not cover
 
-- Only sequences of at most 3 commands (4 with `run.sh 4`) from the four starting desks, using the
+- Only sequences of at most 3 commands (4 with `run.sh 4`) from the five starting desks, using the
   command list above. Long histories, other card counts and other drop points are not explored.
   Drags use a few fixed targets, not every point on the screen.
 - Only the pure model. Windows (`DeskController.render`), the disk (`Library.save`, its failures
@@ -118,7 +123,5 @@ unless the user asked for a fix.
   are outside it. Use the `verify-cards` skill for those.
 - P5 checks that the sidecar the desk writes reads back. It does not check old or hand-edited
   sidecars.
-- P5's clause that a load drops a summary stamped with another prompt has no mutant and no starting
-  desk with such a summary. Deleting that filter from `Desk.init` still passes.
 - Note text is short plain text. The Markdown round trip of bold, italic and lists is
   `NoteTests.swift`'s job.
