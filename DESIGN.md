@@ -643,15 +643,19 @@ Later changes, after trying the app:
     From a disk image, or from the copy Gatekeeper runs a downloaded app from until it is moved
     (`.../AppTranslocation/<uuid>/d/Ideator.app`), that path is gone after the eject or the next
     launch, and the pasted setup fails in the AI tool at a later session, far from where it was
-    copied. `HelperCommand.isTemporary` is the rule: after links are followed, a path with an
-    `AppTranslocation` component or one whose first component is `Volumes`. Then the buttons are dimmed
-    and the line above them says to move Ideator to Applications. The startup volume is a link in
-    `/Volumes`, so following links keeps it out. Rejected: copying anyway with a warning, since the
-    user pastes before reading it; asking DiskArbitration which volumes are disk images, for a case
-    that a path rule covers; and exempting other volumes, which can be unplugged as an image can be
-    ejected (the cost: someone who keeps the app on an external drive moves it to use Connect). Not
-    driven live: this Mac's builds run from a build folder, and the unit tests open the window on
-    an app path under `/Volumes` and under `AppTranslocation`.
+    copied. `RunPlace.isTemporary` is the rule, and the file system answers it: the app is not on the
+    startup volume (`volumeIsRootFileSystem` is false), or its path has an `AppTranslocation`
+    component, the only sign of a translocated copy that needs no private API. A path the file system
+    cannot find has no answer and does not count. A first version decided by the path string, with
+    links followed: it passed here and failed on CI, whose runner has a link to the startup volume in
+    `/Volumes` but no app at the path, so there was nothing to follow. Then the buttons are dimmed and
+    the line above them says to move Ideator to Applications. Rejected: copying anyway with a warning,
+    since the user pastes before reading it; asking DiskArbitration which volumes are disk images, when
+    one flag already separates them from the startup volume; and exempting other volumes, which can be
+    unplugged as an image can be ejected (the cost: someone who keeps the app on an external drive moves
+    it to use Connect). Not driven live: this Mac's builds run from a build folder. The unit tests hand
+    `RunPlace` the file system's answer for the disk image and translocated cases, and read the host's
+    own answer for every volume it has mounted.
   - `MCPServer` is `nonisolated` like the rest of `MCP/`: the helper's server asks the socket from
     its own thread, and a test must be able to do the same without the main actor.
 

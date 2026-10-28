@@ -136,7 +136,7 @@ under the run's evidence folder.
 - A first failed save (`chmod 555` the run's folder) answers the call at once with the "don't add it again" error,
   and the "Ideator can't save your notes" alert comes after it.
 - Not verified here: that Claude Code, Codex and Claude Desktop pass the instruction to the model, the pasted setups
-  inside those tools, the dimmed Connect buttons for an app under `/Volumes` or `AppTranslocation` (a build here runs
+  inside those tools, the dimmed Connect buttons for an app on another volume or under `AppTranslocation` (a build here runs
   from a build folder; the unit tests open the window on such a path), a helper reading a normal (not scratch) run's
   saved preference, the three AI tools themselves,
   Gatekeeper on a downloaded build, and a normal (not scratch) run.
