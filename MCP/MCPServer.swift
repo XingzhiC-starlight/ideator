@@ -13,14 +13,13 @@ struct MCPServer {
     /// Newest first: `initialize` with any other version is answered with the first.
     static let legacyVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
 
-    /// CARDS-SPEC.md's default instruction. Settings makes it editable in a later step.
+    /// CARDS-SPEC.md's default instruction.
     static let defaultInstructions = "Ideator keeps sticky-note cards on the user's Mac desktop, for ideas, to-dos and "
         + "things to remember later. A card has a title, then lines, bullets or checkboxes (up to 3 levels). Cards "
         + "scroll, so length is fine, but the first few lines are what the user sees at a glance: lead with what "
         + "matters, and keep one topic per card. Create a card only when the user asks; you may offer when something "
         + "looks worth saving."
 
-    /// The app's version, for `serverInfo`.
     let version: String
     let addCard: (AddCard) -> ToolReply
 

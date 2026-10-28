@@ -60,7 +60,6 @@ nonisolated struct ToolReply: Equatable, Sendable {
     static func done(_ text: String) -> ToolReply { ToolReply(text: text, isError: false) }
     static func failed(_ text: String) -> ToolReply { ToolReply(text: text, isError: true) }
 
-    /// The app's answer as one line to the helper.
     var line: Data { (try? JSONSerialization.data(withJSONObject: ["text": text, "isError": isError])) ?? Data() }
 
     init?(line: Data) {
@@ -78,7 +77,6 @@ nonisolated struct ToolReply: Equatable, Sendable {
 nonisolated extension ToolReply {
     /// The app closed the connection without an answer: it quit, or was quit, before it saved.
     static let lost = failed("Ideator quit before it saved the card. Nothing was saved.")
-    /// A line the app could not read as a card.
     static let unreadable = failed("Ideator couldn't read the card it was sent. Nothing was saved.")
 
     static func notStarted(_ why: String) -> ToolReply {

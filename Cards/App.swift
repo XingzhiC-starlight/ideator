@@ -28,7 +28,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private lazy var updates = Updates(build: .current, isScratch: launch.isScratch)
     private lazy var aiTools = AIToolsChoice(preferences: preferences)
-    /// Cards from AI tools that came during the welcome card, until Continue opens the notes.
     private let held = HeldCards()
     private var inbox: ToolInbox?
     private var controller: DeskController?

@@ -1,9 +1,6 @@
 import Darwin
 import Foundation
 
-// Ideator's side of cards from AI tools: the inbox on this instance's endpoint, the cards held while
-// the welcome card waits, and the two settings. The helper's side and the shared types are in MCP/.
-
 /// "Let AI tools add cards" and "Cards from AI tools go to".
 struct AIToolSettings: Equatable {
     var enabled = true
