@@ -28,6 +28,14 @@ final class SettingsTests: XCTestCase {
                       "the promise comes after both services")
     }
 
+    func testThePrivacyLineSaysWhenACardIsSentAgainAndNotThatItIsSentOnce() {
+        let line = SettingsWindow.privacy
+        XCTAssertTrue(line.contains("whenever the card has no summary for its text as it is now"), "the rule")
+        XCTAssertTrue(line.contains("when you save a key"), "every card without a summary goes at once")
+        XCTAssertTrue(line.contains("at launch after a failed try"), "a failure is never saved")
+        XCTAssertTrue(line.contains("after an update that changes how Ideator asks for summaries"), "every card, once")
+    }
+
     func testTheUpdatesCaptionFollowsTheVersionLineWithWhetherThisRunChecks() {
         let release = BuildInfo(info: ["CFBundleShortVersionString": "0.9", "CFBundleVersion": "57",
                                        "IdeatorCommit": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d", "IdeatorTreeDirty": "NO",

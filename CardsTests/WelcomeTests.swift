@@ -48,6 +48,14 @@ final class WelcomeTests: XCTestCase {
             + "WelcomeCopy.version and the number above together, so a Mac that saw the old card sees this one.")
     }
 
+    func testTheCopyAndSettingsSayWhenACardIsSentToAnthropicInTheSameWords() {
+        let rule = "whenever the card has no summary for its text as it is now"
+        let summaries = copy().paragraphs.first { $0.lead == "Summaries are optional." }
+
+        XCTAssertTrue(summaries?.text.contains(rule) == true)
+        XCTAssertTrue(SettingsWindow.privacy.contains(rule))
+    }
+
     func testTheCardFitsItsCopyAtTheStackWidth() {
         let window = WelcomeWindow(copy: copy()) {}
 
