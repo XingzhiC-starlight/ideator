@@ -218,8 +218,10 @@ extension Note {
     /// - A list line indented further than the open list item above it is that item's child,
     ///   one at the same indent is its sibling. The first item of a run (after a plain line or at
     ///   the start) is at the top whatever its indent. Past the third level clamps.
-    /// - A plain line keeps its leading spaces and ends the run.
-    /// - Inline: `***x***` bold+italic, `**x**` bold, `*x*` italic, `\x` literal x.
+    /// - A plain line keeps its leading spaces and ends the run. A `\` before a number marker
+    ///   (`\1. x`) is `escapeLineStart`'s and goes, though CommonMark keeps a backslash before a digit.
+    /// - Inline: `***x***` bold+italic, `**x**` bold, `*x*` italic; a `\` makes the punctuation
+    ///   after it literal (`parseInline`).
     static func bodyLines(_ lines: [String]) -> [Line] {
         var ancestors: [Int] = []   // indent columns of the open items, increasing
         return lines.map { raw in
@@ -227,7 +229,8 @@ extension Note {
             let (kind, content) = lineKind(of: rest)
             guard kind.isList else {
                 ancestors = []
-                return Line(runs: parseInline(Substring(raw)))
+                let escapedNumber = rest.hasPrefix("\\") && lineKind(of: rest.dropFirst()).0 == .numbered
+                return Line(runs: parseInline(escapedNumber ? raw.dropLast(rest.count) + rest.dropFirst() : raw[...]))
             }
             while let last = ancestors.last, last > columns { ancestors.removeLast() }
             if ancestors.last != columns { ancestors.append(columns) }
@@ -307,9 +310,13 @@ extension Note {
         return leading + marker + core + marker + String(trailing.reversed())
     }
 
-    /// Scans one line. `\x` is a literal x. A run of asterisks first closes the styles that are
-    /// open, then opens new ones, but only when a closing asterisk follows later on the line;
-    /// otherwise the asterisks stay literal.
+    private static let asciiPunctuation = Set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+
+    /// Scans one line as CommonMark reads it, for the part of Markdown cards use. A backslash
+    /// escapes the ASCII punctuation after it and is a literal backslash anywhere else. A run of
+    /// asterisks with no space before it closes the styles that are open; with no space after it,
+    /// it then opens new ones, if enough such closing asterisks follow later on the line. Any
+    /// asterisk left over is literal, so `rm *.txt *.log` and `2 * 3 * 4` read as they look.
     static func parseInline(_ text: Substring) -> [Run] {
         let chars = Array(text)
         var runs: [Run] = []
@@ -321,20 +328,26 @@ extension Note {
             if !current.isEmpty { runs.append(Run(text: current, style: style)) }
             current = ""
         }
-        func asterisksAhead(from index: Int) -> Int {
+        func isEscape(at j: Int) -> Bool {
+            chars[j] == "\\" && j + 1 < chars.count && asciiPunctuation.contains(chars[j + 1])
+        }
+        func isSpace(at j: Int) -> Bool { !chars.indices.contains(j) || chars[j].isWhitespace }
+        func closersAhead(from index: Int) -> Int {
             var count = 0
             var j = index
             while j < chars.count {
-                if chars[j] == "\\" { j += 2; continue }
-                if chars[j] == "*" { count += 1 }
-                j += 1
+                if isEscape(at: j) { j += 2; continue }
+                guard chars[j] == "*" else { j += 1; continue }
+                let start = j
+                while j < chars.count, chars[j] == "*" { j += 1 }
+                if !isSpace(at: start - 1) { count += j - start }
             }
             return count
         }
 
         while i < chars.count {
             let c = chars[i]
-            if c == "\\", i + 1 < chars.count {
+            if isEscape(at: i) {
                 current.append(chars[i + 1])
                 i += 2
                 continue
@@ -346,11 +359,12 @@ extension Note {
             }
             var n = 0
             while i + n < chars.count, chars[i + n] == "*" { n += 1 }
-            let ahead = asterisksAhead(from: i + n)
+            let closes = !isSpace(at: i - 1)
+            let ahead = isSpace(at: i + n) ? 0 : closersAhead(from: i + n)
             var next = style
             var left = n
-            if next.contains(.bold), left >= 2 { next.remove(.bold); left -= 2 }
-            if next.contains(.italic), left >= 1 { next.remove(.italic); left -= 1 }
+            if closes, next.contains(.bold), left >= 2 { next.remove(.bold); left -= 2 }
+            if closes, next.contains(.italic), left >= 1 { next.remove(.italic); left -= 1 }
             if !next.contains(.bold), left >= 2, ahead >= 2 { next.insert(.bold); left -= 2 }
             if !next.contains(.italic), left >= 1, ahead >= 1 { next.insert(.italic); left -= 1 }
             if next != style {

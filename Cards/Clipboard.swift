@@ -155,11 +155,11 @@ enum Clipboard {
     }
 
     /// One pasted line in the card file's grammar, so Note's one reader can read it: other
-    /// bullets and `1)` become `- ` and `1. `, a tab after a marker becomes a space, a `#` heading
-    /// becomes plain text, and a backslash that Markdown would keep stays a backslash.
+    /// bullets and `1)` become `- ` and `1. `, a tab after a marker becomes a space, and a `#`
+    /// heading becomes plain text.
     private static func fileGrammar(_ row: String) -> String {
         let indent = String(row.prefix { $0 == " " || $0 == "\t" })
-        let rest = Substring(keepingLiteralBackslashes(String(row.dropFirst(indent.count))))
+        let rest = row.dropFirst(indent.count)
         let gap: (Character?) -> Bool = { $0 == " " || $0 == "\t" }
         if let mark = rest.first, "-*•◦▪·‣".contains(mark), gap(rest.dropFirst().first) {
             return indent + "- " + rest.dropFirst(2)
@@ -174,24 +174,6 @@ enum Clipboard {
             return Note.escapeLineStart(String(rest.dropFirst(hashes.count + 1)))
         }
         return indent + rest
-    }
-
-    /// Markdown escapes only ASCII punctuation, so `C:\Users` or `a\nb` in pasted text keeps its
-    /// backslash; the card file escapes anything, so such a backslash is doubled. A backslash
-    /// before a line's first digit is the card file's own escape of a plain "1. " line, and stays.
-    private static func keepingLiteralBackslashes(_ content: String) -> String {
-        var out = ""
-        var chars = content[...]
-        while let c = chars.popFirst() {
-            out.append(c)
-            guard c == "\\", let next = chars.first else { continue }
-            if next.isASCII, next.isPunctuation || next.isSymbol || (out.count == 1 && next.isNumber) {
-                out.append(chars.removeFirst())
-            } else {
-                out.append("\\")
-            }
-        }
-        return out
     }
 
     // MARK: Paste
