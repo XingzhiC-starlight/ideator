@@ -84,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async(execute: onContinue)
         }
         welcome = window
-        window.present()
+        window.present(takingFocus: launch.welcomeTakesFocus)
     }
 
     private func withDesk(_ action: (DeskController) -> Void) {

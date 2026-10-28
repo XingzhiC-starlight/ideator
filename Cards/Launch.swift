@@ -36,6 +36,8 @@ struct Launch {
 
     func showsWelcome(seen: Bool) -> Bool { forcesWelcome || !seen }
 
+    var welcomeTakesFocus: Bool { !inBackground }
+
     /// The launch order, with both effects passed in so a test can watch the order:
     /// - welcome due: `welcome` shows it and hands back `onContinue`. `openNotes` runs only when
     ///   that is called, once however many times it is called, and the "seen" flag is set after it

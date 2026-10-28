@@ -658,5 +658,8 @@ Later changes, after trying the app:
   blank page included, since a first character there is about to become a card.
 - A card from an AI tool that cannot be saved stays in the stack, as any unsaved edit does, and the
   reply says not to add it again, because a retry would add a second copy.
-- The welcome card that a background start shows still activates Ideator, as it does at any first
-  launch; only the start itself takes no focus.
+- The welcome card that a background start shows comes to the front with `orderFrontRegardless`,
+  neither key nor active, so a Return typed in the AI tool stays in the AI tool. A click on the card
+  brings Ideator forward and makes Continue work. macOS 15 already refused the card's
+  `NSApp.activate()` from a background start in a test, but that refusal is macOS's policy to change,
+  so the card no longer asks.
