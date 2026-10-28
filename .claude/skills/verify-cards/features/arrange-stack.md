@@ -92,7 +92,7 @@ Preconditions:
 - **Hide all.** Run `cv ax press "Hide all" stack`, then `cv ax press "Arrange the stack"`. The popover
   hangs under the ribbon (`cv ax windows` lists a 342x46 stack and the popover). `cv ax key opt+down`
   moves a card and the stack stays 342x46. `cv ax act "Beta card" AXPress` turns the stack to Beta
-  and `cv ax windows` lists the stack at 342x267 again, the toggle still `Show all`, and the popover
+  and `cv ax windows` lists the stack at 342x268 again, the toggle still `Show all`, and the popover
   under the badge in the card's corner.
 - **Live updates.** Pop the shown card with `cv ax press "↗ Pop" stack`: the popped card becomes the
   key window, so the popover closes (a user's click on ↗ Pop is outside the popover, and closes it

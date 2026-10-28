@@ -44,7 +44,7 @@ Preconditions:
   Run `cv ax scroll stack 40 0`. The Beta card shows.
 - **Pop.** With Beta showing, click ↗ Pop. Run `cv shot stack-before-pop`, then `cv ax press
   "↗ Pop" stack`.
-  `cv ax tree` shows a card window at the top-left cell (`@0,39` on the owner's display) whose text
+  `cv ax tree` shows a card window at the top-left cell (`@0,34` on the owner's display) whose text
   is the Beta card. The stack shows the blank page (Beta was last), and the badge reads 1.
 - **Pop saved.** Wait 1.5 s and run `cv files stack-pop`. The sidecar's `placements` holds
   `seed-b` at `"slot" : 0`, and `stack` is `["seed-a"]`. The `.md` files are unchanged.
