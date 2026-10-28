@@ -60,6 +60,8 @@ commands and observable proof.
   reorders them by grip drag, ⌥↑ and ⌥↓ or VoiceOver actions, and shows one on the stack.
 - [Clarity](./clarity.md): the global Clarity button, per-card collapse and expand, and what a
   collapsed card shows.
+- [API key](./api-key.md): the Settings field for an Anthropic or an OpenAI key, the lines that name
+  its company, and the HTTP 401 a refused key leaves on a collapsed card.
 - [First launch](./first-launch.md): the welcome card and the folder it keeps closed until Continue,
   and Settings' shortcut recorder, update controls and privacy line.
 - [Updates](./updates.md): Check Now and Sparkle's windows, the refused forged feed and disk image,
@@ -79,5 +81,5 @@ commands and observable proof.
 - [Copy and paste](./clipboard.md): Markdown and HTML on copy, pasting HTML lists and terminal
   text, one-line and header pastes, and undoing a paste, with the owner's clipboard restored.
 
-Not mapped yet: bold and italic, the API key field, summaries with a real key, the menu bar icon,
+Not mapped yet: bold and italic, summaries with a real key, the menu bar icon,
 and folder changes made outside the app.
