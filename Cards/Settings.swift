@@ -256,8 +256,7 @@ final class SettingsWindow: NSWindow {
     }
 
     @objc private func remove() {
-        keys.set(nil)
-        onChange()
+        if keys.set(nil) { onChange() } else { NSSound.beep() }
         refresh()
     }
 }
