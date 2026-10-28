@@ -1,7 +1,7 @@
 import Foundation
 
 final class TestDefaults {
-    private var names: [String] = []
+    private(set) var names: [String] = []
 
     func make() -> UserDefaults {
         let name = "IdeatorTests-\(UUID().uuidString)"
