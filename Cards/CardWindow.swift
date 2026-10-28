@@ -337,9 +337,20 @@ final class CardView: NSView {
         let buttons = hoverButtons.fittingSize
         hoverButtons.frame = NSRect(x: content.maxX - buttons.width, y: content.maxY - buttons.height,
                                     width: buttons.width, height: buttons.height)
+        // The title stops short of the buttons, shown or not, so hovering never reflows it.
+        let titleEnd = hoverButtons.frame.minX - hoverButtons.spacing
         let headerHeight = ceil(EditorStyle.header.boundingRectForFont.height) + 2
         collapsedHeader.frame = NSRect(x: content.minX + 7, y: content.maxY - headerHeight - 2,
-                                       width: content.width - 7 - EditorStyle.headerTrailingSpace, height: headerHeight)
+                                       width: titleEnd - content.minX - 7, height: headerHeight)
+        // The editor wraps the title around them. The rect is in its text container's top-down
+        // coordinates, so it stays beside the title when the text scrolls.
+        let text = NSPoint(x: scrollView.frame.minX + editor.textContainerOrigin.x,
+                           y: scrollView.frame.maxY - editor.textContainerOrigin.y)
+        let besideButtons = NSRect(x: titleEnd - text.x, y: 0, width: bounds.maxX - titleEnd,
+                                   height: text.y - hoverButtons.frame.minY)
+        if editor.textContainer?.exclusionPaths.first?.bounds != besideButtons {   // setting it lays out all the text again
+            editor.textContainer?.exclusionPaths = [NSBezierPath(rect: besideButtons)]
+        }
         summaryView.frame = NSRect(x: content.minX + 7, y: content.minY,
                                    width: content.width - 14, height: collapsedHeader.frame.minY - content.minY - 4)
     }
