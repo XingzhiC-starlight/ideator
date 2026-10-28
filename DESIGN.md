@@ -639,6 +639,19 @@ Later changes, after trying the app:
     nothing needs a reason. Rejected: raising the helper's read limit for this reply, which moves the
     failure to a larger text and leaves the editor with no size it can promise, for a text about 200 times the
     standard one, which an instruction has no use for.
+  - Connect from a place that goes away. A copy button writes the helper's path inside `Bundle.main`.
+    From a disk image, or from the copy Gatekeeper runs a downloaded app from until it is moved
+    (`.../AppTranslocation/<uuid>/d/Ideator.app`), that path is gone after the eject or the next
+    launch, and the pasted setup fails in the AI tool at a later session, far from where it was
+    copied. `HelperCommand.isTemporary` is the rule: after links are followed, a path with an
+    `AppTranslocation` component or one whose first component is `Volumes`. Then the buttons are dimmed
+    and the line above them says to move Ideator to Applications. The startup volume is a link in
+    `/Volumes`, so following links keeps it out. Rejected: copying anyway with a warning, since the
+    user pastes before reading it; asking DiskArbitration which volumes are disk images, for a case
+    that a path rule covers; and exempting other volumes, which can be unplugged as an image can be
+    ejected (the cost: someone who keeps the app on an external drive moves it to use Connect). Not
+    driven live: this Mac's builds run from a build folder, and the unit tests open the window on
+    an app path under `/Volumes` and under `AppTranslocation`.
   - `MCPServer` is `nonisolated` like the rest of `MCP/`: the helper's server asks the socket from
     its own thread, and a test must be able to do the same without the main actor.
 
