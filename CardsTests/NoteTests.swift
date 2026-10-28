@@ -53,6 +53,115 @@ final class NoteTests: XCTestCase {
             """, "a flat note writes what it wrote before levels, so its digest and cached summary survive")
     }
 
+    func testAFileIdeatorWroteReadsBackToTheSameBytes() {
+        let note = Note(header: "Plan *with* C:\\ and 2 * 3", body: [
+            Line(runs: [Run(text: "plain "), Run(text: "bold", style: .bold), Run(text: " "), Run(text: "italic", style: .italic),
+                        Run(text: " "), Run(text: "both", style: [.bold, .italic]), Run(text: " "), Run(text: "next", style: .bold),
+                        Run(text: "to", style: .italic)]),
+            Line(runs: [Run(text: "*star*", style: .bold), Run(text: " and "), Run(text: "back\\", style: .italic)]),
+            line(T, "C:\\Users\\me and rm *.txt *.log, a * b * c"),
+            line(T, "- not a bullet"), line(T, "* star"), line(T, "# not a heading"), line(T, "> not a quote"),
+            line(T, "1. not numbered"), line(T, "  - indented"), line(T, "\t2. tabbed"),
+            line(B(), "[ ] not a checkbox"), line(B(1), "pack"), line(N(1), "socks"), line(N(1), "shirts"),
+            line(D(2, done: true), "wool"), line(D(1), "todo"),
+            line(T, ""), line(T, "    indented plain"), line(T, "ends with \\"),
+        ])
+        let file = """
+            # Plan \\*with\\* C:\\\\ and 2 \\* 3
+
+            plain **bold** *italic* ***both*** **next***to*
+            **\\*star\\*** and *back\\\\*
+            C:\\\\Users\\\\me and rm \\*.txt \\*.log, a \\* b \\* c
+            \\- not a bullet
+            \\* star
+            \\# not a heading
+            \\> not a quote
+            \\1. not numbered
+              \\- indented
+            \t\\2. tabbed
+            - \\[ ] not a checkbox
+                - pack
+                1. socks
+                2. shirts
+                    - [x] wool
+                - [ ] todo
+
+                indented plain
+            ends with \\\\
+
+            """
+        XCTAssertEqual(note.markdown, file, "the writer's bytes for every construct, as it wrote them before 2026-10-27")
+        XCTAssertEqual(Note(markdown: file), note)
+        XCTAssertEqual(Note(markdown: file).markdown, file, "a card Ideator wrote keeps its digest and its cached summary")
+    }
+
+    // MARK: Files written elsewhere
+
+    func testAFileWrittenElsewhereShowsWhatItSays() {
+        let cases: [(file: String, runs: [Run])] = [
+            ("C:\\Users\\me", [Run(text: "C:\\Users\\me")]),
+            ("rm *.txt *.log", [Run(text: "rm *.txt *.log")]),
+            ("ends in a backslash\\", [Run(text: "ends in a backslash\\")]),
+            ("\\*literal\\*", [Run(text: "*literal*")]),
+            ("a * b * c", [Run(text: "a * b * c")]),
+            ("**bold** and *italic*", [Run(text: "bold", style: .bold), Run(text: " and "), Run(text: "italic", style: .italic)]),
+        ]
+        for (file, runs) in cases {
+            let read = Note(markdown: "# T\n\n\(file)\n")
+            XCTAssertEqual(read.body.map(\.runs), [runs], "\(file.debugDescription) reads as CommonMark reads it")
+            XCTAssertEqual(Note(markdown: read.markdown), read, "\(file.debugDescription) is unchanged by its first save")
+        }
+        XCTAssertEqual(Note(markdown: "# C:\\Users\\me *.txt *.log\n").header, "C:\\Users\\me *.txt *.log", "the header too")
+    }
+
+    func testRandomFilesReadTheSameAfterASave() {
+        var random = SplitMix(state: 20261027)
+        for _ in 0..<500 {
+            let file = (0..<Int.random(in: 1...4, using: &random)).map { _ in Self.randomLine(&random) }.joined(separator: "\n")
+            let read = Note(markdown: file)
+            XCTAssertEqual(Note(markdown: read.markdown), read, "\(file.debugDescription) wrote \(read.markdown.debugDescription)")
+        }
+    }
+
+    func testRandomTextWithoutMarkupKeepsEveryCharacter() {
+        var random = SplitMix(state: 27)
+        var checked = 0
+        while checked < 300 {
+            let text = Self.randomLine(&random)
+            guard !text.hasPrefix("#"), Self.holdsNoMarkup(text) else { continue }
+            XCTAssertEqual(Note(markdown: text).plainText, text, "\(text.debugDescription)")
+            checked += 1
+        }
+    }
+
+    func testRandomNotesRoundTripExactly() {
+        var random = SplitMix(state: 9)
+        let alphabet = Array("ab1. *\\#->[]x\t")
+        func text() -> String { String((0..<Int.random(in: 0...6, using: &random)).map { _ in alphabet.randomElement(using: &random)! }) }
+        let shapes = everyRun(upTo: 1).flatMap { $0 } + [D(), D(1)]
+        for _ in 0..<500 {
+            let body = (0..<Int.random(in: 0...4, using: &random)).map { _ in
+                Line(shape: shapes.randomElement(using: &random)!, runs: (0..<Int.random(in: 1...4, using: &random)).map { _ in
+                    Run(text: text(), style: Style(rawValue: Int.random(in: 0...3, using: &random)))
+                })
+            }
+            let note = Note(header: text(), body: body)
+            XCTAssertEqual(Note(markdown: note.markdown), note, "\(note.markdown.debugDescription)")
+        }
+    }
+
+    private static func randomLine(_ random: inout SplitMix) -> String {
+        let alphabet = Array("ab09  **_\\#-")
+        return String((0..<Int.random(in: 0...14, using: &random)).map { _ in alphabet.randomElement(using: &random)! })
+    }
+
+    /// No backslash escapes anything, and no asterisk can open emphasis that a later one closes:
+    /// either every run of asterisks has a space or the line's edge before it, or every run has one after it.
+    private static func holdsNoMarkup(_ text: String) -> Bool {
+        func has(_ pattern: String) -> Bool { text.range(of: pattern, options: .regularExpression) != nil }
+        return !has(##"\\[*_\\#-]"##) && (!has(#"[^ *]\*"#) || !has(#"\*[^ *]"#))
+    }
+
     func testBlankNoteRoundTrips() {
         XCTAssertEqual(Note(markdown: Note.blank.markdown), Note.blank, "a new card reads back as a new card")
     }
@@ -181,5 +290,18 @@ final class NoteTests: XCTestCase {
         let note = Note(header: "h", body: [line(T, "a\u{2029}b\rc\u{2028}d\u{85}e")])
         XCTAssertEqual(note.attributedText.string, "h\na b c d e")
         XCTAssertEqual(Note(attributedText: note.attributedText), Note(header: "h", body: [line(T, "a b c d e")]))
+    }
+}
+
+/// Seeded, so a failing random case fails the same way on every run.
+struct SplitMix: RandomNumberGenerator {
+    var state: UInt64
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }
