@@ -6,21 +6,18 @@ import Foundation
 /// - legacy clients (2025-11-25 and earlier) open with `initialize`, then send plain requests;
 /// - modern clients (2026-07-28) send `server/discover` or any request with their version and
 ///   capabilities in `_meta`, and every result says `resultType`.
-/// A session start never reaches Ideator: only `tools/call` hands a card over, through `addCard`.
-struct MCPServer {
+/// A session start never starts Ideator: at most it asks a running one for the instruction, and only
+/// `tools/call` hands a card over, through `addCard`.
+nonisolated struct MCPServer {
     static let name = "ideator"
     static let modernVersions = ["2026-07-28"]
     /// Newest first: `initialize` with any other version is answered with the first.
     static let legacyVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
 
-    /// CARDS-SPEC.md's default instruction.
-    static let defaultInstructions = "Ideator keeps sticky-note cards on the user's Mac desktop, for ideas, to-dos and "
-        + "things to remember later. A card has a title, then lines, bullets or checkboxes (up to 3 levels). Cards "
-        + "scroll, so length is fine, but the first few lines are what the user sees at a glance: lead with what "
-        + "matters, and keep one topic per card. Create a card only when the user asks; you may offer when something "
-        + "looks worth saving."
-
     let version: String
+    /// The instruction for a session, asked at each `initialize` and `server/discover`; nil leaves the
+    /// field out. Asking never starts Ideator (see `InstructionSource`).
+    let instructions: () -> String?
     let addCard: (AddCard) -> ToolReply
 
     private enum Era {
@@ -84,14 +81,12 @@ struct MCPServer {
         switch method {
         case "initialize":
             let asked = params["protocolVersion"] as? String ?? ""
-            return ["protocolVersion": Self.legacyVersions.contains(asked) ? asked : Self.legacyVersions[0],
-                    "capabilities": ["tools": ["listChanged": false]],
-                    "serverInfo": serverInfo,
-                    "instructions": Self.defaultInstructions]
+            return withInstructions(["protocolVersion": Self.legacyVersions.contains(asked) ? asked : Self.legacyVersions[0],
+                                     "capabilities": ["tools": ["listChanged": false]],
+                                     "serverInfo": serverInfo])
         case "server/discover":
-            return ["supportedVersions": Self.modernVersions + Self.legacyVersions,
-                    "capabilities": ["tools": [String: Any]()],
-                    "instructions": Self.defaultInstructions]
+            return withInstructions(["supportedVersions": Self.modernVersions + Self.legacyVersions,
+                                     "capabilities": ["tools": [String: Any]()]])
         case "ping":
             return [:]
         case "tools/list":
@@ -117,6 +112,12 @@ struct MCPServer {
         "server/discover": ["ttlMs": 0, "cacheScope": "private"],
         "tools/list": ["ttlMs": 0, "cacheScope": "public"],
     ]
+
+    private func withInstructions(_ result: [String: Any]) -> [String: Any] {
+        var result = result
+        if let text = instructions() { result["instructions"] = text }
+        return result
+    }
 
     private var serverInfo: [String: Any] { ["name": Self.name, "title": "Ideator", "version": version] }
 

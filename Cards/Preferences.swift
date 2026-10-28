@@ -27,11 +27,17 @@ struct Preferences {
     var aiTools: AIToolSettings {
         get {
             AIToolSettings(enabled: defaults?.object(forKey: "AIToolsEnabled") as? Bool ?? true,
-                           landing: defaults?.string(forKey: "AIToolsLanding") == "bottom" ? .bottom : .top)
+                           landing: defaults?.string(forKey: "AIToolsLanding") == "bottom" ? .bottom : .top,
+                           instruction: Instruction(edited: defaults?.string(forKey: Instruction.preferenceKey)))
         }
         nonmutating set {
             defaults?.set(newValue.enabled, forKey: "AIToolsEnabled")
             defaults?.set(newValue.landing == .bottom ? "bottom" : "top", forKey: "AIToolsLanding")
+            if let edited = newValue.instruction.edited {
+                defaults?.set(edited, forKey: Instruction.preferenceKey)
+            } else {
+                defaults?.removeObject(forKey: Instruction.preferenceKey)
+            }
         }
     }
 }

@@ -69,9 +69,12 @@ class KeyStore {
     }
 }
 
-final class SettingsWindow: NSWindow {
+final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
+
+    static let connectCaption = "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files."
+    static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next session."
 
     /// Names the company of the saved key, or both while no key is saved.
     static func privacy(for provider: Provider?) -> String {
@@ -109,16 +112,30 @@ final class SettingsWindow: NSWindow {
     private let allowAITools = NSButton(checkboxWithTitle: "Let AI tools add cards", target: nil, action: nil)
     private let landsOnTop = NSButton(radioButtonWithTitle: "Top", target: nil, action: nil)
     private let landsAtBottom = NSButton(radioButtonWithTitle: "Bottom", target: nil, action: nil)
+    private let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: SettingsWindow.inner, height: SettingsWindow.editorHeight))
+    private let resetInstruction = NSButton(title: "Reset to Default", target: nil, action: nil)
+    private let connectNote = NSTextField(wrappingLabelWithString: "")
+    private let connect: HelperCommand
+    private let pasteboard: NSPasteboard
+    private var connectButtons: [(tool: AITool, button: NSButton)] = []
+    private var copied: AITool?
     private let stack = NSStackView()
     private var rejected: String?
     private var releasedForRecording = false
 
+    private static let editorHeight: CGFloat = 112
+
+    /// `connect` names the helper in the running app, and `pasteboard` is where the copy buttons write.
     init(keys: KeyStore, hotKey: HotKey, updates: Updates,
-         aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)), onChange: @escaping () -> Void) {
+         aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
+         connect: HelperCommand = HelperCommand(app: Bundle.main.bundleURL, scratchFolder: nil),
+         pasteboard: NSPasteboard = .general, onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
         self.updates = updates
         self.aiTools = aiTools
+        self.connect = connect
+        self.pasteboard = pasteboard
         self.onChange = onChange
         super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -184,13 +201,54 @@ final class SettingsWindow: NSWindow {
         let landingRow = NSStackView(views: [NSTextField(labelWithString: "Cards from AI tools go to:"), landsOnTop, landsAtBottom])
         landingRow.spacing = 8
 
+        let editorScroll = NSScrollView()
+        editorScroll.borderType = .bezelBorder
+        editorScroll.hasVerticalScroller = true
+        editorScroll.drawsBackground = false
+        editorScroll.documentView = editor
+        editor.minSize = NSSize(width: 0, height: Self.editorHeight)
+        editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        editor.isVerticallyResizable = true
+        editor.isHorizontallyResizable = false
+        editor.autoresizingMask = .width
+        editor.textContainer?.widthTracksTextView = true
+        editor.textContainerInset = NSSize(width: 2, height: 4)
+        editor.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        editor.drawsBackground = false
+        editor.isRichText = false
+        editor.allowsUndo = true
+        editor.isAutomaticQuoteSubstitutionEnabled = false
+        editor.isAutomaticDashSubstitutionEnabled = false
+        editor.isAutomaticTextReplacementEnabled = false
+        editor.isAutomaticSpellingCorrectionEnabled = false
+        editor.delegate = self
+        editor.setAccessibilityLabel("Instruction for AI tools")
+        resetInstruction.target = self
+        resetInstruction.action = #selector(resetInstructionText)
+
+        let connectRow = NSStackView()
+        connectRow.spacing = 8
+        for tool in AITool.allCases {
+            let copy = NSButton(title: tool.name, image: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil) ?? NSImage(),
+                                target: self, action: #selector(copySetup))
+            copy.imagePosition = .imageLeading
+            copy.setAccessibilityLabel("Copy setup for \(tool.name)")
+            connectButtons.append((tool, copy))
+            connectRow.addArrangedSubview(copy)
+        }
+
         for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("API key (Anthropic or OpenAI)"), field,
                      caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
                      heading("AI tools"), allowAITools, landingRow,
+                     NSTextField(labelWithString: "Instruction for AI tools"),
+                     caption(NSTextField(wrappingLabelWithString: Self.instructionCaption)), editorScroll, resetInstruction,
+                     heading("Connect AI tools"), caption(connectNote), connectRow,
                      heading("Privacy"), caption(privacyNote)] {
             stack.addArrangedSubview(view)
         }
         stack.setCustomSpacing(18, after: landingRow)
+        stack.setCustomSpacing(18, after: resetInstruction)
+        stack.setCustomSpacing(18, after: connectRow)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -203,6 +261,8 @@ final class SettingsWindow: NSWindow {
             field.widthAnchor.constraint(equalToConstant: Self.inner),
             buttons.trailingAnchor.constraint(equalTo: field.trailingAnchor),
             updatesRow.widthAnchor.constraint(equalToConstant: Self.inner),
+            editorScroll.widthAnchor.constraint(equalToConstant: Self.inner),
+            editorScroll.heightAnchor.constraint(equalToConstant: Self.editorHeight),
         ])
         contentView = stack
         refresh()
@@ -237,6 +297,10 @@ final class SettingsWindow: NSWindow {
         landsAtBottom.state = aiTools.value.landing == .bottom ? .on : .off
         landsOnTop.isEnabled = aiTools.value.enabled
         landsAtBottom.isEnabled = aiTools.value.enabled
+        if editor.string != aiTools.value.instruction.text { editor.string = aiTools.value.instruction.text }
+        resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
+        for (tool, button) in connectButtons { button.title = copied == tool ? "Copied" : tool.name }
+        connectNote.stringValue = copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
         contentView?.layoutSubtreeIfNeeded()
         let top = frame.maxY
         setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))
@@ -280,6 +344,33 @@ final class SettingsWindow: NSWindow {
     @objc private func chooseLanding(_ sender: NSButton) {
         aiTools.value.landing = sender === landsAtBottom ? .bottom : .top
         refresh()
+    }
+
+    func textDidChange(_ notification: Notification) {
+        aiTools.value.instruction.edit(to: editor.string)
+        resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
+    }
+
+    /// Replaces the text through the editor, so Undo brings the edit back.
+    @objc private func resetInstructionText() {
+        let all = NSRange(location: 0, length: (editor.string as NSString).length)
+        guard editor.shouldChangeText(in: all, replacementString: Instruction.standard) else { return }
+        editor.replaceCharacters(in: all, with: Instruction.standard)
+        editor.didChangeText()
+    }
+
+    @objc private func copySetup(_ sender: NSButton) {
+        guard let tool = connectButtons.first(where: { $0.button === sender })?.tool else { return }
+        pasteboard.clearContents()
+        pasteboard.setString(tool.setup(for: connect), forType: .string)
+        copied = tool
+        refresh()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, copied == tool else { return }
+            copied = nil
+            refresh()
+        }
     }
 
     @objc private func useDefaultShortcut() {

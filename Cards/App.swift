@@ -49,7 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A scratch run leaves the global shortcut to the owner's running Ideator.
         if !launch.isScratch { hotKey.register() }
         // Before the welcome, so a helper that started this run reaches it; the cards wait for Continue.
-        inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder)) { [unowned self] request, reply in
+        inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder),
+                          instruction: { [unowned self] in aiTools.value.instruction.text }) { [unowned self] request, reply in
             if let answer = answer(request.card) { reply(answer) } else { held.hold(request, reply: reply) }
         }
         terminationSource = inbox.map { Self.removeOnSIGTERM($0.file) }
@@ -193,7 +194,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func checkForUpdates() { updates.checkNow() }
 
     @objc private func openSettings() {
-        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates, aiTools: aiTools) { [weak self] in
+        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates, aiTools: aiTools,
+                                                      connect: HelperCommand(app: Bundle.main.bundleURL, scratchFolder: launch.folder)) { [weak self] in
             self?.controller?.apiKeyChanged()
         }
         settingsWindow = window
