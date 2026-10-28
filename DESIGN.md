@@ -359,6 +359,11 @@ Later changes, after trying the app:
   font's traits at any size would not have done it: the header font is bold, so every line that
   passed through the header would come back bold. Text in the header keeps a style it does not
   show, so Enter that splits it back out of the header also brings its style back.
+- 2026-10-27, Tab on a selection: `Typing.onTab` took "touches one line" for "is a caret", so a
+  selection inside a list's first item, or from the header into it, became a tab character, and
+  the second case merged the item into the header. The editor now says whether it holds a caret,
+  and a selection that touches an item gets the move or nothing, as the spec's "Tab does nothing"
+  and the spec gap below already said. A selection over plain lines only still becomes a tab.
 - 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
   explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
   whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records

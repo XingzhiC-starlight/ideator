@@ -3,30 +3,38 @@ import XCTest
 
 final class TypingTests: XCTestCase {
     func testTabNestsUnderTheItemAbove() {
-        XCTAssertEqual(Typing.onTab([B(), B()], touching: 1..<2), .reshape([B(), B(1)]))
-        XCTAssertEqual(Typing.onTab([N(), D(1), D(1)], touching: 2..<3), .reshape([N(), D(1), D(2)]), "nests under a sibling at any kind")
+        XCTAssertEqual(Typing.onTab([B(), B()], touching: 1..<2, isCaret: true), .reshape([B(), B(1)]))
+        XCTAssertEqual(Typing.onTab([N(), D(1), D(1)], touching: 2..<3, isCaret: true), .reshape([N(), D(1), D(2)]), "nests under a sibling at any kind")
     }
 
     func testTabTypesATabWhereNothingCanNest() {
-        XCTAssertEqual(Typing.onTab([B(), B()], touching: 0..<1), .system, "the first item of the body")
-        XCTAssertEqual(Typing.onTab([T, B()], touching: 1..<2), .system, "the first item after a plain line")
-        XCTAssertEqual(Typing.onTab([T], touching: 0..<1), .system, "a plain line")
-        XCTAssertEqual(Typing.onTab([B()], touching: 0..<0), .system, "the header")
-        XCTAssertEqual(Typing.onTab([T, T], touching: 0..<2), .system, "several plain lines")
+        XCTAssertEqual(Typing.onTab([B(), B()], touching: 0..<1, isCaret: true), .system, "the first item of the body")
+        XCTAssertEqual(Typing.onTab([T, B()], touching: 1..<2, isCaret: true), .system, "the first item after a plain line")
+        XCTAssertEqual(Typing.onTab([T], touching: 0..<1, isCaret: true), .system, "a plain line")
+        XCTAssertEqual(Typing.onTab([B()], touching: 0..<0, isCaret: true), .system, "the header")
+        XCTAssertEqual(Typing.onTab([T, T], touching: 0..<2, isCaret: false), .system, "several plain lines")
+    }
+
+    func testTabOnASelectionThatTouchesAnItemNeverTypesATab() {
+        XCTAssertEqual(Typing.onTab([B(), B()], touching: 0..<1, isCaret: false), .nothing,
+                       "inside the first item, or from the header into it")
+        XCTAssertEqual(Typing.onTab([T, B()], touching: 1..<2, isCaret: false), .nothing, "inside the first item after a plain line")
+        XCTAssertEqual(Typing.onTab([B(), B()], touching: 1..<2, isCaret: false), .reshape([B(), B(1)]), "inside an item that can nest")
+        XCTAssertEqual(Typing.onTab([T, B()], touching: 0..<1, isCaret: false), .system, "plain lines only: the tab replaces the selection")
     }
 
     func testTabIsRefusedWhenALevelWouldBeSkippedOrPassed() {
-        XCTAssertEqual(Typing.onTab([B(), B(1)], touching: 1..<2), .nothing, "a first child has nothing to sit under")
-        XCTAssertEqual(Typing.onTab([B(), B(1), B(2)], touching: 2..<3), .nothing, "already at the third level")
-        XCTAssertEqual(Typing.onTab([B(), B(), B(1), B(2)], touching: 1..<2), .nothing, "a child would pass the third level")
-        XCTAssertEqual(Typing.onTab([B(), B(), B()], touching: 0..<3), .nothing, "a selection holding a first item moves nothing")
+        XCTAssertEqual(Typing.onTab([B(), B(1)], touching: 1..<2, isCaret: true), .nothing, "a first child has nothing to sit under")
+        XCTAssertEqual(Typing.onTab([B(), B(1), B(2)], touching: 2..<3, isCaret: true), .nothing, "already at the third level")
+        XCTAssertEqual(Typing.onTab([B(), B(), B(1), B(2)], touching: 1..<2, isCaret: true), .nothing, "a child would pass the third level")
+        XCTAssertEqual(Typing.onTab([B(), B(), B()], touching: 0..<3, isCaret: false), .nothing, "a selection holding a first item moves nothing")
     }
 
     func testTabCarriesChildren() {
-        XCTAssertEqual(Typing.onTab([B(), B(), B(1)], touching: 1..<2), .reshape([B(), B(1), B(2)]))
-        XCTAssertEqual(Typing.onTab([B(), B(1), B(1)], touching: 2..<3), .reshape([B(), B(1), B(2)]))
-        XCTAssertEqual(Typing.onTab([B(), B(), B()], touching: 1..<3), .reshape([B(), B(1), B(1)]), "every selected item moves")
-        XCTAssertEqual(Typing.onTab([B(), B(), T], touching: 1..<3), .reshape([B(), B(1), T]), "selected plain lines stay put")
+        XCTAssertEqual(Typing.onTab([B(), B(), B(1)], touching: 1..<2, isCaret: true), .reshape([B(), B(1), B(2)]))
+        XCTAssertEqual(Typing.onTab([B(), B(1), B(1)], touching: 2..<3, isCaret: true), .reshape([B(), B(1), B(2)]))
+        XCTAssertEqual(Typing.onTab([B(), B(), B()], touching: 1..<3, isCaret: false), .reshape([B(), B(1), B(1)]), "every selected item moves")
+        XCTAssertEqual(Typing.onTab([B(), B(), T], touching: 1..<3, isCaret: false), .reshape([B(), B(1), T]), "selected plain lines stay put")
     }
 
     func testShiftTabMovesUpCarryingChildren() {
@@ -44,7 +52,7 @@ final class TypingTests: XCTestCase {
         for run in everyRun(upTo: 4) {
             let body = tidyLevels(run)
             for i in body.indices where body[i].kind.isList {
-                if case .reshape(let nested) = Typing.onTab(body, touching: i..<(i + 1)) {
+                if case .reshape(let nested) = Typing.onTab(body, touching: i..<(i + 1), isCaret: true) {
                     XCTAssertEqual(tidyLevels(nested), nested, "Tab keeps the body tidy: \(body) @\(i)")
                     XCTAssertEqual(Typing.onBacktab(nested, touching: i..<(i + 1)), .reshape(body), "Shift-Tab undoes Tab: \(body) @\(i)")
                 }

@@ -471,10 +471,11 @@ enum Typing {
     /// touched item and the deeper lines after it one level down, or refuses the whole move when a
     /// line would pass the deepest level or the result would need tidying (no item above to sit
     /// under). With no item touched, or a caret on a list's first item, it types a tab character.
-    static func onTab(_ body: [LineShape], touching lines: Range<Int>) -> Outcome {
+    /// A selection that touches an item never becomes a tab: on a first item it moves nothing.
+    static func onTab(_ body: [LineShape], touching lines: Range<Int>, isCaret: Bool) -> Outcome {
         let items = lines.filter { body[$0].kind.isList }
         guard let first = items.first else { return .system }
-        if lines.count == 1, first == 0 || !body[first - 1].kind.isList { return .system }
+        if isCaret, first == 0 || !body[first - 1].kind.isList { return .system }
         var proposed = body
         for i in block(rootedAt: items, in: body) {
             guard let deeper = body[i].level.deeper else { return .nothing }

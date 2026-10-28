@@ -108,7 +108,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Each level indents 20pt further. Bullets are `•`, `◦`, `▪` by level; numbers and checkboxes look the same at every level.
 - A nested numbered run restarts at 1 under its parent, and the parent's count continues past its children. Every level uses `1.` style.
 - Tab moves the item (or every selected item) one level deeper, Shift-Tab one level up, each carrying all of its children. Tab does nothing if any part would pass level 3, or if the item has no list item above it at the same level or deeper to sit under, so a level is never skipped. Shift-Tab on a top-level item turns it into plain text.
-- On the header, a plain line, or the first item of a list, Tab types a tab character as before.
+- On the header, a plain line, or the first item of a list, Tab types a tab character as before. A selection that touches a list item never turns into a tab: inside a first item, or from the header into one, Tab does nothing (revised 2026-10-27).
 - Enter on an empty nested item, or Backspace at the very start of one, moves it up one level. At the top level both behave as before.
 - Changing an item's kind changes only that line; ticking a parent checkbox leaves its children alone.
 - After every edit, no item sits more than one level deeper than the list item above it, and an item right after a plain line is at the top level. Children left without a parent (a deleted line, a parent turned plain, undo) move up just enough to fit.

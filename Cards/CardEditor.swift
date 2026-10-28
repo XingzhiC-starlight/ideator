@@ -297,10 +297,13 @@ final class CardTextView: NSTextView {
 
     // MARK: Typing rules
 
-    /// Tab nests the touched items, carrying their children; where nothing can nest it types a tab.
+    /// Tab nests the touched items, carrying their children. Where nothing can nest, a caret types
+    /// a tab and a selection over a list item stays as it is.
     override func insertTab(_ sender: Any?) {
         guard !hasMarkedText() else { return super.insertTab(sender) }
-        perform(Typing.onTab(bodyShapes(), touching: touchedLines()), named: "Indent") { super.insertTab(sender) }
+        perform(Typing.onTab(bodyShapes(), touching: touchedLines(), isCaret: selectedRange().length == 0), named: "Indent") {
+            super.insertTab(sender)
+        }
     }
 
     /// Shift-Tab moves the touched items up a level. It never moves focus out of the card.
