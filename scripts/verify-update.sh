@@ -37,6 +37,7 @@ die() {
   [[ -z "$pid" ]] || diagnose
   exit 1
 }
+source scripts/signing.sh
 
 cleanup() {
   local status=$?
@@ -125,8 +126,10 @@ previous=$((built - 1))
 short="$(plist "$work/shipped.app" CFBundleShortVersionString)"
 echo "build under test: $short ($built), commit $(plist "$work/shipped.app" IdeatorCommit | cut -c1-7)," \
   "local changes: $(plist "$work/shipped.app" IdeatorTreeDirty), from $dmg"
+identity="$(app_identity "$work/shipped.app")"
 codesign -d --entitlements - --xml "$work/shipped.app" >"$work/entitlements.plist" 2>/dev/null
-[[ -s "$work/entitlements.plist" ]] || die "the shipped app has no entitlements to re-seal with"
+[[ "$identity" != - || -s "$work/entitlements.plist" ]] \
+  || die "the shipped app is ad hoc signed and has no entitlements to re-seal with: dyld would refuse its Sparkle.framework"
 
 public_key="$("$test_key" "$work/test.key")"
 "$test_key" "$work/forger.key" >/dev/null
@@ -139,7 +142,7 @@ fixture() {
     -c "Set :SUFeedURL http://localhost:$port/releases/latest/download/appcast.xml" \
     -c "Set :SUPublicEDKey $public_key" \
     -c "Add :IdeatorUpdateTest string YES" "$1/Contents/Info.plist"
-  codesign --force --options runtime --entitlements "$work/entitlements.plist" --sign - "$1"
+  seal_copy "$identity" "$1" "$work/entitlements.plist"
 }
 fixture "$work/old.app" "$previous"
 fixture "$work/new.app" "$built"

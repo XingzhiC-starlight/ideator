@@ -123,7 +123,7 @@ output="$(run sign_for_release "$tmp/Missing.app")"
 expect "a Team ID build without Sparkle.framework stops before it signs anything" \
   "$([[ "$output" == *"Sparkle.framework"* && -z "$(calls)" ]] && echo stopped)" "stopped"
 
-package_order="$(grep -n 'sign_for_release\|codesign --verify' scripts/package.sh | cut -d: -f2- | cut -c1-24 | paste -sd'|' -)"
+package_order="$(grep -n '^sign_for_release\|^codesign --verify' scripts/package.sh | cut -d: -f2- | cut -c1-24 | paste -sd'|' -)"
 expect "package.sh signs before it verifies" "$package_order" 'sign_for_release "$APP"|codesign --verify --deep'
 expect "verify-update.sh has no ad-hoc identity of its own" "$(grep -c -e '--sign -' scripts/verify-update.sh || true)" "0"
 
