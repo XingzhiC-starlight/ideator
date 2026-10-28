@@ -154,7 +154,15 @@ cv note "popped Alpha; badge 1 -> 0"
 ```
 
 Everything lands in `build/verify-evidence/<run>/` (`log.txt` has a timestamped line per step,
-`app.log` the app's stdout/stderr). That folder survives `stop`. Proof standards:
+every `cv ax` command included, and `app.log` the app's stdout/stderr). That folder survives
+`stop`. Proof standards:
+
+- Input from anyone but the helper: each `log.txt` line ends `[hid idle 4.8s; 4.4s since helper
+  event]`. Every event the helper posts, keys too, resets the HID idle counter (measured
+  2026-10-28), so idle alone proves nothing. `INPUT after the helper event` means idle is smaller
+  than the time since the helper's last event: someone else's event (the owner, or another process)
+  came later. The counter moves in half seconds, so an event within 1 s after the helper's last is
+  missed, and a flag does not say who sent it.
 
 - Drive the real user path: ribbon and card buttons, typing, clicks, scrolls, drags. Never edit
   the sidecar or call into the app's code to set up state the UI could reach.

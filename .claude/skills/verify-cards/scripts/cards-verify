@@ -47,7 +47,15 @@ ours() {  # true when PID is alive and is the binary this run launched on this r
   [[ "$cmd" == "$BIN -CardsFolder $FOLDER"* ]]
 }
 
-log() { echo "$(date '+%H:%M:%S') $*" | tee -a "$EVIDENCE/log.txt"; }
+idle_note() {
+  local ref="$EVIDENCE/.helper-event" label="helper event" out
+  [[ -f "$ref" ]] || { ref="$RUNS/current.env"; label=launch; }
+  out="$("$AX" idle "$ref" "$label" 2>/dev/null)" || return 0
+  echo " [$out]"
+}
+
+log_line() { echo "$(date '+%H:%M:%S') $*$(idle_note)"; }
+log() { log_line "$@" | tee -a "$EVIDENCE/log.txt"; }
 
 build() {
   xcodebuild -project "$REPO/Cards.xcodeproj" -scheme Ideator -configuration Debug \
@@ -149,7 +157,10 @@ ax() {
   current
   ours || die "pid $PID is not this run's Cards; run: cards-verify doctor"
   local cmd="$1"; shift
-  "$AX" "$cmd" "$PID" "$@"
+  local what="ax $cmd${*:+ $*}"
+  what="${what//$'\n'/ }"
+  log_line "${what:0:80}" >> "$EVIDENCE/log.txt"
+  CARDS_AX_STAMP="$EVIDENCE/.helper-event" "$AX" "$cmd" "$PID" "$@"
 }
 
 shot() {
