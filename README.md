@@ -26,7 +26,7 @@ show, a slashed eye while they are hidden), and **⋯** at its right opens Setti
 ## Build from the command line
 
 ```bash
-xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derivedDataPath build/DerivedData build
+xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derivedDataPath build/DerivedData -disableAutomaticPackageResolution build
 ```
 
 ```bash
@@ -36,7 +36,7 @@ open build/DerivedData/Build/Products/Debug/Ideator.app
 Run the unit tests (they use the app as their host and never touch `~/Documents/Ideator`):
 
 ```bash
-xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData
+xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData -disableAutomaticPackageResolution
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs on every pull request and every push to
