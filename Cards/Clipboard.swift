@@ -60,7 +60,7 @@ enum Clipboard {
         var markdown: [String] = []
         var html = "<meta charset=\"utf-8\">"
         if first == 0 {
-            markdown.append("# " + Note.escape(note.header))
+            markdown.append(note.markdownHeader)
             html += "<h1>" + escapeHTML(note.header) + "</h1>"
         }
         return Copy(markdown: (markdown + Note.markdownLines(lines)).joined(separator: "\n"), html: html + htmlList(lines))

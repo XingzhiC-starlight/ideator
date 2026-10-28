@@ -285,12 +285,11 @@ Later changes, after trying the app:
   cover stacked cards too, which reverses the Sonnet graft above. Hide all keeps the ribbon.
 - 2026-10-22, free placement: cards and the stack can be dropped anywhere, with a guide outlining
   the slot a drop would snap to. The grid became 20 equal slots and the stack one more movable
-  item. Sidecar version 2 adds free points and the stack's place; version 1 files, whose slot
-  numbers skipped the stack's cell, are shifted by one on load.
+  item. Sidecar version 2 adds free points and the stack's place.
 - 2026-10-22, overhang and the ribbon toggle: free cards and the stack may hang off the left,
   right and bottom edges, never the top, as long as 40 points of the header strip and the width
-  stay reachable. The stack's home moved to the top-right so Pop fills from the top-left;
-  version 1 sidecars keep it top-left. Hide all / Show all became a one-click button in the
+  stay reachable. The stack's home moved to the top-right so Pop fills from the top-left.
+  Hide all / Show all became a one-click button in the
   ribbon, and the count badge moved to the card area's bottom-right, into the ribbon only while
   Hide all has removed the card.
 - 2026-10-22, beige: the blue ribbon and white card became the warm palette in Color, so cards
@@ -459,6 +458,13 @@ Later changes, after trying the app:
   `KeyStore.set`'s result, so a refused Keychain delete told the controller the key was gone while the
   key kept sending. It now beeps like Save and tells nobody. `KeyStore` lost `final` only so a test can
   subclass it and refuse. `Desk` is unchanged.
+- 2026-10-27, old sidecars: version 2 has been the sidecar format since 2026-10-22, before the first
+  disk image, and a build before beta owes no file compatibility, so the code that shifted a
+  version-1 file's slots served nobody. It also held the one trap in `Desk.init`: a version-1
+  sidecar whose slot is `Int.max` overflowed the shift at every launch. `Desk.init` now reads a
+  sidecar older than this build's version as none: every card in the stack, the stack at its home.
+  `SavedSummary.prompt` stopped being optional for the same reason, so a sidecar from before the
+  prompt stamp (2026-10-24) fails to decode and is read as none too.
 
 ## Tradeoffs accepted
 

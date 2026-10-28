@@ -114,6 +114,6 @@ unless the user asked for a fix.
   and the Trash), the summarizer's timing, Hide all's `Visibility`, the swipe rules and the editor
   are outside it. Use the `verify-cards` skill for those.
 - P5 checks that the sidecar the desk writes reads back. It does not check old or hand-edited
-  sidecars, or version-1 files beyond the starting desks.
+  sidecars.
 - Note text is short plain text. The Markdown round trip of bold, italic and lists is
   `NoteTests.swift`'s job.

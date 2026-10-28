@@ -66,7 +66,6 @@ class KeyStore {
     }
 }
 
-/// Calls `onChange` after the key store changes so the controller can start (or stop) summaries.
 final class SettingsWindow: NSWindow {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
@@ -117,10 +116,7 @@ final class SettingsWindow: NSWindow {
             return label
         }
 
-        shortcutField.onPick = { [unowned self] picked in
-            let problem = hotKey.choose(picked)
-            rejected = problem.map { "\($0.text(for: picked)) Still using \(hotKey.shortcut.display)." }
-        }
+        shortcutField.onPick = { [unowned self] picked in pick(picked) }
         shortcutField.onReject = { [unowned self] refusal in
             rejected = refusal
             refresh()
@@ -242,9 +238,13 @@ final class SettingsWindow: NSWindow {
     }
 
     @objc private func useDefaultShortcut() {
-        let problem = hotKey.choose(.standard)
-        rejected = problem.map { "\($0.text(for: .standard)) Still using \(hotKey.shortcut.display)." }
+        pick(.standard)
         refresh()
+    }
+
+    private func pick(_ shortcut: Shortcut) {
+        let problem = hotKey.choose(shortcut)
+        rejected = problem.map { "\($0.text(for: shortcut)) Still using \(hotKey.shortcut.display)." }
     }
 
     @objc private func save() {

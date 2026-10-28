@@ -9,7 +9,7 @@ final class CardWindow: NSWindow {
     /// is going, so a card that arrives under a resting pointer shows its buttons.
     private var placed = CGRect.zero
 
-    init(id: CardID, send: @escaping (Command) -> Void, drag: WindowDrag) {
+    init(send: @escaping (Command) -> Void, drag: WindowDrag) {
         cardView = CardView(home: .desktop(drag), send: send)
         super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
         configureAsCard(self, content: cardView)

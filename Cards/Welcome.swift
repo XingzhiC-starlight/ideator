@@ -11,7 +11,7 @@ struct WelcomeCopy: Equatable {
     var shortcut: Shortcut
     var shortcutWorks: Bool
     /// Always the default folder, even in a scratch run, so a forced welcome shows what a stranger sees.
-    var folder: URL = Library.defaultFolder
+    let folder = Library.defaultFolder
 
     struct Paragraph: Equatable {
         let lead: String

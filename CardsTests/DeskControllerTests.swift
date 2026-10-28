@@ -15,26 +15,39 @@ final class DeskControllerTests: XCTestCase {
     private var shown: [String] = []
     /// The answer to each coming alert, in order; the first button when the queue runs dry.
     private var answers: [NSApplication.ModalResponse] = []
+    private var windowsBefore: [NSWindow] = []
+    /// Kept until `tearDown` has closed their windows, which hold them `unowned`.
+    private var controllers: [DeskController] = []
 
     override func setUpWithError() throws {
+        windowsBefore = NSApp.windows
         folder = FileManager.default.temporaryDirectory
             .appending(path: "CardsTests-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data("# Groceries\n".utf8).write(to: cardFile)
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
+        for window in NSApp.windows where !windowsBefore.contains(window) {
+            window.orderOut(nil)
+            window.close()
+        }
+        let left = NSApp.windows.filter { $0.isVisible && !windowsBefore.contains($0) }
+        XCTAssertEqual(left.map(\.className), [], "a window left on screen sends a click to a controller that is gone")
+        controllers = []
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
         try? FileManager.default.removeItem(at: folder)
     }
 
     private func makeController(pointer: @escaping () -> NSPoint = { offScreen }) -> DeskController {
-        DeskController(library: Library(folder: folder), keys: KeyStore(inKeychain: false), appMenu: { NSMenu() },
-                       present: { [self] alert in
-                           shown.append(alert.messageText)
-                           return answers.isEmpty ? .alertFirstButtonReturn : answers.removeFirst()
-                       },
-                       pointer: pointer)
+        let controller = DeskController(library: Library(folder: folder), keys: KeyStore(inKeychain: false), appMenu: { NSMenu() },
+                                        present: { [self] alert in
+                                            shown.append(alert.messageText)
+                                            return answers.isEmpty ? .alertFirstButtonReturn : answers.removeFirst()
+                                        },
+                                        pointer: pointer)
+        controllers.append(controller)
+        return controller
     }
 
     private func makeFolder(writable: Bool) throws {
@@ -161,7 +174,6 @@ final class DeskControllerTests: XCTestCase {
         let windows = NSApp.windows.compactMap { $0 as? CardWindow }.filter(\.isVisible)
         XCTAssertEqual(windows.count, 1, "Pop puts the one card on the desktop")
         let window = try XCTUnwrap(windows.first)
-        defer { window.orderOut(nil) }
         try await expectHoverButtons(shown: true, in: window, "Pop put the card under a pointer that rests")
 
         pointer = offScreen

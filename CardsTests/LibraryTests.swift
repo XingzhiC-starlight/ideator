@@ -100,6 +100,21 @@ final class LibraryTests: XCTestCase {
         XCTAssertFalse(reopened.sidecarIsNewer, "and is not mistaken for a newer one")
     }
 
+    func testAVersionOneSidecarLoadsAsNoSidecarEvenWithASlotPastAnyInteger() async throws {
+        try Data("# A\n".utf8).write(to: folder.appending(path: "a.md"))
+        try Data("# B\n".utf8).write(to: folder.appending(path: "b.md"))
+        let old = #"{"version":1,"clarity":true,"stackSlot":7,"placements":[{"slot":9223372036854775807,"card":"a"},{"slot":3,"card":"b"}],"stack":[],"collapsed":["a"],"summaries":[]}"#
+        try Data(old.utf8).write(to: folder.appending(path: ".cards.json"))
+
+        let desk = Library(folder: folder).load()
+
+        XCTAssertEqual(desk.poppedCards, [], "no card is placed from it")
+        XCTAssertEqual(desk.stack.map(\.id.rawValue), ["a", "b"], "every card is in the stack, in id order")
+        XCTAssertEqual(desk.stackPlace, .slot(Slot.stackHome), "the stack is at its home")
+        XCTAssertFalse(desk.clarity, "Clarity is off")
+        XCTAssertEqual(desk.allCards.filter(\.collapsed), [], "and nothing is collapsed")
+    }
+
     func testASidecarANewerIdeatorWritesAfterLaunchIsNotOverwritten() async throws {
         try Data("# Groceries\n".utf8).write(to: cardFile)
         let library = Library(folder: folder)

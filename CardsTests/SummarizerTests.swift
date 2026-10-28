@@ -170,3 +170,45 @@ private final class Harness {
         for index in requests.indices where requests[index].reply != nil { answer(index, .failed(reason: "test over")) }
     }
 }
+
+/// The Messages API call against a stand-in for api.anthropic.com, so a test reads the reason a
+/// card would show under "Summary unavailable".
+final class AnthropicTests: XCTestCase {
+    private let note = Note(markdown: "# Trip\n\nflights\nhotel\n")
+
+    override func setUp() {
+        URLProtocol.registerClass(StandInAPI.self)
+    }
+
+    override func tearDown() {
+        URLProtocol.unregisterClass(StandInAPI.self)
+        StandInAPI.reply = nil
+    }
+
+    func testAnErrorReplyShowsTheServersMessageEvenWithoutAnErrorType() async {
+        StandInAPI.reply = (401, #"{"type":"error","error":{"type":"authentication_error","message":"stand-in: key refused"}}"#)
+        let refused = await Anthropic.summarize(note, apiKey: "key")
+        XCTAssertEqual(refused, .failed(reason: "HTTP 401: stand-in: key refused"))
+
+        StandInAPI.reply = (502, #"{"error":{"message":"stand-in: upstream timed out"}}"#)
+        let proxied = await Anthropic.summarize(note, apiKey: "key")
+        XCTAssertEqual(proxied, .failed(reason: "HTTP 502: stand-in: upstream timed out"), "a proxy's error has no type")
+    }
+}
+
+private nonisolated final class StandInAPI: URLProtocol {
+    nonisolated(unsafe) static var reply: (status: Int, body: String)?
+
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.host() == "api.anthropic.com" }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let (status, body) = Self.reply ?? (500, "")
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}

@@ -248,16 +248,6 @@ final class PlacementTests: XCTestCase {
         XCTAssertEqual(desk.stackPlace, slot(0), "a recorded top-left stack is not moved to the new default")
     }
 
-    func testAVersionOneSidecarKeepsEveryCardInTheSameCell() throws {
-        let json = #"{"version":1,"clarity":false,"placements":[{"slot":0,"card":"a"},{"slot":18,"card":"b"}],"stack":[],"collapsed":[],"summaries":[]}"#
-        let saved = try JSONDecoder().decode(SavedDesk.self, from: Data(json.utf8))
-        let desk = Desk(notes: [id("a"): Note(header: "a", body: []), id("b"): Note(header: "b", body: [])], saved: saved)
-        XCTAssertEqual(desk.stackPlace, slot(0), "the stack stays top-left")
-        XCTAssertEqual(desk.place(of: .card(id("a"))), slot(1), "old slot 0 was the cell right of the stack")
-        XCTAssertEqual(desk.place(of: .card(id("b"))), slot(19), "old slot 18 was the bottom-right cell")
-        XCTAssertEqual(desk.saved.version, 2, "and the next save writes the new version")
-    }
-
     func testASidecarCardInTheStacksSlotJoinsTheStack() {
         let saved = SavedDesk(stackSlot: 6, placements: [SavedPlacement(slot: 6, card: id("a"))])
         let desk = Desk(notes: [id("a"): Note(header: "a", body: [])], saved: saved)

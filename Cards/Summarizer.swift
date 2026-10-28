@@ -135,7 +135,6 @@ enum Anthropic {
         let error: Detail
 
         struct Detail: Decodable {
-            let type: String
             let message: String
         }
     }

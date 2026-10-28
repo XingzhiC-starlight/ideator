@@ -176,7 +176,7 @@ final class DeskController {
     }
 
     private func makeCardWindow(_ id: CardID) -> CardWindow {
-        let window = CardWindow(id: id, send: { [unowned self] in self.send($0) }, drag: windowDrag(.card(id)))
+        let window = CardWindow(send: { [unowned self] in self.send($0) }, drag: windowDrag(.card(id)))
         cardWindows[id] = window
         return window
     }
@@ -256,7 +256,7 @@ final class DeskController {
             alert.alertStyle = .warning
             alert.messageText = "Ideator can't save your notes"
             alert.informativeText = Self.saveFailureText(folder: library.folder)
-            present(alert)
+            _ = present(alert)
         }
         warnIfLayoutIsLocked()   // a save can be the first to see a newer sidecar
         return saved
@@ -300,10 +300,9 @@ final class DeskController {
                 + "summaries won't be saved on this Mac, so the newer Ideator's arrangement stays intact. "
                 + "Update Ideator to arrange cards here again."
         }
-        present(alert)
+        _ = present(alert)
     }
 
-    /// The menu-bar screen.
     private static func currentGrid() -> Grid? {
         Grid(screen: NSScreen.screens.first)
     }
