@@ -233,7 +233,7 @@ final class DeskController {
     }
 
     private func updateHover() {
-        let location = NSEvent.mouseLocation
+        let location = pointer()
         for window in cardWindows.values { window.pointerMoved(to: location) }
         stackWindow.pointerMoved(to: location)
     }
