@@ -246,12 +246,14 @@ or writes the Keychain: it starts with no key, and a key pasted into Settings la
 quits.
 
 [PRIVACY.md](PRIVACY.md) lists what Ideator stores and the two things it sends: a card's text to
-Anthropic for its summary, and a daily update check to GitHub.
+Anthropic whenever the card has no summary for its text as it is now, and a daily update check to
+GitHub.
 
 ## First launch
 
 The first time Ideator starts, it shows a welcome card before it creates `~/Documents/Ideator`, so
-macOS's Documents prompt comes after the card explains it. To see the card again, quit Ideator and
+macOS's Documents prompt comes after the card explains it. An update shows the card once more when
+it now says something new about what Ideator sends. To see the card again, quit Ideator and
 run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
 `CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
 `-CardsFolder` shows no card on its own, remembers nothing, does not register the global shortcut,

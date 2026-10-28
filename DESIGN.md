@@ -108,9 +108,10 @@ func send(_ command: Command) {
 - **The notes folder opens last.** `DeskController` creates `~/Documents/Ideator` when it is built, and
   that first access is what makes macOS ask for the Documents folder. `Launch.run` is the only caller
   of the closure that builds it, and it calls it after the welcome's Continue, or at once when no
-  welcome is due. First launch is a `UserDefaults` flag read through `Preferences`: probing the folder
-  to find out would be the access. The flag is set after the notes open, so a launch killed inside the
-  prompt shows the welcome again instead of a bare prompt. A scratch run (`-CardsFolder`) gets
+  welcome is due. Whether it is due is a number in `UserDefaults`, the `WelcomeCopy.version` last
+  acknowledged, read through `Preferences`: probing the folder to find out would be the access. The
+  number is set after the notes open, so a launch killed inside the prompt shows the welcome again
+  instead of a bare prompt. A scratch run (`-CardsFolder`) gets
   `Preferences(defaults: nil)`: factory values, nothing written, no welcome, and no global shortcut,
   and a `KeyStore` that never calls the Keychain, so a verify run can neither change nor take
   anything of the owner's.
@@ -404,6 +405,23 @@ Later changes, after trying the app:
   shortcut. `verify-update.sh` passes the argument for every launch it makes and writes the default
   only before the relaunch, so the argument path stays proven. Its feed server now listens on `::1`
   and `127.0.0.1` rather than on every interface. `Desk` is unchanged.
+- 2026-10-27, a welcome that can change what it discloses: `WelcomeSeen` was a Boolean, so a Mac that
+  acknowledged the card before the GitHub paragraph arrived never saw it, and Sparkle's first request
+  went to GitHub unannounced, against "never before Continue". The key now holds `WelcomeCopy.version`,
+  the card last acknowledged, and the card shows while that is below the current version. A stored
+  `true` reads as 1 (`integer(forKey:)`), so nothing migrates, `defaults delete com.systemlabs.Ideator
+  WelcomeSeen` still resets it, and an older build run after a newer one stays quiet. When the
+  Anthropic or GitHub paragraphs change what they say Ideator sends or asks, raise the version: a test
+  pins both paragraphs beside the number and its failure says so. Version 2 is the first versioned
+  card. `Desk` is unchanged.
+- 2026-10-27, what the privacy text says: PRIVACY.md said a summary "is not requested again until the
+  text changes". The rule is that a card is sent whenever it has no summary for its text as it is
+  now, so a failure (never saved), an outside edit, a build whose prompt changed and a launch that
+  could not save summaries all send it again. PRIVACY.md lists those triggers, and Settings and the
+  welcome card state the rule in the same words, which a test pins. Remove Key discarded
+  `KeyStore.set`'s result, so a refused Keychain delete told the controller the key was gone while the
+  key kept sending. It now beeps like Save and tells nobody. `KeyStore` lost `final` only so a test can
+  subclass it and refuse. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
@@ -488,8 +506,9 @@ Later changes, after trying the app:
   line, as pasting in any text editor does.
 - Pasted text keeps a backslash that Markdown keeps (`C:\Users`, `a\nb`); only a backslash before
   punctuation escapes it.
-- An update shows the welcome once to someone who already uses Ideator, because their shortcut
-  changed, in exchange for one first-launch rule and no migration code.
+- An update shows the welcome once to someone who already uses Ideator when the card's version rose
+  (the shortcut changed in one update, the GitHub paragraph arrived in another), in exchange for one
+  first-launch rule, a recorded number below the current one, and no migration code.
 - A conflict with another app's global shortcut can't be detected, since two apps registering one
   combination both succeed. `HotKey.problem` covers what Carbon refuses inside this process, and
   Settings warns about macOS's own shortcuts, which are the one other conflict that can be read.

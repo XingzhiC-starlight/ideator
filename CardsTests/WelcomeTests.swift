@@ -34,6 +34,29 @@ final class WelcomeTests: XCTestCase {
         XCTAssertEqual(text.components(separatedBy: "Nothing else leaves your Mac").count, 2, "said once, last")
     }
 
+    func testTheVersionIsRaisedWithTheParagraphsThatSayWhatLeavesTheMac() {
+        let disclosed = copy().paragraphs
+            .filter { ["Summaries are optional.", "Updates come from GitHub."].contains($0.lead) }.map(\.text)
+
+        XCTAssertEqual(WelcomeCopy.version, 2)
+        XCTAssertEqual(disclosed, [
+            "To show a short summary when you collapse a card, add your own Anthropic API key in Settings. "
+                + "Ideator then sends a card's text to Anthropic whenever the card has no summary for its text "
+                + "as it is now, such as when you save the key or change the card. Only a card's text goes to Anthropic.",
+            "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "
+                + "installs one. You can turn the daily check off in Settings. Nothing else leaves your Mac.",
+        ], "These paragraphs are what an owner agreed to. If they now say something else, raise "
+            + "WelcomeCopy.version and the number above together, so a Mac that saw the old card sees this one.")
+    }
+
+    func testTheCopyAndSettingsSayWhenACardIsSentToAnthropicInTheSameWords() {
+        let rule = "whenever the card has no summary for its text as it is now"
+        let summaries = copy().paragraphs.first { $0.lead == "Summaries are optional." }
+
+        XCTAssertTrue(summaries?.text.contains(rule) == true)
+        XCTAssertTrue(SettingsWindow.privacy.contains(rule))
+    }
+
     func testTheCardFitsItsCopyAtTheStackWidth() {
         let window = WelcomeWindow(copy: copy()) {}
 

@@ -108,6 +108,33 @@ final class LaunchTests: XCTestCase {
         XCTAssertFalse(launch.showsWelcome(seen: launch.preferences(standard: owners).welcomeSeen))
     }
 
+    func testAnOwnerWhoSawAnOlderWelcomeSeesTheCurrentOneOnce() {
+        let owners = suites.make()
+        owners.set(true, forKey: "WelcomeSeen")   // what every build before the card was versioned wrote
+        var shown = 0
+        var opened = 0
+
+        launch().run(preferences: launch().preferences(standard: owners),
+                     welcome: { onContinue in shown += 1; onContinue() }, openNotes: { opened += 1 })
+        XCTAssertEqual([shown, opened], [1, 1], "the old flag is not consent to what the card says now")
+
+        launch().run(preferences: launch().preferences(standard: owners),
+                     welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
+        XCTAssertEqual([shown, opened], [1, 2], "Continue is remembered")
+    }
+
+    func testAnOwnerWhoSawAWelcomeWithMoreInItIsNotAskedAgain() {
+        let owners = suites.make()
+        owners.set(99, forKey: "WelcomeSeen")
+        var shown = 0
+        var opened = 0
+
+        launch().run(preferences: launch().preferences(standard: owners),
+                     welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
+
+        XCTAssertEqual([shown, opened], [0, 1], "an older build run after a newer one stays quiet")
+    }
+
     func testAScratchRunShowsNoWelcome() {
         let scratch = launch(folder: "/tmp/scratch-folder")
 

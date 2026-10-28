@@ -17,7 +17,10 @@ struct Preferences {
         nonmutating set { defaults?.set(newValue.stored, forKey: "Shortcut") }
     }
 
-    var welcomeSeen: Bool { defaults?.bool(forKey: "WelcomeSeen") ?? true }
+    /// Whether the owner has acknowledged a welcome card at least as new as this build's. The key
+    /// holds the `WelcomeCopy.version` last acknowledged; the Boolean `true` written before the card
+    /// was versioned reads as 1, because `integer(forKey:)` turns a stored true into 1.
+    var welcomeSeen: Bool { defaults.map { $0.integer(forKey: "WelcomeSeen") >= WelcomeCopy.version } ?? true }
 
-    func markWelcomeSeen() { defaults?.set(true, forKey: "WelcomeSeen") }
+    func markWelcomeSeen() { defaults?.set(WelcomeCopy.version, forKey: "WelcomeSeen") }
 }
