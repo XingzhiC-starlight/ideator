@@ -18,11 +18,11 @@ final class ConnectSettingsTests: XCTestCase {
     }
 
     private func settings(_ choice: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
-                          scratch: String? = nil, board: NSPasteboard? = nil) -> SettingsWindow {
+                          scratch: String? = nil, board: NSPasteboard? = nil, maxContentHeight: CGFloat? = nil) -> SettingsWindow {
         SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
                        updates: Updates(build: .current, isScratch: true), aiTools: choice,
                        connect: HelperCommand(app: app, scratchFolder: scratch.map { URL(filePath: $0, directoryHint: .isDirectory) }),
-                       pasteboard: board ?? privateBoard()) {}
+                       pasteboard: board ?? privateBoard(), maxContentHeight: maxContentHeight) {}
     }
 
     private func views(in window: SettingsWindow) -> [NSView] { descendants(of: window.contentView!) }
@@ -148,6 +148,27 @@ final class ConnectSettingsTests: XCTestCase {
         XCTAssertEqual(codex.title, "Copied")
         XCTAssertTrue(texts(in: window).contains("Copied for Codex. \(AITool.codex.pasteNote)"))
         XCTAssertFalse(texts(in: window).contains(note))
+    }
+
+    func testAWindowTallerThanTheScreenScrollsFromItsTop() throws {
+        let window = settings(maxContentHeight: 400)
+        let scroll = try XCTUnwrap(window.contentView as? NSScrollView)
+        let document = try XCTUnwrap(scroll.documentView)
+
+        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).height, 400, "the window stops at the room the screen has")
+        XCTAssertGreaterThan(document.frame.height, 400, "the rows keep their height and scroll")
+        XCTAssertEqual(document.frame.width, 440)
+        XCTAssertEqual(scroll.contentView.documentVisibleRect.minY, 0, "it opens at the Shortcut row, not at Privacy")
+        XCTAssertTrue(views(in: window).contains { ($0 as? NSTextField)?.stringValue == "Shortcut" })
+    }
+
+    func testAWindowThatFitsTheScreenHasAllItsRowsAndNoRoomToScroll() throws {
+        let window = settings(maxContentHeight: 5_000)
+        let scroll = try XCTUnwrap(window.contentView as? NSScrollView)
+        let document = try XCTUnwrap(scroll.documentView)
+
+        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).height, document.frame.height)
+        XCTAssertLessThan(document.frame.height, 5_000)
     }
 
     private func descendants(of view: NSView) -> [NSView] {
