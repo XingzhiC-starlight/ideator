@@ -25,6 +25,8 @@ When Ideator is not running, the helper starts it in the background.
 - `mcp-instruction` The instruction box in Settings: a fresh session's `initialize` returns the default text, then
   an edit, then the default again after Reset to Default, and nothing for a blank box. A helper for another folder
   keeps the default.
+- `mcp-instruction-limit` The instruction box takes up to 100,000 bytes, refuses a change past that with a note above
+  the box, and a text of the limit reaches a fresh session whole.
 - `mcp-connect` Each Connect AI tools button copies its tool's setup, naming this build's helper and the run's
   `-CardsFolder`.
 
@@ -92,11 +94,20 @@ under the run's evidence folder.
   starts no app. `cv ax press "Reset to Default"`, then `cv mcp initialize` prints the default. `cv ax focus w0`, `cv
   ax key cmd+a`, `cv ax key delete`, then `cv mcp initialize` prints `instructions (none)`. Press Reset to Default
   again. The preferences hash is the same as at the start: a scratch run saves no edit.
+- **mcp-instruction-limit.** `cv clip save` first, with Settings open. In one script, `cv clip set` a 120,000-byte
+  text of `a` (made by `python3 -I -c`, never typed out), `cv ax focus w0`, `cv ax key cmd+a`, `cv ax key cmd+v`:
+  `cv ax text w0` still shows the text from before, and `cv ax tree` shows the line above the box reading "That change
+  would pass the 100 KB limit, so Ideator did not make it." The same with exactly 100,000 bytes: the box holds all of
+  them, the line is its caption again, and `cv mcp initialize` prints `instructions (100000 characters)`. Press Reset to
+  Default, then `cv clip restore`. Pipe `cv mcp` through `grep 'instructions ('` and `cut -c1-140`: it prints the
+  whole text.
 - **mcp-connect.** `cv clip save` first. `cv ax press "Claude Code" w0`, then `cv clip show` prints `claude mcp add
   --transport stdio --scope user ideator -- '<this build's .app>/Contents/Helpers/ideator-mcp' -CardsFolder
   <the run's folder>`. The same for `Codex` (a `[mcp_servers.ideator]` table with `command` and `args`) and `Claude
-  Desktop` (a `mcpServers` object with an `ideator` entry). `cv shot` after a press shows the button reading
-  "Copied" and the line above the buttons saying where to paste. `cv clip restore`, then `osascript -e 'clipboard
+  Desktop` (a `mcpServers` object with an `ideator` entry). The button reads "Copied" for 2 seconds, and a `cv shot`
+  in its own call starts later than that. Press and shoot in one script: `cv ax press Codex w0` then `cv shot copied`
+  ran in 0.82 s on 2026-10-28, and its tree and its Settings png show the button reading "Copied" and the line above
+  the buttons saying where to paste. `cv clip restore`, then `osascript -e 'clipboard
   info' | shasum` and `pbpaste | shasum` match their values from before `clip save`.
 
 ## Gotchas
@@ -125,5 +136,7 @@ under the run's evidence folder.
 - A first failed save (`chmod 555` the run's folder) answers the call at once with the "don't add it again" error,
   and the "Ideator can't save your notes" alert comes after it.
 - Not verified here: that Claude Code, Codex and Claude Desktop pass the instruction to the model, the pasted setups
-  inside those tools, a helper reading a normal (not scratch) run's saved preference, the three AI tools themselves,
+  inside those tools, the dimmed Connect buttons for an app under `/Volumes` or `AppTranslocation` (a build here runs
+  from a build folder; the unit tests open the window on such a path), a helper reading a normal (not scratch) run's
+  saved preference, the three AI tools themselves,
   Gatekeeper on a downloaded build, and a normal (not scratch) run.
