@@ -377,6 +377,14 @@ Later changes, after trying the app:
   the feed it made instead of trusting it, and compares the draft's files with the local ones before
   the draft goes live. Every step looks at what exists first, so a run that stopped carries on.
   Notarization is not in it yet. `Desk` is unchanged.
+- 2026-10-27, replacing the API key: a summary job kept the key it was created under for as long as
+  its note was unchanged, so a request waiting out its quiet period or already in flight went out
+  with the key the user had just replaced, and its 401 landed after `forgetFailedSummaries` had
+  swept, leaving the card on "Summary unavailable" under a good key. A job is now for one version of
+  one note under one key: `Summarizer.sync` cancels a job whose key is no longer the saved one and
+  starts it again at once, as for any card that has no job. A removed key already cancelled every
+  job. `Summarizer` takes the request itself as a closure, `Anthropic.summarize` by default, so
+  `SummarizerTests` can hold a request, check its key and answer it by hand. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 

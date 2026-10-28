@@ -132,7 +132,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 ## AI summaries
 - Provider: Anthropic API, model Claude Haiku 5.5. API key pasted once into the app's settings, stored outside the code.
 - Every card gets one, stacked or popped, under the same rules.
-- Trigger: a few seconds after typing stops; cached with the card; regenerated only on content change; per-card refresh button. A new or removed API key retries every failed summary. A new prompt version regenerates every summary once (revised 2026-10-24).
+- Trigger: a few seconds after typing stops; cached with the card; regenerated only on content change; per-card refresh button. A new or removed API key retries every failed summary, and a request still waiting or in flight under the old key is cancelled and sent again at once under the new one (revised 2026-10-27). A new prompt version regenerates every summary once (revised 2026-10-24).
 - No summary for empty or one-line bodies.
 - Prompt (revised 2026-10-24): header + body in → one paragraph of at most ~120 characters (about 20 words; about 60 characters for Chinese, Japanese or Korean), no line breaks, no preamble, same language as the card (the kind label too, e.g. 待办清单 for a Chinese to-do list).
   - It reminds the user what the card is: kind and topic first, then the gist if there is room. "To-do list for the Tokyo trip: flights, hotel, charger." "Thoughts on why the drag felt slow, leaning toward input focus."
