@@ -24,11 +24,12 @@ Ideator keeps each summary in `.cards.json` and does not ask again while the sum
 
 - a few seconds after you stop typing in the card, and when you press its refresh button;
 - as soon as you switch back to Ideator after the card's file was changed or added in another app;
+- the first time you switch back to Ideator after macOS lets it list a notes folder that it could not list at launch. Ideator then reads the folder again and takes in its cards as new, so it sends every card that was missing from the desktop and the stack, even one whose file did not change and whose saved summary still matches. The launch itself sends nothing, because a launch that cannot list the folder opens with no cards;
 - when you save a key, for every card that has no summary yet, including cards whose last request failed;
-- at every launch, for every card that has no saved summary. A failed request is never saved, so a card whose request failed (no network, a rejected key, a rate limit) is sent again at the next launch. So is a card whose summary Ideator could not save, for example while `.cards.json` comes from a newer Ideator or macOS will not let Ideator list the notes folder;
+- at every launch, for every card that has no saved summary, and for every card whose file changed while Ideator was closed, because that card's saved summary is for the older text. A failed request is never saved, so a card whose request failed (no network, a rejected key, a rate limit) is sent again at the next launch. So is a card whose summary Ideator could not save, for example while `.cards.json` comes from a newer Ideator or macOS will not let Ideator list the notes folder;
 - once more, for every card, after an update that changes the instructions Ideator sends with the text, because a saved summary is kept only if the same instructions wrote it.
 
-The same unchanged text can therefore reach Anthropic more than once. Anthropic's own terms and privacy policy cover what happens to the text once it arrives. Remove the key in Settings and Ideator stops sending anything to Anthropic.
+The same unchanged text can therefore reach Anthropic more than once, including after an edit that changes only a card's bold or italic formatting. Anthropic's own terms and privacy policy cover what happens to the text once it arrives. Remove the key in Settings and Ideator stops sending anything to Anthropic.
 
 ### Update checks, to GitHub
 
