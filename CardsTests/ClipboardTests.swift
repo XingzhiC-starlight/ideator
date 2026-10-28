@@ -228,6 +228,15 @@ final class ClipboardTests: XCTestCase {
         XCTAssertEqual(texts(read(text: "C:\\Users\\me\nprint(\"a\\nb\")\n\\*not italic\\*")),
                        ["C:\\Users\\me", "print(\"a\\nb\")", "*not italic*"])
         XCTAssertEqual(texts(read(text: "\\1. plain\nnext")), ["1. plain", "next"], "Cards' own escape of a numbered-looking line")
+        XCTAssertEqual(texts(read(text: "rm *.txt *.log\na * b * c")), ["rm *.txt *.log", "a * b * c"],
+                       "asterisks that style nothing stay, as in a card file")
+    }
+
+    func testAPastedHeadingKeepsItsTextWhateverItStartsWith() {
+        let lines = read(text: "# \\1. x\n## \\12. y\n# \\\\ z\n# \\* a\n# - b\n# 1. c")
+        XCTAssertEqual(texts(lines), ["\\1. x", "\\12. y", "\\ z", "* a", "- b", "1. c"],
+                       "a heading's text as Markdown shows it, though it now starts a plain line")
+        XCTAssertEqual(shapes(lines), [T, T, T, T, T, T])
     }
 
     func testTabIndentedBullets() {

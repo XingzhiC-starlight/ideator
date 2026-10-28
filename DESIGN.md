@@ -126,8 +126,10 @@ func send(_ command: Command) {
   to run any number of times.
 - **Editor.** TextKit 1. The text storage holds exactly the note's text. A body line's shape
   (its kind and level) is a paragraph attribute and its marker is drawn in the indent, so a
-  marker can never be half-deleted. Fonts and indents are re-derived from the content after
-  every change; that pass never writes the shape attribute, so undo restores shapes exactly.
+  marker can never be half-deleted. A run's bold and italic are a character attribute too, not
+  the font. Fonts and indents are re-derived from the two attributes after every change; that
+  pass writes neither, so undo restores shapes and styles exactly, even for text that sat in the
+  header, whose font is always the header's, in between.
 - **A level is part of the line.** A `Line` is a `LineShape` (kind plus a `Level`, 0 to 2) and its
   runs. `LineShape` drops the level of a plain line, so plain text always sits at the left edge.
   One pure function, `tidyLevels`, is the whole nesting rule: no item more than one level deeper
@@ -148,8 +150,8 @@ func send(_ command: Command) {
   view's own RTF. Copy writes the touched lines as the card file's Markdown (through `Note`'s
   writer) plus an HTML nested list; a selection inside one line is only its text. Paste reads an
   HTML list if one is there, with a hand-written tolerant reader. Otherwise each line of the
-  text is first rewritten into the file grammar (`•◦▪·‣` bullets, `1)` numbers, `#` headings,
-  Markdown's backslash rule) and read by `Note`'s one reader. `Clipboard.paste` splices the run
+  text is first rewritten into the file grammar (`•◦▪·‣` bullets, `1)` numbers, `#` headings)
+  and read by `Note`'s one reader, which keeps Markdown's backslash rule for files and pastes alike. `Clipboard.paste` splices the run
   into the note as a pure function; the editor then replaces only the paragraphs that changed, in
   one undo step.
 - **Summaries.** A summary records the fingerprint of the note it describes and the version of
@@ -339,6 +341,31 @@ Later changes, after trying the app:
   The title's room comes from the row: the collapsed title ends before it, and the editor wraps
   the title around it with an exclusion path, so only the lines beside the row are short. The
   76 pt reserve it replaces had fallen behind a row of 91.5 pt (111.5 pt collapsed, with Refresh).
+- 2026-10-27, files written elsewhere: the reader dropped a backslash before any character and
+  took any pair of asterisks for emphasis, so `C:\Users\me` showed as `C:Usersme` and
+  `rm *.txt *.log` lost its stars, and the first edit wrote that back. `parseInline` now follows
+  CommonMark: a backslash escapes only ASCII punctuation, and a run of asterisks closes only after a
+  non-space and opens only before one. The writer is unchanged: it escapes every `\` and `*`, which
+  the new reader reads back, so a card Ideator wrote keeps its bytes, its digest and its cached
+  summary. The one non-CommonMark rule left is the writer's own `\1.` before a plain line that
+  starts like a numbered item. Paste lost `keepingLiteralBackslashes` with it, since `Note`'s
+  reader now applies that rule itself. That reader also decides `*` in a paste of several lines,
+  so `2 * 3 * 4` and `** spaced bold **` paste as typed where the old one styled them and dropped
+  their stars, and `*a *b*` pastes as italic `a *b`.
+- 2026-10-27, undo and inline styles: bold and italic lived only in the fonts, read back by point
+  size, and `restyle()` re-derives every font after each change without registering undo. Text
+  joined into the header took the header's font, so undo brought its characters back plain and
+  the next save dropped the `**` and `*`. Bold and italic are now the `.cardStyle` attribute of
+  each character, written only by `attributedText`, ⌘B/⌘I and typing; fonts follow from it and
+  are never read back, and undo restores it with the text, as it does `.cardLine`. Reading the
+  font's traits at any size would not have done it: the header font is bold, so every line that
+  passed through the header would come back bold. Text in the header keeps a style it does not
+  show, so Enter that splits it back out of the header also brings its style back.
+- 2026-10-27, Tab on a selection: `Typing.onTab` took "touches one line" for "is a caret", so a
+  selection inside a list's first item, or from the header into it, became a tab character, and
+  the second case merged the item into the header. The editor now says whether it holds a caret,
+  and a selection that touches an item gets the move or nothing, as the spec's "Tab does nothing"
+  and the spec gap below already said. A selection over plain lines only still becomes a tab.
 - 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
   explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
   whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records
@@ -514,8 +541,9 @@ Later changes, after trying the app:
   and never replaces the selection with a tab.
 - A multi-line paste inside text puts the text after the caret at the end of the last pasted
   line, as pasting in any text editor does.
-- Pasted text keeps a backslash that Markdown keeps (`C:\Users`, `a\nb`); only a backslash before
-  punctuation escapes it.
+- Pasted text and a card file keep a backslash that Markdown keeps (`C:\Users`, `a\nb`); only a
+  backslash before punctuation escapes it, besides the writer's own `\1.` for a plain line that
+  starts "1. ".
 - An update shows the welcome once to someone who already uses Ideator when the card's version rose
   (the shortcut changed in one update, the GitHub paragraph arrived in another), in exchange for one
   first-launch rule, a recorded number below the current one, and no migration code.

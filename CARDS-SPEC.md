@@ -95,6 +95,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - First line (first paragraph) is automatically the bold level-1 header, regardless of formatting.
 - Body formatting: bold, italic, bullet list, numbered list, checkboxes, and list items nested up to three levels (see Nested lists). Nothing else (revised 2026-10-23).
 - Apply via ⌘B / ⌘I; typing `- `, `1. `, `[] ` starts lists; Enter continues a list, Enter on an empty top-level item ends it.
+- Undo gives back text exactly, bold and italic included, also after an edit that joined a body line into the header (added 2026-10-27).
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
 - Per-card buttons (clarity toggle, summary refresh, ↩ Stack, trash) fade in on hover only. Trash asks "Delete this card?". The stacked card has every one of them, with ↗ Pop where a popped card has ↩ Stack (revised 2026-10-22).
@@ -107,7 +108,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Each level indents 20pt further. Bullets are `•`, `◦`, `▪` by level; numbers and checkboxes look the same at every level.
 - A nested numbered run restarts at 1 under its parent, and the parent's count continues past its children. Every level uses `1.` style.
 - Tab moves the item (or every selected item) one level deeper, Shift-Tab one level up, each carrying all of its children. Tab does nothing if any part would pass level 3, or if the item has no list item above it at the same level or deeper to sit under, so a level is never skipped. Shift-Tab on a top-level item turns it into plain text.
-- On the header, a plain line, or the first item of a list, Tab types a tab character as before.
+- On the header, a plain line, or the first item of a list, Tab types a tab character as before. A selection that touches a list item never turns into a tab: inside a first item, or from the header into one, Tab does nothing (revised 2026-10-27).
 - Enter on an empty nested item, or Backspace at the very start of one, moves it up one level. At the top level both behave as before.
 - Changing an item's kind changes only that line; ticking a parent checkbox leaves its children alone.
 - After every edit, no item sits more than one level deeper than the list item above it, and an item right after a plain line is at the top level. Children left without a parent (a deleted line, a parent turned plain, undo) move up just enough to fit.
@@ -171,6 +172,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 
 ## Storage
 - One Markdown (.md) file per card in ~/Documents/Ideator/.
+- A card file reads the way CommonMark reads it (added 2026-10-27): a backslash escapes only punctuation, so `C:\Users\me` keeps its backslashes, and asterisks style text only when they hug it (`*word*`), so `rm *.txt *.log` and `2 * 3 * 4` keep theirs. A file edited outside Ideator shows what it says, and saving it changes none of its text. Files Ideator wrote read back to the same bytes.
 - One hidden sidecar file for positions (each card's and the stack's slot or free spot), stack order, collapsed state, and cached summaries.
 - The sidecar carries a format version. A sidecar written by a newer Ideator is never overwritten: cards open and card files save as usual, places, Clarity and summaries are not saved, and a notice at launch says to update (added 2026-10-24).
 - That check runs again before every sidecar write, not only at launch (added 2026-10-27): the other Mac can arrange the folder while this one runs. The notice shows once per run, when the check first finds the newer file.
