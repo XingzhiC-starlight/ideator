@@ -48,6 +48,14 @@ final class HoverButtonsTests: XCTestCase {
         return home.card
     }
 
+    /// The row fades over 0.15 s; a loaded machine can take longer to get there.
+    private func settle(_ card: CardView, to alpha: CGFloat) {
+        let deadline = Date().addingTimeInterval(2)
+        while row(of: card).alphaValue != alpha, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+    }
+
     private func row(of card: CardView) -> NSStackView {
         card.subviews.compactMap { $0 as? NSStackView }
             .first { $0.arrangedSubviews.contains { $0.toolTip == "Delete this card" } }!
@@ -148,12 +156,12 @@ final class HoverButtonsTests: XCTestCase {
             let inWindow = delete.convert(NSPoint(x: delete.bounds.midX, y: delete.bounds.midY), to: nil)
 
             home.pointer(NSPoint(x: next.minX + inWindow.x, y: next.minY + inWindow.y))
-            RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+            settle(card, to: 1)
             XCTAssertEqual(row(of: card).alphaValue, 1, "\(home.name): the pointer rests where the card arrives, so its buttons show")
             XCTAssertTrue(pressed(at: delete, in: home.window) === delete, "\(home.name): and take the press")
 
             home.pointer(NSPoint(x: cell.minX + inWindow.x, y: cell.minY + inWindow.y))
-            RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+            settle(card, to: 0)
             XCTAssertEqual(row(of: card).alphaValue, 0, "\(home.name): the card left the pointer, so its buttons hide")
             XCTAssertTrue(pressed(at: delete, in: home.window) is CardTextView, "\(home.name): and a press there is a text click")
         }
