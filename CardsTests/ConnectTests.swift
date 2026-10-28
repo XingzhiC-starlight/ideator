@@ -42,6 +42,31 @@ final class ConnectTests: XCTestCase {
         }
     }
 
+    func testAnAppOnAMountedVolumeOrInMacOSsTranslocatedCopyIsInATemporaryPlace() {
+        let translocated = "/private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/T/AppTranslocation/"
+            + "6E2F1C2A-1B3D-4C5E-8F70-A1B2C3D4E5F6/d/Ideator.app"
+        for path in ["/Volumes/Ideator/Ideator.app", "/Volumes/Ideator 0.9/Ideator.app", "/Volumes/Backup/Apps/Ideator.app",
+                     translocated, "/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/T/AppTranslocation/6E2F/d/Ideator.app"] {
+            XCTAssertTrue(command(app: URL(filePath: path, directoryHint: .isDirectory)).isTemporary, path)
+        }
+    }
+
+    func testAnAppInApplicationsOrAnyFolderOfTheUsersIsNotTemporary() {
+        for path in ["/Applications/Ideator.app", "/Users/me/Applications/Ideator.app", "/Users/me/Desktop/my apps/Ideator.app",
+                     "/Users/me/Volumes/Ideator.app", "/Users/me/AppTranslocationNotes/Ideator.app",
+                     "/Users/me/Code/ideator/build/VerifyDerivedData/Build/Products/Debug/Ideator.app"] {
+            XCTAssertFalse(command(app: URL(filePath: path, directoryHint: .isDirectory)).isTemporary, path)
+        }
+    }
+
+    func testTheStartupVolumeReachedThroughVolumesIsStillTheStartupVolume() throws {
+        guard let startup = try FileManager.default.contentsOfDirectory(atPath: "/Volumes").first(where: {
+            (try? FileManager.default.destinationOfSymbolicLink(atPath: "/Volumes/" + $0)) == "/"
+        }) else { throw XCTSkip("no link to the startup volume in /Volumes") }
+
+        XCTAssertFalse(command(app: URL(filePath: "/Volumes/\(startup)/Applications/Ideator.app", directoryHint: .isDirectory)).isTemporary)
+    }
+
     func testClaudeCodeGetsAUserScopeStdioCommand() {
         XCTAssertEqual(AITool.claudeCode.setup(for: command()),
                        "claude mcp add --transport stdio --scope user ideator -- \(helper)")

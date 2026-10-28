@@ -58,6 +58,8 @@ nonisolated struct HelperCommand: Equatable {
         arguments = scratchFolder.map { ["-CardsFolder", $0.standardizedFileURL.path] } ?? []
     }
 
+    var isTemporary: Bool { false }
+
     var shellLine: String {
         ([executable.path] + arguments).map(Self.shellWord).joined(separator: " ")
     }
