@@ -627,6 +627,17 @@ Later changes, after trying the app:
     300 points), and collapsing the two blocks behind disclosure arrows, which hide the Connect
     buttons from the user who comes for them. A unit test sets the room through `maxContentHeight`;
     capped scrolling on a short screen was not driven live, since this Mac's display fits the window.
+  - A limit on the instruction. The reply to the helper's ask is a JSON line that `InstructionSource`
+    reads up to 1 MiB, and a verifier found that a text of 200,000 control characters (1.2 MB as JSON)
+    came back past that, was dropped as too long, and left the helper serving the standard text with no
+    sign of it. The text now holds up to 100,000 bytes, which JSON writes in at most about 600,000
+    (every control character becomes six bytes), so every text the editor takes reaches the helper.
+    `Instruction` holds the limit itself: `edit(to:)` and the read of the preferences both cut a longer
+    text between characters, so a text written with `defaults write` is bounded too. The Settings box
+    refuses a change that would pass it and says so in the line above, since a keystroke that does
+    nothing needs a reason. Rejected: raising the helper's read limit for this reply, which moves the
+    failure to a larger text and leaves the editor with no size it can promise, for a text about 200 times the
+    standard one, which an instruction has no use for.
   - `MCPServer` is `nonisolated` like the rest of `MCP/`: the helper's server asks the socket from
     its own thread, and a test must be able to do the same without the main actor.
 
