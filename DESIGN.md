@@ -53,7 +53,7 @@ func send(_ command: Command) {
 | `Welcome.swift` | the first-launch card and its copy |
 | `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
-| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, the AI tools rows (the instruction editor and the copy buttons) and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
+| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, the AI tools rows (the instruction editor and the copy buttons) and the privacy line in one window as tall as its rows or the screen's room, scrolling when the rows are taller; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 | `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls); `Instruction`, the text an AI tool gets at a session start and its preference key, and `InstructionSource`, how the helper learns it without starting the app |
 | `Helper/main.swift` | the `ideator-mcp` process: its arguments, starting the app that contains it, and the stdio loop |
@@ -619,7 +619,8 @@ Later changes, after trying the app:
     a copy from a build without one fails visibly in the tool.
   - The copy buttons write to `NSPasteboard.general` only on a click, and the unit tests write to a
     pasteboard of their own, so a test run never replaces the clipboard.
-  - The two blocks made Settings 982 points tall, more than a 13-inch display has below the menu bar,
+  - The two blocks made Settings' rows 950 points tall (a 982-point window with its title bar), more
+    than a 13-inch display has below the menu bar,
     and the window is not resizable. Its rows now sit in a scroll view over a flipped document view, and
     the window is as tall as the rows or as the screen's visible room (minus the title bar and 24
     points), whichever is less, so a short screen scrolls from the Shortcut row and a tall one shows

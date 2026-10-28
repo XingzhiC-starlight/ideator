@@ -147,7 +147,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - While generating: small spinner in the summary area. On failure: "Summary unavailable", hover shows the reason (revised 2026-10-28): the provider's own HTTP status and message, so a key it refuses shows its HTTP 401, or "No API key. Add one in Settings." while no key is saved.
 
 ## Settings (new 2026-10-24)
-- Settings… (the menu bar icon, or the stack ribbon's ⋯ menu) opens one window. It is as tall as its rows need.
+- Settings… (the menu bar icon, or the stack ribbon's ⋯ menu) opens one window. It is as tall as its rows need, or as the screen has room for below the menu bar, whichever is less. Where the rows are taller than that, the window scrolls, and it opens at the Shortcut row (revised 2026-10-28).
 - Shortcut: a button that shows the global shortcut, ⌃⌥I by default (revised 2026-10-24: ⌃⌥Space is macOS's Select next source in Input menu on Macs with several input sources). Click it, then press the new keys. While it records it shows the modifiers held and has released the current shortcut, so pressing that one is recorded instead of hiding the cards. Esc, a click, or leaving the window cancels.
 - A shortcut needs ⌘ or ⌃ plus at least one more modifier, so typing never triggers it. A refused combination is named ("⌘K can't be the shortcut. …") and the button keeps recording.
 - A combination macOS refuses to register is refused with the reason, and the old shortcut stays. "Use Default" goes back to ⌃⌥I and is dimmed while that is in use. The choice survives a relaunch. Settings reads the shortcut line and the key status again each time the window comes forward (revised 2026-10-24).
