@@ -9,6 +9,9 @@ nonisolated struct HandOff: Sendable {
     let endpoint: Endpoint
     let launch: @Sendable () -> String?
     var startup: Duration = .seconds(15)
+    /// How long after the call the helper waits for the app's answer: past the welcome wait, so the
+    /// app's own answer comes first, and short of the minute after which AI tools give up.
+    var answer: Duration = .seconds(50)
 
     /// Set by the helper in the app it starts: the app then does not activate itself.
     static let backgroundVariable = "IDEATOR_BACKGROUND"
@@ -23,6 +26,7 @@ nonisolated struct HandOff: Sendable {
         defer { close(fd) }
         let request = HandOffRequest(card: card, wait: HandOffRequest.longestWait - (ContinuousClock.now - called))
         guard let line = request.line, Socket.write(line: line, to: fd) else { return .lost }
+        guard Socket.waitForInput(on: fd, until: called + answer) else { return .noAnswer(within: answer) }
         var reader = LineReader(fd: fd, limit: 1 << 20)
         guard case .line(let answer)? = reader.next(), let reply = ToolReply(line: answer) else { return .lost }
         return reply

@@ -121,6 +121,19 @@ nonisolated enum Socket {
         return true
     }
 
+    /// False when nothing arrived on `fd` by `deadline`. True also for an error or a closed peer,
+    /// which the next read reports.
+    static func waitForInput(on fd: Int32, until deadline: ContinuousClock.Instant) -> Bool {
+        while true {
+            let left = ContinuousClock.now.duration(to: deadline)
+            guard left > .zero else { return false }
+            var entry = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            let ready = poll(&entry, 1, Int32(clamping: Int((left / .milliseconds(1)).rounded(.up))))
+            if ready < 0, errno == EINTR { continue }
+            if ready != 0 { return true }
+        }
+    }
+
     /// A peer that went away fails the write instead of killing this process with SIGPIPE.
     private static func noSignalOnClosedPeer(_ fd: Int32) {
         var on: Int32 = 1

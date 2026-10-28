@@ -77,6 +77,12 @@ nonisolated struct ToolReply: Equatable, Sendable {
 nonisolated extension ToolReply {
     /// The app closed the connection without an answer: it quit, or was quit, before it saved.
     static let lost = failed("Ideator quit before it saved the card. Nothing was saved.")
+    /// The app has the card and may still save it, so a second call could add it twice.
+    static func noAnswer(within wait: Duration) -> ToolReply {
+        failed("Ideator did not answer within \(Int((wait / .seconds(1)).rounded())) seconds. It may still save the card, "
+            + "so look in Ideator's stack before you add it again.")
+    }
+
     static let unreadable = failed("Ideator couldn't read the card it was sent. Nothing was saved.")
 
     static func notStarted(_ why: String) -> ToolReply {
