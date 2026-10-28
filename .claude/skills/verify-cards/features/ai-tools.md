@@ -86,29 +86,43 @@ under the run's evidence folder.
   tree <pid>`, then either `cards-ax press <pid> Continue` (the reply says Added and the folder has that card) or
   end the run by its pid (the reply says Ideator quit before it saved the card, and the folder has none).
 - **mcp-instruction.** Record `defaults export com.systemlabs.Ideator - | shasum` first. `cv ax key cmd+,` opens
-  Settings, which is `w0` while it is the front window (`cv ax tree` says). `cv mcp initialize` prints `instructions
-  (412 characters)` and the default text. `cv ax focus w0` clicks into the box (the window's only text area),
-  `cv ax key cmd+a`, `cv ax type 'Only save to-dos.\nUse a short title.'`; `cv ax text w0` shows both lines, and
+  Settings; its window index changes with the z-order (a macOS "Edit with Siri" panel once became `w0`), so find
+  Settings in `cv ax tree` by its "Reset to Default" button and its one text area, and read the index in the same
+  script as each `cv ax focus`. `cv mcp initialize` prints `instructions
+  (412 characters)` and the default text. `cv ax focus <Settings index>` clicks into the box (the window's only text area),
+  `cv ax key cmd+a`, `cv ax type 'Only save to-dos.\nUse a short title.'`; `cv ax text | grep 'Only save'` shows
+  both lines (with no window, `text` prints every text area of every window, so no index is needed), and
   `cv mcp initialize discover` (a new helper, so a new session) prints that text for each. Next
   `build/verify-tools/cards-mcp <the build's helper> -CardsFolder <a new temp folder> initialize` prints the default and
-  starts no app. `cv ax press "Reset to Default"`, then `cv mcp initialize` prints the default. `cv ax focus w0`, `cv
-  ax key cmd+a`, `cv ax key delete`, then `cv mcp initialize` prints `instructions (none)`. Press Reset to Default
+  starts no app. `cv ax press "Reset to Default"`, then `cv mcp initialize` prints the default. `cv ax focus <Settings index>`,
+  `cv ax key cmd+a`, `cv ax key delete`, then `cv mcp initialize` prints `instructions (none)`. Press Reset to Default
   again. The preferences hash is the same as at the start: a scratch run saves no edit.
 - **mcp-instruction-limit.** `cv clip save` first, with Settings open. In one script, `cv clip set` a 120,000-byte
-  text of `a` (made by `python3 -I -c`, never typed out), `cv ax focus w0`, `cv ax key cmd+a`, `cv ax key cmd+v`:
-  `cv ax text w0` still shows the text from before, and `cv ax tree` shows the line above the box reading "That change
-  would pass the 100 KB limit, so Ideator did not make it." The same with exactly 100,000 bytes: the box holds all of
+  text of `a` (made by `python3 -I -c`, never typed out), `cv ax focus <Settings index>`, `cv ax key cmd+a`, `cv ax key cmd+v`:
+  `cv ax text | grep -c '^"aaaa'` prints 0 (the text from before is still there), and `cv ax tree` shows the line above the box reading "That change
+  would pass the 100 KB limit, so Ideator did not make it." The same with exactly 100,000 bytes: `grep -c` prints 1, the box holds all of
   them, the line is its caption again, and `cv mcp initialize` prints `instructions (100000 characters)`. Press Reset to
   Default, then `cv clip restore`. Pipe `cv mcp` through `grep 'instructions ('` and `cut -c1-140`: it prints the
   whole text.
-- **mcp-connect.** `cv clip save` first. `cv ax press "Claude Code" w0`, then `cv clip show` prints `claude mcp add
+- **mcp-connect.** `cv clip save` first. `cv ax press "Claude Code"` (no window: it finds the button in Settings), then `cv clip show` prints `claude mcp add
   --transport stdio --scope user ideator -- '<this build's .app>/Contents/Helpers/ideator-mcp' -CardsFolder
   <the run's folder>`. The same for `Codex` (a `[mcp_servers.ideator]` table with `command` and `args`) and `Claude
   Desktop` (a `mcpServers` object with an `ideator` entry). The button reads "Copied" for 2 seconds, and a `cv shot`
-  in its own call starts later than that. Press and shoot in one script: `cv ax press Codex w0` then `cv shot copied`
+  in its own call starts later than that. Press and shoot in one script: `cv ax press Codex` then `cv shot copied`
   ran in 0.82 s on 2026-10-28, and its tree and its Settings png show the button reading "Copied" and the line above
   the buttons saying where to paste. `cv clip restore`, then `osascript -e 'clipboard
   info' | shasum` and `pbpaste | shasum` match their values from before `clip save`.
+- **mcp-connect-volume.** A build runs from a build folder on the startup volume, so its Connect buttons stay
+  enabled; to see them dimmed, run a copy from another volume. Take the live-UI lock (`scripts/live-lock.sh`), then
+  in one script under `build/`: `hdiutil create -size 300m -fs APFS -volname IdeatorScratch -ov <scratch>.dmg`,
+  `hdiutil attach <scratch>.dmg -mountpoint <a folder under build/ or /private/tmp>`, `cp -R
+  build/VerifyDerivedData/Build/Products/Debug/Ideator.app <mount>/`, then run `<mount>/Ideator.app/Contents/MacOS/Ideator
+  -CardsFolder <a new temp folder> &` and find its pid with `pgrep -f -- "^<mount>/Ideator.app/Contents/MacOS/Ideator
+  -CardsFolder <folder>\$"`. Open Settings with `build/verify-tools/cards-ax key <pid> cmd+,`; `cards-ax tree <pid>`
+  shows the three Connect buttons `[disabled]` and the line above them saying to move Ideator to Applications. A
+  mount point outside `/Volumes` gives the same answer, because the file system decides. Then `kill <pid>` (that
+  pid only, never by name), `hdiutil detach <mount>`, delete the dmg and the temp folder, and release the lock. The
+  same copy run from the startup volume (`cp -R` to a folder under `build/`) shows the buttons enabled.
 
 ## Gotchas
 
@@ -126,9 +140,15 @@ under the run's evidence folder.
 - `cv mcp-launch` has no `--seed`, and the app it starts has no `app.log`: Launch Services starts it, not `open
   --stdout`.
 - The welcome card of a background start comes to the front with `orderFrontRegardless` and does not activate
-  Ideator, so the frontmost app stays the same in `mcp-welcome` too. Frontmost alone proves little: macOS can
-  refuse activation even to a foreground start. What tells the two apart is a press on Continue: in a foreground
-  run (`cv launch --welcome`) Ideator is frontmost within about 60 ms of it, and a background run stays behind.
+  Ideator. The frontmost app before and after a press on Continue cannot by itself prove a background start took
+  no focus on every Mac: macOS decides whether an app may activate, and three verifiers measured a foreground
+  start differently (Ideator frontmost after 61 ms once and about 220 ms once, and unchanged after a foreground
+  `cv launch --welcome` plus Continue on a later day). Run a foreground control in the same session
+  (`cv launch --welcome`, Continue): when Ideator does come to the front there, the same check on the background
+  run discriminates; when it does not, the check says nothing on this Mac. The guarantee is the code path, tested
+  in `WelcomeTests`: `testABackgroundStartShowsTheCardWithoutTakingTheKeyWindow` (the card shows and is not the
+  key window) and `testOnlyAStartByTheHelperShowsTheWelcomeWithoutFocus` (only the helper's environment turns
+  focus off).
 - `cv stop` ends the run with SIGTERM, and the app removes its socket file, `ideator-mcp-<hash>.sock`, in the
   user's temporary folder before it ends. SIGINT, SIGHUP, SIGKILL and a crash leave the file (the handler covers SIGTERM only); the next run that finds nothing answering on it replaces it.
 - `mcp-isolation` names the folder as given; a helper given the same folder with `/private` in front, or in other
@@ -136,7 +156,7 @@ under the run's evidence folder.
 - A first failed save (`chmod 555` the run's folder) answers the call at once with the "don't add it again" error,
   and the "Ideator can't save your notes" alert comes after it.
 - Not verified here: that Claude Code, Codex and Claude Desktop pass the instruction to the model, the pasted setups
-  inside those tools, the dimmed Connect buttons for an app on another volume or under `AppTranslocation` (a build here runs
-  from a build folder; the unit tests open the window on such a path), a helper reading a normal (not scratch) run's
+  inside those tools, the dimmed Connect buttons for an app under `AppTranslocation` (only Gatekeeper makes that
+  copy; the unit tests open the window on such a path), a helper reading a normal (not scratch) run's
   saved preference, the three AI tools themselves,
   Gatekeeper on a downloaded build, and a normal (not scratch) run.
