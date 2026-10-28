@@ -96,15 +96,22 @@ validation off. With a Team ID the workaround has to go, and `scripts/package.sh
    reference), and clear `CODE_SIGN_ENTITLEMENTS` on the Ideator target's Release configuration.
 2. On that configuration set `CODE_SIGN_IDENTITY` to `Developer ID Application` and
    `DEVELOPMENT_TEAM` to the Team ID. Keep manual signing and the hardened runtime.
-3. Run `scripts/package.sh`. The signing policy in it now wants no `disable-library-validation`
-   entitlement and the app's Team ID on every Mach-O under `Contents/Frameworks`. Xcode signs
-   `Sparkle.framework` itself but leaves the helper programs inside it (`Autoupdate`, `Updater.app`,
-   the XPC services) as Sparkle shipped them, so expect the script to name them. Sign each with the
-   same identity, innermost first, then run it again.
-4. TODO: notarize. `scripts/release.sh` does not notarize or staple anything yet. Add that between
+3. Run `scripts/package.sh`. Whatever Xcode did to the programs Sparkle ships inside its framework
+   (`Autoupdate`, `Updater.app`, the XPC services), the script signs each again with the identity
+   the app was built with, innermost first, then the framework, then the app, all before it checks
+   anything. That needs the certificate in the keychain and Apple's timestamp server. The signing
+   policy then wants no `disable-library-validation` entitlement and the app's Team ID on every
+   Mach-O under `Contents/Frameworks`.
+4. Run `scripts/verify-update.sh`. It seals its copies of the app with the shipped app's own identity
+   and entitlements, so it passes with the ad-hoc build and with the Developer ID one.
+5. TODO: notarize. `scripts/release.sh` does not notarize or staple anything yet. Add that between
    `scripts/package.sh` and `generate_appcast`, because stapling changes the disk image's bytes and
    the feed must sign the stapled file. Then the Open Anyway steps in "Share Ideator with someone"
    can go.
+
+The Team ID path has not run with a real Developer ID yet. `scripts/test-signing.sh` checks the
+order, identity and flags of every `codesign` call against a stand-in for `codesign`, in seconds and
+without Xcode. The first run with the certificate is the real test.
 
 ## Is the installed app current?
 
@@ -148,9 +155,11 @@ Sparkle. It takes the app out of the newest disk image in `build/release` (or th
 copies it twice as build N (one less than the shipped number) and N+1. The copies differ from the
 shipped app in five `Info.plist` keys: the bundle id `com.systemlabs.Ideator.UpdateTest`, the build
 number, a feed on `localhost`, the public half of a throwaway signing key, and `IdeatorUpdateTest`.
-Each is sealed again with the app's own entitlements, and the script checks that its code is the
-shipped code. A local server then plays GitHub's `releases/latest/download` redirect, and N is
-launched four times, each with a fresh preferences domain and no arguments, as a user would:
+Each is sealed again with the app's own identity and entitlements (ad hoc with the one entitlement
+today, the Developer ID and none later), and the script checks that its code is the shipped code.
+A local server on `127.0.0.1` and `::1` then plays GitHub's `releases/latest/download` redirect, and
+N is launched four times with a fresh preferences domain and `-CardsFolder` naming a temporary
+notes folder:
 
 | Phase | The feed | Expected |
 | --- | --- | --- |
@@ -163,9 +172,11 @@ It prints a `PASS` line per phase, then one for the owner: `/Applications/Ideato
 `com.systemlabs.Ideator` preferences, the running Ideator processes and `~/Documents/Ideator` are
 hashed before and after and must not change. The test build keeps its state in its own preferences
 domain, runs on a temporary notes folder, and gets a decoy `SUFeedURL` default that must never be
-requested. Servers, test processes, that domain, its caches and the temporary files are removed on
-the way out, even after a failure. Server logs, accessibility trees, screenshots and Sparkle's log
-are kept in `build/verify-evidence/update-<time>/`.
+requested. Sparkle relaunches the new build without arguments, so just before that the script writes
+the folder into the test domain as a `CardsFolder` default, which only an update-test copy honors.
+Servers, test processes, that domain, its caches and the temporary files are removed on the way out,
+even after a failure. Server logs, accessibility trees, screenshots and Sparkle's log are kept in
+`build/verify-evidence/update-<time>/`.
 
 It drives Sparkle's windows through Accessibility, as `verify-cards` does, so the terminal needs
 that permission, the Mac has to be unlocked, and Ideator takes the focus while it runs. It takes
@@ -186,8 +197,8 @@ Sparkle update key". `gh` is logged in with `gh auth login`.
 
 Each release, from `main` with nothing uncommitted and nothing newer on `origin/main`:
 
-1. If the updater changed (`Updates.swift`, `Config/Info.plist`, `package.sh`, `release.sh` or the
-   Sparkle version), run `scripts/package.sh` and then `scripts/verify-update.sh`.
+1. If the updater changed (`Updates.swift`, `Config/Info.plist`, `package.sh`, `signing.sh`,
+   `release.sh` or the Sparkle version), run `scripts/package.sh` and then `scripts/verify-update.sh`.
 2. Write the release notes as a few Markdown bullets in a file outside the checkout. The notes are
    shown in Sparkle's update window and on the GitHub release. A file inside the checkout would be
    untracked, and `release.sh` refuses an unclean tree.
@@ -220,7 +231,7 @@ next version by hand from a disk image. So restore the key from the Apple Passwo
 making a new one: `generate_keys --account ideator -f FILE`, with the tool from
 `build/ReleaseDerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin` after `scripts/package.sh`.
 `release.sh` stops when the Keychain's key is not the one in the app. Once a Developer ID signs the
-app, see "When the Developer ID arrives" below.
+app, see "When the Developer ID arrives" above.
 
 ## Where to paste the API key
 
@@ -251,7 +262,8 @@ and never checks for updates.
 Each card is a Markdown file in `~/Documents/Ideator/`. Slot positions, stack order, collapsed
 state and cached summaries live in the hidden file `~/Documents/Ideator/.cards.json`. To try the app
 against another folder, pass `-CardsFolder /path/to/folder` as a launch argument (in Xcode: Product
-› Scheme › Edit Scheme › Run › Arguments).
+› Scheme › Edit Scheme › Run › Arguments). Only the argument counts: a `CardsFolder` key in
+Ideator's preferences changes nothing.
 
 Builds from before the rename were called Cards and used `~/Documents/Cards` and the Keychain
 service "Cards". Ideator does not read either: quit Cards, move the files (including the hidden

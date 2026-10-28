@@ -165,21 +165,28 @@ func send(_ command: Command) {
   build number 1, so every release would look newer and Sparkle would replace the copy Xcode built.
   Sparkle keeps its state in `UserDefaults.standard`, the owner's domain in a scratch run. The one
   exception is an update-test copy (`IdeatorUpdateTest` = YES, its own bundle id), which also may
-  use plain http, and only to localhost or 127.0.0.1. `Updates` makes a
+  use plain http, and only to localhost or 127.0.0.1, and which may keep its scratch folder in its own
+  preferences (see 2026-10-27, release scripts). `Updates` makes a
   `SPUStandardUpdaterController` only for `.check`, so an off plan has no Sparkle object at all,
   and starts it in `Launch.run`'s `openNotes`, after the welcome has announced the check. The
   Sparkle keys are literals in `Config/Info.plist`; `feedURLString(for:)` returns the plist's feed,
   so a `SUFeedURL` default or argument cannot move it. Settings binds its checkbox to Sparkle's
   `automaticallyChecksForUpdates` and keeps no copy.
-- **Signing has one policy, in `package.sh`.** Builds are ad-hoc signed with the hardened runtime
-  until a Team ID exists, and dyld then refuses the embedded framework ("different Team IDs"). The
-  Release configuration therefore carries `Config/Ideator-adhoc.entitlements`, one key:
-  `com.apple.security.cs.disable-library-validation`. The policy block in `package.sh` is the only
-  code that knows about it. With no Team ID the entitlements must be exactly that key. With one the
-  key must be gone and every Mach-O under `Contents/Frameworks` must carry the app's Team ID.
-  `codesign --verify` passes an app that dies at launch, so `package.sh` also runs the packaged app
-  as a scratch run and checks that it is alive with Sparkle mapped in. README, "When the Developer
-  ID arrives", lists what to delete.
+- **Signing has one policy, checked in `package.sh` and carried out by `scripts/signing.sh`.** Builds
+  are ad-hoc signed with the hardened runtime until a Team ID exists, and dyld then refuses the
+  embedded framework ("different Team IDs"). The Release configuration therefore carries
+  `Config/Ideator-adhoc.entitlements`, one key: `com.apple.security.cs.disable-library-validation`.
+  `package.sh` checks the policy. With no Team ID the entitlements must be exactly that key. With one
+  the key must be gone and every Mach-O under `Contents/Frameworks` must carry the app's Team ID.
+  `sign_for_release` is what makes the second half true: for a Team ID build it signs the programs
+  Sparkle ships inside its framework, then the framework, then the app, with the certificate the build
+  was signed with, innermost first because signing any of them breaks the seal around it. For an
+  ad-hoc build it does nothing. `verify-update.sh` seals its copies of the shipped app the same way
+  (`seal_copy`: the shipped app's identity and entitlements, if it has any), so it proves the update
+  in both worlds. `scripts/test-signing.sh` checks the order, identity and flags of every `codesign`
+  call against a stand-in for `codesign`. `codesign --verify` passes an app that dies at launch, so
+  `package.sh` also runs the packaged app as a scratch run and checks that it is alive with Sparkle
+  mapped in. README, "When the Developer ID arrives", lists what to flip and delete.
 
 ## Color and glass
 
@@ -385,6 +392,18 @@ Later changes, after trying the app:
   starts it again at once, as for any card that has no job. A removed key already cancelled every
   job. `Summarizer` takes the request itself as a closure, `Anthropic.summarize` by default, so
   `SummarizerTests` can hold a request, check its key and answer it by hand. `Desk` is unchanged.
+- 2026-10-27, release scripts: the Developer ID switch is "flip the two build settings, delete the
+  entitlement, run `package.sh`", and `verify-update.sh` passes before and after it. `package.sh`
+  signs Sparkle's helpers for a Team ID build, and the update proof seals its copies with whatever
+  identity and entitlements the shipped app has, where it had assumed ad hoc plus the bypass. A scratch
+  run is now the `-CardsFolder` launch argument and nothing else: `Launch` read every defaults domain,
+  so a stray `defaults write` turned the owner's Ideator into one (no Keychain key, no shortcut, no
+  welcome, no update checks, notes elsewhere). The exception is an update-test copy, which also reads
+  its own `CardsFolder` default, because Sparkle relaunches an app with no arguments and the
+  relaunched copy would otherwise be a normal run that reads the owner's Keychain and registers the
+  shortcut. `verify-update.sh` passes the argument for every launch it makes and writes the default
+  only before the relaunch, so the argument path stays proven. Its feed server now listens on `::1`
+  and `127.0.0.1` rather than on every interface. `Desk` is unchanged.
 
 ## Tradeoffs accepted
 
