@@ -168,7 +168,7 @@ final class StackArrangerTests: XCTestCase {
         let (arranger, wire) = arranger(over: ["a", "b"])
         wire.desk.apply(.flipStack(.next))
         arranger.apply(wire.desk.stackFace(hasKey: false).arrangement)
-        XCTAssertFalse(arranger.isOpen, "nothing opened")
+        XCTAssertNil(arranger.table.window, "nothing opened")
         XCTAssertEqual(arranger.arrangement.current, id("b"), "but it knows b shows")
     }
 

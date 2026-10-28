@@ -107,8 +107,6 @@ final class StackArranger: NSObject {
         configure()
     }
 
-    var isOpen: Bool { popover.isShown }
-
     /// Opens under `rect` (in `view`'s coordinates) with the shown card's row selected, or closes
     /// when open: a press on the badge toggles. Nothing with no rows.
     func toggle(relativeTo rect: NSRect, of view: NSView) {
