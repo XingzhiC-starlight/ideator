@@ -24,6 +24,16 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(scratch.isScratch)
     }
 
+    func testACardsFolderDefaultInThePreferencesIsNotAScratchRun() {
+        let arguments = suites.make()
+        arguments.set("/tmp/stray-folder", forKey: "CardsFolder")
+
+        let launch = Launch(arguments: arguments, environment: [:])
+
+        XCTAssertFalse(launch.isScratch)
+        XCTAssertEqual(launch.notesFolder, Library.defaultFolder)
+    }
+
     func testAScratchRunReadsTheFactoryShortcutAndWritesNothingToTheOwnersDefaults() {
         let owners = suites.make()
         let preferences = launch(folder: "/tmp/scratch-folder").preferences(standard: owners)
