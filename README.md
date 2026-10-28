@@ -157,9 +157,9 @@ shipped app in five `Info.plist` keys: the bundle id `com.systemlabs.Ideator.Upd
 number, a feed on `localhost`, the public half of a throwaway signing key, and `IdeatorUpdateTest`.
 Each is sealed again with the app's own identity and entitlements (ad hoc with the one entitlement
 today, the Developer ID and none later), and the script checks that its code is the shipped code.
-A local server on `127.0.0.1` and `::1` then plays GitHub's `releases/latest/download` redirect, and
-N is launched four times with a fresh preferences domain and `-CardsFolder` naming a temporary
-notes folder:
+A local server on `127.0.0.1` and `::1` (`scripts/test-feed-server.sh` checks that it answers on no
+other address) then plays GitHub's `releases/latest/download` redirect, and N is launched four times
+with a fresh preferences domain and `-CardsFolder` naming a temporary notes folder:
 
 | Phase | The feed | Expected |
 | --- | --- | --- |
