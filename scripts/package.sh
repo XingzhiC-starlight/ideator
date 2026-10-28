@@ -120,6 +120,17 @@ echo "icon: AppIcon"
 # A signature that verifies can still belong to an app dyld refuses to start. The scratch run on an empty
 # folder writes no preferences and registers no shortcut. The helper, given the same folder, reaches only
 # that run, as an AI tool's call would reach the owner's Ideator.
+# The run shows a real window, and keys typed for another live session can land in it, so the check
+# takes the live-UI lock that cards-verify takes, waiting up to 30 minutes for it.
+source .claude/skills/verify-cards/scripts/live-lock.sh
+lock_token="scripts/package.sh pid $$ in $PWD since $(date '+%H:%M:%S')"
+for attempt in $(seq 1 61); do
+  live_lock_take "$lock_token" && break
+  ((attempt < 61)) || die "another live Ideator session held $LIVE_LOCK for 30 minutes (holder: $(live_lock_holder))"
+  echo "package.sh: waiting for $LIVE_LOCK, held by: $(live_lock_holder)" >&2
+  sleep 30
+done
+trap 'live_lock_release "$lock_token" || true' EXIT
 scratch="$(mktemp -d)"
 mkdir "$scratch/notes"
 "$APP/Contents/MacOS/Ideator" -CardsFolder "$scratch/notes" >"$scratch/output" 2>&1 &
@@ -148,6 +159,8 @@ grep -q '/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle$' <<<"$mapped
   || die "ideator-mcp did not hand a card to the running Ideator: ${handed:-no reply}"
 [[ "$saved" == "# Package check" ]] || die "Ideator replied to ideator-mcp but its folder holds: ${saved:-nothing}"
 echo "launch: ran for 3 seconds on an empty folder, with Sparkle loaded, and saved the card ideator-mcp handed it"
+live_lock_release "$lock_token" || echo "package.sh: $LIVE_LOCK is not held by this run (holder: $(live_lock_holder)); left alone" >&2
+trap - EXIT
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
