@@ -153,6 +153,7 @@ echo "fixtures differ from the shipped app in its Info.plist only:"
 sed 's/^/  /' "$ev/fixture.plist.diff"
 
 installed="$work/install/Ideator.app"
+running="^$installed/Contents/MacOS/Ideator( -CardsFolder .*)?\$"
 ditto "$work/old.app" "$installed"
 scripts/make-dmg.sh "$work/old.app" "$work/previous.dmg"
 scripts/make-dmg.sh "$work/new.app" "$work/built.dmg"
@@ -189,7 +190,7 @@ decoy_pid=$!
 hits() { grep -c -- "$1" "$2" || true; }
 feed_requests() { hits 'GET /releases/download/test/appcast.xml' "$ev/$1.feed.log"; }
 disk_image_requests() { hits 'GET /releases/download/test/Ideator-.*\.dmg' "$ev/$1.feed.log"; }
-pid_of() { pgrep -n -f "^$installed/Contents/MacOS/Ideator\$" || true; }
+pid_of() { pgrep -n -f "$running" || true; }
 disk_build() { plist "$installed" CFBundleVersion; }
 
 tree() { "$ax" tree "$pid" 2>/dev/null || true; }
@@ -229,7 +230,7 @@ sparkle_log() {
 }
 
 stop_app() {
-  pkill -f "^$installed/Contents/MacOS/Ideator\$" 2>/dev/null || true
+  pkill -f "$running" 2>/dev/null || true
   for _ in $(seq 40); do [[ -z "$(pid_of)" ]] && return 0; sleep 0.25; done
   die "the installed build did not quit"
 }
@@ -242,10 +243,9 @@ begin() {
   grep -q listening "$ev/$name.feed.log" || die "the feed server for $name did not start"
   defaults delete "$domain" 2>/dev/null || true
   rm -rf "$HOME/Library/Caches/$domain"
-  defaults write "$domain" CardsFolder "$work/folder"
   defaults write "$domain" SUFeedURL "http://localhost:$decoy_port/decoy.xml"
   [[ -n "$scheduled" ]] || defaults write "$domain" SUEnableAutomaticChecks -bool NO
-  open -n --stdout "$ev/$name.app.log" --stderr "$ev/$name.app.log" "$installed"
+  open -n --stdout "$ev/$name.app.log" --stderr "$ev/$name.app.log" "$installed" --args -CardsFolder "$work/folder"
   for _ in $(seq 60); do pid="$(pid_of)"; [[ -n "$pid" ]] && break; sleep 0.25; done
   [[ -n "$pid" ]] || die "build $previous did not start"
   wait_for 30 '"New"'
@@ -332,6 +332,8 @@ snap real-update-ready
 ! grep -q "Update Error" "$ev/real-update-ready.tree.txt" \
   || die "Sparkle refused the real update: $(grep -m1 -o 'value="The [^"]*"' "$ev/real-update-ready.tree.txt")"
 old_pid="$pid"
+# Sparkle relaunches the app without arguments, so the new copy finds its folder in its own preferences.
+defaults write "$domain" CardsFolder "$work/folder"
 # The press that works quits the app mid-call, so cards-ax reports it as failed.
 for _ in $(seq 30); do
   "$ax" press "$old_pid" "Install and Relaunch" >/dev/null 2>&1 || true

@@ -33,7 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindow?
 
     override init() {
-        launch = Launch(arguments: .standard, environment: ProcessInfo.processInfo.environment)
+        launch = Launch(arguments: UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain),
+                        environment: ProcessInfo.processInfo.environment)
         keys = launch.keys()
         super.init()
     }

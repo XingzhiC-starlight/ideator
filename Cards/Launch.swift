@@ -6,9 +6,16 @@ struct Launch {
     /// stays as it is.
     let forcesWelcome: Bool
 
-    /// `arguments` is where `-CardsFolder` shows up (the argument domain of `UserDefaults.standard`).
-    init(arguments: UserDefaults, environment: [String: String]) {
-        folder = arguments.string(forKey: "CardsFolder").map { URL(filePath: $0, directoryHint: .isDirectory) }
+    /// Only a `-CardsFolder` launch argument starts a scratch run, so `arguments` is the argument
+    /// domain: `UserDefaults.string(forKey:)` also searches the preferences, and a stray `defaults
+    /// write` would turn the owner's Ideator into a scratch run. An update-test copy also reads its own
+    /// `CardsFolder` default, because Sparkle relaunches an app with no arguments and the relaunched
+    /// copy must stay off the owner's folder and Keychain.
+    init(arguments: [String: Any], defaults: UserDefaults = .standard, build: BuildInfo = .current,
+         environment: [String: String]) {
+        let named = arguments["CardsFolder"] as? String
+            ?? (build.isUpdateTest ? defaults.string(forKey: "CardsFolder") : nil)
+        folder = named.map { URL(filePath: $0, directoryHint: .isDirectory) }
         forcesWelcome = environment["CARDS_SHOW_WELCOME"] == "1"
     }
 
