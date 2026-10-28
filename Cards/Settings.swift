@@ -75,7 +75,10 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private static let editorHeight: CGFloat = 112
 
     private static let connectCaption = "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files."
-    private static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next session."
+    private static let limitName = "\(Instruction.byteLimit / 1_000) KB"
+    private static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next "
+        + "session. It holds up to \(limitName)."
+    private static let instructionRefusal = "That change would pass the \(limitName) limit, so Ideator did not make it."
 
     /// Names the company of the saved key, or both while no key is saved.
     static func privacy(for provider: Provider?) -> String {
@@ -114,6 +117,7 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private let landsOnTop = NSButton(radioButtonWithTitle: "Top", target: nil, action: nil)
     private let landsAtBottom = NSButton(radioButtonWithTitle: "Bottom", target: nil, action: nil)
     private let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: SettingsWindow.inner, height: SettingsWindow.editorHeight))
+    private let instructionNote = NSTextField(wrappingLabelWithString: "")
     private let resetInstruction = NSButton(title: "Reset to Default", target: nil, action: nil)
     private let connectNote = NSTextField(wrappingLabelWithString: "")
     private let connect: HelperCommand
@@ -124,6 +128,7 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private let document = FlippedView()
     private let maxContentHeight: CGFloat?
     private var rejected: String?
+    private var instructionRefused = false
     private var releasedForRecording = false
 
     /// The window is as tall as its rows, and scrolls where the screen has less room. `maxContentHeight`
@@ -244,7 +249,7 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
                      caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
                      heading("AI tools"), allowAITools, landingRow,
                      NSTextField(labelWithString: "Instruction for AI tools"),
-                     caption(NSTextField(wrappingLabelWithString: Self.instructionCaption)), editorScroll, resetInstruction,
+                     caption(instructionNote), editorScroll, resetInstruction,
                      heading("Connect AI tools"), caption(connectNote), connectRow,
                      heading("Privacy"), caption(privacyNote)] {
             stack.addArrangedSubview(view)
@@ -311,6 +316,7 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         landsAtBottom.isEnabled = aiTools.value.enabled
         if editor.string != aiTools.value.instruction.text { editor.string = aiTools.value.instruction.text }
         resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
+        instructionNote.stringValue = instructionRefused ? Self.instructionRefusal : Self.instructionCaption
         for (tool, button) in connectButtons { button.title = copied == tool ? "Copied" : tool.name }
         connectNote.stringValue = copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
         stack.layoutSubtreeIfNeeded()
@@ -367,9 +373,21 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         refresh()
     }
 
+    /// A change that would pass the instruction's limit is not made, and the note above the box says so.
+    func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
+        guard textView === editor, let replacement = replacementString else { return true }
+        let removed = (editor.string as NSString).substring(with: range).utf8.count
+        guard editor.string.utf8.count - removed + replacement.utf8.count > Instruction.byteLimit else { return true }
+        instructionRefused = true
+        instructionNote.stringValue = Self.instructionRefusal
+        return false
+    }
+
     func textDidChange(_ notification: Notification) {
         aiTools.value.instruction.edit(to: editor.string)
         resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
+        instructionRefused = false
+        instructionNote.stringValue = Self.instructionCaption
     }
 
     /// Replaces the text through the editor, so Undo brings the edit back.
