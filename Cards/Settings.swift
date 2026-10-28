@@ -78,6 +78,8 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private static let limitName = "\(Instruction.byteLimit / 1_000) KB"
     private static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next "
         + "session. It holds up to \(limitName)."
+    private static let connectMoveFirst = "Ideator is running from a disk image, another volume or a quarantined download, so a "
+        + "setup copied now would point at a path that goes away. Move Ideator to Applications, open it from there, then copy a setup."
     private static let instructionRefusal = "That change would pass the \(limitName) limit, so Ideator did not make it."
 
     /// Names the company of the saved key, or both while no key is saved.
@@ -317,8 +319,12 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         if editor.string != aiTools.value.instruction.text { editor.string = aiTools.value.instruction.text }
         resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
         instructionNote.stringValue = instructionRefused ? Self.instructionRefusal : Self.instructionCaption
-        for (tool, button) in connectButtons { button.title = copied == tool ? "Copied" : tool.name }
-        connectNote.stringValue = copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
+        for (tool, button) in connectButtons {
+            button.title = copied == tool ? "Copied" : tool.name
+            button.isEnabled = !connect.isTemporary
+        }
+        connectNote.stringValue = connect.isTemporary ? Self.connectMoveFirst
+            : copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
         stack.layoutSubtreeIfNeeded()
         let rows = stack.fittingSize.height
         document.setFrameSize(NSSize(width: Self.width, height: rows))

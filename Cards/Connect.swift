@@ -50,15 +50,24 @@ nonisolated enum AITool: CaseIterable {
 
 /// A scratch run's `-CardsFolder` argument keeps a pasted setup off the owner's notes.
 nonisolated struct HelperCommand: Equatable {
+    let app: URL
     let executable: URL
     let arguments: [String]
 
     init(app: URL, scratchFolder: URL?) {
+        self.app = app
         executable = app.appending(path: "Contents/Helpers/ideator-mcp")
         arguments = scratchFolder.map { ["-CardsFolder", $0.standardizedFileURL.path] } ?? []
     }
 
-    var isTemporary: Bool { false }
+    /// Whether the app runs from a place its path does not outlast: a mounted volume, such as a disk image
+    /// (`/Volumes/<name>`), or the copy macOS makes of a downloaded app that was not moved yet, under
+    /// `AppTranslocation`. Links are followed first, so the startup volume reached through `/Volumes` is
+    /// not one.
+    var isTemporary: Bool {
+        let parts = app.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        return parts.contains("AppTranslocation") || parts.dropFirst().first == "Volumes"
+    }
 
     var shellLine: String {
         ([executable.path] + arguments).map(Self.shellWord).joined(separator: " ")
