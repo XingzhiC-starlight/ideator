@@ -108,6 +108,32 @@ final class InstructionTests: XCTestCase {
         XCTAssertEqual(again, AIToolSettings(enabled: false, landing: .bottom, instruction: Instruction(edited: "Kept.")))
     }
 
+    /// CARDS-SPEC.md: the instruction holds up to 100,000 bytes of UTF-8.
+    private let limit = 100_000
+
+    func testAnInstructionAtTheLimitIsKeptWholeAndOnePastItIsCut() {
+        let atLimit = String(repeating: "a", count: limit)
+        XCTAssertEqual(Instruction(edited: atLimit).text, atLimit)
+
+        var instruction = Instruction()
+        instruction.edit(to: atLimit + "b")
+        XCTAssertEqual(instruction.text, atLimit, "the byte past the limit is dropped")
+    }
+
+    func testAnInstructionIsCutBetweenCharactersNeverInsideOne() {
+        var instruction = Instruction()
+        instruction.edit(to: String(repeating: "€", count: 40_000))
+
+        XCTAssertEqual(instruction.text, String(repeating: "€", count: 33_333), "99,999 bytes: a third byte of the next € would pass the limit")
+    }
+
+    func testAPreferenceWrittenPastTheLimitIsReadCutToIt() {
+        let owners = suites.make()
+        owners.set(String(repeating: "a", count: 3 * limit), forKey: "AIToolsInstruction")
+
+        XCTAssertEqual(Preferences(defaults: owners).aiTools.instruction.text, String(repeating: "a", count: limit))
+    }
+
     private func endpoint(_ folder: String? = nil) -> Endpoint {
         Endpoint(scratchFolder: folder.map { URL(filePath: $0, directoryHint: .isDirectory) }, directory: directory)
     }
@@ -208,6 +234,25 @@ final class InstructionTests: XCTestCase {
         open(endpoint(), instruction: nil)
         let answer = await ask(source(appDomain: saved("Saved earlier.")))
         XCTAssertEqual(answer, "Saved earlier.")
+    }
+
+    func testTheLongestInstructionReachesTheHelperWhateverJSONMakesOfIt() async {
+        let worst = String(repeating: "\u{1}", count: limit)
+        open(endpoint(), instruction: { worst })
+
+        let answer = await ask(source())
+
+        XCTAssertEqual(answer, worst, "JSON writes each of these as six bytes, so the reply is about 600,000 bytes")
+    }
+
+    func testAnInstructionTypedPastTheLimitReachesTheHelperCutToItNotAsTheDefault() async {
+        let choice = AIToolsChoice(preferences: Preferences(defaults: nil))
+        choice.value.instruction.edit(to: String(repeating: "\u{1}", count: 2 * limit))
+        open(endpoint(), instruction: { choice.value.instruction.text })
+
+        let answer = await ask(source())
+
+        XCTAssertEqual(answer, String(repeating: "\u{1}", count: limit))
     }
 
     func testTheHelpersInitializeCarriesTheInstructionAndHandsNothingToIdeator() async throws {

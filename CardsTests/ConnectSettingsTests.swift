@@ -59,7 +59,7 @@ final class ConnectSettingsTests: XCTestCase {
         let positions = try expected.map(index)
         XCTAssertEqual(positions, positions.sorted(), "\(expected) in this order")
         XCTAssertTrue(texts(in: window).contains("Ideator gives an AI tool this text when a session starts, so an edit reaches it "
-                                                 + "at its next session."))
+                                                 + "at its next session. It holds up to 100 KB."))
     }
 
     func testTheEditorShowsTheStandardTextAndResetStartsDimmed() throws {
@@ -111,6 +111,48 @@ final class ConnectSettingsTests: XCTestCase {
 
         try button("Reset to Default", in: window).performClick(nil)
         XCTAssertEqual(editor.string, Instruction.standard)
+    }
+
+    func testTheEditorTakesTextUpToTheLimitAndRefusesAChangeThatWouldPassItWithANote() throws {
+        let choice = AIToolsChoice(preferences: Preferences(defaults: nil))
+        choice.value.instruction.edit(to: String(repeating: "a", count: 99_996))
+        let window = settings(choice)
+        let editor = try editor(in: window)
+        let refusal = "That change would pass the 100 KB limit, so Ideator did not make it."
+
+        type("€", into: editor, in: window)
+        XCTAssertEqual(editor.string.utf8.count, 99_999, "a € is 3 bytes")
+        XCTAssertFalse(texts(in: window).contains(refusal))
+
+        type("bc", into: editor, in: window)
+        XCTAssertEqual(editor.string.utf8.count, 99_999, "two more bytes would pass the limit, so neither is typed")
+        XCTAssertEqual(choice.value.instruction.text, editor.string)
+        XCTAssertTrue(texts(in: window).contains(refusal))
+
+        type("d", into: editor, in: window)
+        XCTAssertEqual(editor.string.utf8.count, 100_000, "the limit itself is allowed")
+        XCTAssertFalse(texts(in: window).contains(refusal), "the next change that is made takes the note away")
+
+        type("e", into: editor, in: window)
+        XCTAssertEqual(editor.string.utf8.count, 100_000)
+        XCTAssertTrue(texts(in: window).contains(refusal))
+    }
+
+    func testReplacingTheWholeTextAtTheLimitWithALongerOneIsRefusedAndWithAShorterOneIsNot() throws {
+        let choice = AIToolsChoice(preferences: Preferences(defaults: nil))
+        choice.value.instruction.edit(to: String(repeating: "a", count: 100_000))
+        let window = settings(choice)
+        let editor = try editor(in: window)
+        window.makeFirstResponder(editor)
+
+        editor.selectAll(nil)
+        editor.insertText(String(repeating: "b", count: 100_001), replacementRange: editor.selectedRange())
+        XCTAssertEqual(editor.string, String(repeating: "a", count: 100_000), "a paste past the limit changes nothing")
+
+        editor.selectAll(nil)
+        editor.insertText("Short.", replacementRange: editor.selectedRange())
+        XCTAssertEqual(editor.string, "Short.")
+        XCTAssertEqual(choice.value.instruction.text, "Short.")
     }
 
     func testEachConnectButtonCopiesItsToolsSetup() throws {
