@@ -144,9 +144,20 @@ final class InstructionTests: XCTestCase {
                           directory: directory, patience: patience)
     }
 
+    private nonisolated final class Handed: @unchecked Sendable {
+        private let lock = NSLock()
+        private var cards = 0
+
+        func add() { lock.withLock { cards += 1 } }
+        var count: Int { lock.withLock { cards } }
+    }
+
     @discardableResult
-    private func open(_ endpoint: Endpoint, instruction: (@MainActor () -> String)?) -> ToolInbox? {
-        let inbox = ToolInbox(endpoint: endpoint, instruction: instruction) { _, reply in reply(.done("a card")) }
+    private func open(_ endpoint: Endpoint, instruction: (@MainActor () -> String)?, handed: Handed = Handed()) -> ToolInbox? {
+        let inbox = ToolInbox(endpoint: endpoint, instruction: instruction) { _, reply in
+            handed.add()
+            reply(.done("a card"))
+        }
         if let inbox { inboxes.append(inbox) }
         return inbox
     }
@@ -255,18 +266,23 @@ final class InstructionTests: XCTestCase {
         XCTAssertEqual(answer, String(repeating: "\u{1}", count: limit))
     }
 
-    func testTheHelpersInitializeCarriesTheInstructionAndHandsNothingToIdeator() async throws {
-        open(endpoint("/tmp/folder-a"), instruction: { "Edited in the run on A." })
+    func testTheHelpersInitializeCarriesTheInstructionAndHandsNoCardToIdeator() async throws {
+        let handed = Handed()
+        open(endpoint("/tmp/folder-a"), instruction: { "Edited in the run on A." }, handed: handed)
         let instructions = source(scratch: "/tmp/folder-a")
         let line = try JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "initialize",
                                                                "params": ["protocolVersion": "2025-06-18"]])
 
         let reply = await Task.detached { () -> [String: Any]? in
-            let server = MCPServer(version: "0.9", instructions: { instructions.current() }) { _ in .done("card") }
+            let server = MCPServer(version: "0.9", instructions: { instructions.current() }) { _ in
+                handed.add()
+                return .done("card")
+            }
             return server.respond(to: line).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         }.value
 
         let result = try XCTUnwrap(reply?["result"] as? [String: Any])
         XCTAssertEqual(result["instructions"] as? String, "Edited in the run on A.")
+        XCTAssertEqual(handed.count, 0, "neither the helper's hand-off nor Ideator's card inbox saw a card")
     }
 }
