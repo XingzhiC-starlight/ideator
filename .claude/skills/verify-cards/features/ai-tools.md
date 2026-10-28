@@ -89,9 +89,15 @@ under the run's evidence folder.
   own command line also ends in `-CardsFolder <folder>`.
 - `cv mcp-launch` has no `--seed`, and the app it starts has no `app.log`: Launch Services starts it, not `open
   --stdout`.
-- The welcome card activates Ideator when it shows, as the spec allows, so `mcp-welcome`'s frontmost app changes.
-  Only `mcp-launch` with no welcome proves that the background start takes no focus.
-- `cv stop` ends the run with SIGTERM, which leaves its socket file, `ideator-mcp-<hash>.sock`, in the user's
-  temporary folder. The next run on that folder replaces it.
+- The welcome card of a background start comes to the front with `orderFrontRegardless` and does not activate
+  Ideator, so the frontmost app stays the same in `mcp-welcome` too. Frontmost alone proves little: macOS can
+  refuse activation even to a foreground start. What tells the two apart is a press on Continue: in a foreground
+  run (`cv launch --welcome`) Ideator is frontmost within about 60 ms of it, and a background run stays behind.
+- `cv stop` ends the run with SIGTERM, and the app removes its socket file, `ideator-mcp-<hash>.sock`, in the
+  user's temporary folder before it ends. Only SIGKILL leaves the file, which the next run on that folder replaces.
+- `mcp-isolation` names the folder as given; a helper given the same folder with `/private` in front, or in other
+  letter case, reaches the same run.
+- A first failed save (`chmod 555` the run's folder) answers the call at once with the "don't add it again" error,
+  and the "Ideator can't save your notes" alert comes after it.
 - Not verified here: the three AI tools themselves, Gatekeeper on a downloaded build, and a normal (not scratch)
   run.

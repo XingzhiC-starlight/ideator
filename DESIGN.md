@@ -130,7 +130,8 @@ func send(_ command: Command) {
   whether the user is typing in the stacked card (Ideator active and the stack's editor first
   responder), sends `Command.addFromTool` with it, and replies only after `flush()` saved the card.
   So where the card lands is a pure rule in `Desk.apply`, which the desk check explores. Before
-  the notes open, `HeldCards` keeps the card and its reply until Continue, for 40 seconds at most.
+  the notes open, `HeldCards` keeps the card and its reply until Continue, for 40 seconds at most
+  from the AI tool's call.
 - **Derived, idempotent side effects.** `render()` compares the desk with the real windows,
   `Library.save` with the disk, and `Summarizer.sync` with the requests in flight. Each is safe
   to run any number of times.
@@ -538,8 +539,12 @@ Later changes, after trying the app:
     binding itself suggests for sockets. "Is Ideator running?" is whether the socket answers, never a
     process or bundle-id lookup, since the owner's Ideator shares the bundle id. A normal run listens
     on `ideator-mcp.sock` and a scratch run on `ideator-mcp-<16 hex digits of its folder>.sock`, so a
-    helper reaches only the run its `-CardsFolder` names. A file left by a killed run is replaced when
-    nothing answers on it, and `close` removes only the file this instance made. Rejected: an XPC Mach
+    helper reaches only the run its `-CardsFolder` names. The digits hash the folder's `realpath` (the
+    part that exists), since the app opens the folder by the path it is given and the file system
+    follows links and ignores case: `/tmp/x` and `/private/tmp/x` are one run. A file left by a killed
+    run is replaced when nothing answers on it, and `close` removes only the file this instance made.
+    SIGTERM removes it too, from a signal source off the main thread, then ends the process as the
+    signal would. Rejected: an XPC Mach
     service, which needs a launchd job (`SMAppService`), one name per bundle, and none for a scratch
     run; `CFMessagePort`, whose reply must come back inside the callback on the main thread, so it
     cannot wait for Continue; loopback TCP, open to every local user and needing a port to be found;
@@ -557,9 +562,20 @@ Later changes, after trying the app:
     at most, then answers "press Continue" and drops it. Codex and the MCP TypeScript SDK give up on
     a call after 60 seconds, and a card saved after the tool gave up would be added again when the
     tool retries. The app keeps the deadline, not the helper, so the answer and the save cannot
-    disagree; a Documents prompt that holds the main thread past it still refuses.
+    disagree; a Documents prompt that holds the main thread past it still refuses. The helper sends
+    how much of the 40 seconds the launch left (`waitMs`), so the bound holds from the call, and the
+    app holds each card on a strict dispatch timer with 10 ms of leeway. Before, a `Task.sleep` of
+    40 s started when the card reached the app, after the launch, with the system's default leeway,
+    and a verifier measured the answer 42.8 s after the call. The helper's own wait for an answer
+    ends 50 s after the call, longer than the welcome wait, and says the card may still be saved.
+  - A first failed save alerts after the reply, on the next turn of the main queue: the alert is
+    modal, and an AI tool that waits for it gives up and adds the card again.
+  - MCP 2026-07-28 caching hints: `server/discover` and `tools/list` say `ttlMs: 0`, since the
+    instructions are the user's to edit and an update changes the tool, and a local helper is cheap
+    to ask again; `cacheScope` is `private` for the instructions and `public` for the tool list.
   - `package.sh` checks the helper's signature, runtime, team and slices, and its launch check hands
-    the scratch run a card through the shipped helper and reads the saved file.
+    the scratch run a card through the shipped helper and reads the saved file. The check opens a
+    real window, so it takes the live-UI lock, waiting up to 30 minutes for it.
 
 ## Tradeoffs accepted
 
