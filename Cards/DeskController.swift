@@ -176,7 +176,7 @@ final class DeskController {
     }
 
     private func makeCardWindow(_ id: CardID) -> CardWindow {
-        let window = CardWindow(id: id, send: { [unowned self] in self.send($0) }, drag: windowDrag(.card(id)))
+        let window = CardWindow(send: { [unowned self] in self.send($0) }, drag: windowDrag(.card(id)))
         cardWindows[id] = window
         return window
     }

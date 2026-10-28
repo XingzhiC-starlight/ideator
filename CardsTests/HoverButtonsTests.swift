@@ -25,7 +25,7 @@ final class HoverButtonsTests: XCTestCase {
     }
 
     private func homes(send: @escaping (Command) -> Void = { _ in }) -> [Home] {
-        let popped = CardWindow(id: CardID(rawValue: "a"), send: send, drag: noDrag)
+        let popped = CardWindow(send: send, drag: noDrag)
         let stack = StackWindow(send: send, menu: { NSMenu() }, toggleHidden: {}, drag: noDrag)
         return [
             Home(name: "popped", window: popped, place: { popped.apply($0, frame: $1) },
