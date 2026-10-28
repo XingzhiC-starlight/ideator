@@ -44,8 +44,9 @@ struct MCPServer {
             return nil   // a notification, or a response to a request this server never sends
         }
         // JSON's true and false also arrive as NSNumber.
-        guard id is String || (id as? NSNumber).map({ CFGetTypeID($0) != CFBooleanGetTypeID() }) == true else {
-            return encode(id: nil, failure: Failure(code: -32600, message: "Invalid request: the id must be a string or a number"))
+        let integer = (id as? NSNumber).map { CFGetTypeID($0) != CFBooleanGetTypeID() && $0.doubleValue.rounded() == $0.doubleValue }
+        guard id is String || integer == true else {
+            return encode(id: nil, failure: Failure(code: -32600, message: "Invalid request: the id must be a string or an integer"))
         }
         let params = request["params"] as? [String: Any] ?? [:]
         do {
