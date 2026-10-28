@@ -166,7 +166,7 @@ with a fresh preferences domain and `-CardsFolder` naming a temporary notes fold
 | up to date | lists N | Check Now says "You're up to date!", no disk image requested |
 | forged feed | N+1, signed by another key | Check Now says "The update feed is improperly signed", no disk image requested |
 | forged disk image | N+1, one byte of the disk image flipped after signing | Check Now offers it, Install Update downloads it, then "The update is improperly signed", N stays |
-| real update | N+1 | the check Sparkle makes at launch offers it with no click, then Install Update, Install and Relaunch, a new process running N+1 with the shipped code, and a Check Now that finds nothing |
+| real update | N+1 | the check Sparkle makes at launch offers it with no click; if it has not within 30 seconds, Check Now does, and the `PASS` line names which one offered it. Then Install Update, Install and Relaunch, a new process running N+1 with the shipped code, and a Check Now that finds nothing |
 
 It prints a `PASS` line per phase, then one for the owner: `/Applications/Ideator.app`, the
 `com.systemlabs.Ideator` preferences, the running Ideator processes and `~/Documents/Ideator` are
