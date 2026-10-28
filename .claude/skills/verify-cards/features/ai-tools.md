@@ -94,7 +94,7 @@ under the run's evidence folder.
   refuse activation even to a foreground start. What tells the two apart is a press on Continue: in a foreground
   run (`cv launch --welcome`) Ideator is frontmost within about 60 ms of it, and a background run stays behind.
 - `cv stop` ends the run with SIGTERM, and the app removes its socket file, `ideator-mcp-<hash>.sock`, in the
-  user's temporary folder before it ends. Only SIGKILL leaves the file, which the next run on that folder replaces.
+  user's temporary folder before it ends. SIGINT, SIGHUP, SIGKILL and a crash leave the file (the handler covers SIGTERM only); the next run that finds nothing answering on it replaces it.
 - `mcp-isolation` names the folder as given; a helper given the same folder with `/private` in front, or in other
   letter case, reaches the same run.
 - A first failed save (`chmod 555` the run's folder) answers the call at once with the "don't add it again" error,

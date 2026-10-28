@@ -128,7 +128,7 @@ func send(_ command: Command) {
   and hands it over a Unix socket; the app parses the line again with the same `AddCard.parse`,
   since any process of the user can connect. `DeskController.add` reads one fact from the windows,
   whether the user is typing in the stacked card (Ideator active and the stack's editor first
-  responder), sends `Command.addFromTool` with it, and replies only after `flush()` saved the card.
+  responder), sends `Command.addFromTool` with it, and replies once `saveNow` has tried to save the card, before any alert about a failed save.
   So where the card lands is a pure rule in `Desk.apply`, which the desk check explores. Before
   the notes open, `HeldCards` keeps the card and its reply until Continue, for 40 seconds at most
   from the AI tool's call.
@@ -568,8 +568,10 @@ Later changes, after trying the app:
     40 s started when the card reached the app, after the launch, with the system's default leeway,
     and a verifier measured the answer 42.8 s after the call. The helper's own wait for an answer
     ends 50 s after the call, longer than the welcome wait, and says the card may still be saved.
-  - A first failed save alerts after the reply, on the next turn of the main queue: the alert is
-    modal, and an AI tool that waits for it gives up and adds the card again.
+  - A first failed save alerts after the reply, from a `CFRunLoopPerformBlock` block on the main run
+    loop, not the main queue: the alert is modal, and an AI tool that waits for it gives up and adds
+    the card again. A modal loop started from a main-queue block held every later main-queue item,
+    so a second card waited for OK.
   - MCP 2026-07-28 caching hints: `server/discover` and `tools/list` say `ttlMs: 0`, since the
     instructions are the user's to edit and an update changes the tool, and a local helper is cheap
     to ask again; `cacheScope` is `private` for the instructions and `public` for the tool list.
