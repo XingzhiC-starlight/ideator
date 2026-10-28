@@ -279,10 +279,14 @@ service "Cards". Ideator does not read either: quit Cards, move the files (inclu
 | Select a stacked card | Swipe left or right with two fingers on the stack, or click the thin band along its edge: right/bottom = next, left/top = previous |
 | Edit a stacked card | Click into it on the stack; it edits like any other card |
 | Bring a card out | Select it, hover it and click **↗ Pop** |
-| Move a card | Drag it by its title; it snaps to the nearest cell and swaps with whatever is there, or stays where you let go, even partly off the left, right or bottom edge |
+| Move a card | Drag it by its title or by the margin around its text. Let go close to a cell's center (within 15 % of a cell) and it snaps into that cell, and a card or the stack snapped there trades places with it; let go anywhere else and it stays exactly there, over other cards, even partly off the left, right or bottom edge |
 | Put a card back | Hover it and click **↩ Stack** |
+| Reorder the stack | Click the count badge in the stack's corner, then drag a card's row by its grip (≡), or select a row and press ⌥↑ or ⌥↓ |
 | Collapse to a summary | Hover a card and click the collapse button, or use **Clarity** on the stack for every card (its text turns reddish brown while on) |
-| Format | ⌘B, ⌘I, or start a line with `- `, `1. ` or `[] `; the bar at the bottom of the card has the same five actions |
+| Hide every card | Click the eye on the stack's ribbon, press ⌃⌥I, or choose **Hide All** from the menu bar icon; the stack shrinks to its ribbon, and the same again shows everything |
+| Format | ⌘B, ⌘I, or start a line with `- `, `* `, `1. `, `[] ` or `[ ] `; the bar at the bottom of the card has the same five actions |
+| Nest a list item | **Tab** moves it one level deeper, up to three levels, and **Shift-Tab** one level up |
+| Copy and paste | ⌘C copies the selected lines as Markdown and as an HTML list, so Notes, Mail and Markdown apps paste a list; ⌘V reads lists from Notes, web pages, the Claude app and terminal output |
 
 The stack is a loop with one blank page after the last card. Swiping past the last card shows the
 blank page, and swiping once more shows the top card again. Typing on the blank page makes a new
