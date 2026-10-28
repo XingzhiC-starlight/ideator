@@ -28,10 +28,14 @@ final class AIToolsTests: XCTestCase {
         try? FileManager.default.removeItem(at: folder)
     }
 
+    /// Runs while an alert is up, inside the modal loop `present` stands in for.
+    private var whileAlertIsUp: () -> Void = {}
+
     private func makeController() -> DeskController {
         let controller = DeskController(library: Library(folder: folder), keys: KeyStore(inKeychain: false), appMenu: { NSMenu() },
                                         present: { [self] alert in
                                             alerts.append(alert.messageText)
+                                            whileAlertIsUp()
                                             return .alertFirstButtonReturn
                                         },
                                         pointer: { NSPoint(x: -10_000, y: -10_000) })
@@ -86,6 +90,32 @@ final class AIToolsTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
         XCTAssertTrue(controller.flush())
         XCTAssertEqual(Array(try files().values), ["# Buy milk\n"], "saved once the folder lets it, and only once")
+    }
+
+    /// The alert is modal: while it is up, the main thread runs only a modal loop. A card that arrives
+    /// then must still be saved and answered, not wait for the user to dismiss the alert.
+    func testACardThatArrivesWhileTheSaveAlertIsUpIsAnswered() async throws {
+        let controller = makeController()
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+        XCTAssertTrue(controller.add(try card("Refused"), landing: .top).isError)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+
+        var second: ToolReply?
+        var answeredWhileUp = false
+        let next = try card("Next")
+        whileAlertIsUp = {
+            Task { @MainActor in second = controller.add(next, landing: .top) }
+            let deadline = Date().addingTimeInterval(3)
+            while second == nil, Date() < deadline { RunLoop.current.run(mode: .modalPanel, before: Date().addingTimeInterval(0.05)) }
+            answeredWhileUp = second != nil
+        }
+
+        let deadline = Date().addingTimeInterval(10)
+        while alerts.isEmpty || second == nil, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(alerts, ["Ideator can't save your notes"])
+        XCTAssertTrue(answeredWhileUp, "the second card is answered while the alert is still up")
+        XCTAssertEqual(second, .done("Added \"Next\" to the top of the stack."))
+        XCTAssertEqual(Set(try files().values), ["# Refused\n", "# Next\n"], "both saved, each once")
     }
 
     func testTheRepliesSayWhatTheSpecSays() {
