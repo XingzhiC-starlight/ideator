@@ -39,7 +39,8 @@ Preconditions:
   id with `"slot" : 0`, and `stack` still lists `seed-a`, `seed-b`.
 - **Blank page.** Show the blank page and type on it. Run `cv ax click stack 0.015 0.6` (previous
   from the top card wraps to the blank page). `cv ax text stack` prints `""` and the tree has no
-  `↗ Pop`, since the blank page has no card buttons. Run `cv ax focus stack`, then `cv ax type 'Gamma card\ngamma body'`.
+  `↗ Pop`, since the blank page has no card buttons (it still lists the formatting bar's five).
+  Run `cv ax focus stack`, then `cv ax type 'Gamma card\ngamma body'`.
   `cv ax text stack` prints `"Gamma card\ngamma body"` and the badge, `AXButton "2"` in `cv ax tree`,
   goes to `AXButton "3"`.
 - **Blank page saved.** Wait 1.5 s and run `cv files create-blank-page`. A new `.md` holds
