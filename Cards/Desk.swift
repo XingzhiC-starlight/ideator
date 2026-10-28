@@ -193,7 +193,7 @@ struct Desk: Equatable {
 
         func place(slot: Int?, free: GridPoint?) -> Place? {
             if let free { return .free(free) }
-            return slot.flatMap(Slot.init(index:)).map(Place.slot)
+            return slot.flatMap { Slot(index: $0) }.map(Place.slot)
         }
         let stackPlace = place(slot: saved.stackSlot, free: saved.stackFree) ?? .slot(Slot.stackHome)
         var snapped: Set<Slot> = if case .slot(let slot) = stackPlace { [slot] } else { [] }
