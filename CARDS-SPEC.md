@@ -54,7 +54,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - "↩ Stack" button returns a card to the top of the stack. It forgets where the card was; a later Pop takes the first free slot.
 
 ## Moving cards and the stack (new 2026-10-22)
-- Drag a card by its header, or the stack by its ribbon's empty space.
+- Drag a card, expanded or collapsed, by its header or by the margin around its text, or the stack by its ribbon's empty space (revised 2026-10-27).
 - While dragging, a guide outlines the slot nearest the dragged card's center: faint and dashed while a drop would stay free, solid and filled in once a drop would snap.
 - On release it snaps to that slot if its center is within 15% of a cell (in cell widths and heights) of the slot's center. Otherwise it stays exactly where it was dropped.
 - Snapping onto a slot held by another snapped card or the stack swaps them: the occupant goes to the dragged one's old place, a slot or an exact free spot. Free cards that only overlap the slot stay put.
@@ -66,7 +66,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 
 ## Switching stacked cards (stack only; revised 2026-10-22)
 - Purpose: show the cards hidden under the stack.
-- The stack is a loop. Next sends the selected card to the bottom and shows the one under it; previous brings the bottom card back up.
+- The stack is a loop. Next shows the card under the selected one, and previous the card above it. Flipping never changes the stack's order (revised 2026-10-27).
 - The loop always holds one blank page, after the last card and before the first.
 - Two-finger horizontal swipe on the stack: one card per swipe, next or previous following the system scroll direction. Vertical scroll scrolls the selected card's text.
 - Edge bands stay as a click alternative: an invisible band = 5% of the stack's width/height along all four edges. Right/bottom = next, left/top = previous. On hover the band tints faintly and shows ‹ or ›. Popped cards have no bands.
@@ -94,7 +94,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Applies to popped cards and to the selected stacked card alike.
 - First line (first paragraph) is automatically the bold level-1 header, regardless of formatting.
 - Body formatting: bold, italic, bullet list, numbered list, checkboxes, and list items nested up to three levels (see Nested lists). Nothing else (revised 2026-10-23).
-- Apply via ⌘B / ⌘I; typing `- `, `1. `, `[] ` starts lists; Enter continues a list, Enter on an empty top-level item ends it.
+- Apply via ⌘B / ⌘I; typing `- ` or `* ` (bullet), `1. ` with any number (numbered), or `[] ` or `[ ] ` (checkbox) starts lists (revised 2026-10-27); Enter continues a list, Enter on an empty top-level item ends it.
 - Undo gives back text exactly, bold and italic included, also after an edit that joined a body line into the header (added 2026-10-27).
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
