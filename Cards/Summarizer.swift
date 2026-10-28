@@ -22,9 +22,12 @@ final class Summarizer {
         let task: Task<Void, Never>
     }
 
-    /// `summarize` is the request itself, given the key it is sent with; tests answer it by hand.
+    /// `summarize` is the request itself, given the key it is sent with, which also says which
+    /// company it goes to; tests answer it by hand.
     init(apiKey: @escaping () -> String?, deliver: @escaping (CardID, Summary) -> Void,
-         summarize: @escaping (Note, String) async -> Summary.Outcome = Anthropic.summarize) {
+         summarize: @escaping (Note, String) async -> Summary.Outcome = { note, key in
+             await Provider(key: key).summarize(note, apiKey: key)
+         }) {
         self.apiKey = apiKey
         self.deliver = deliver
         self.summarize = summarize
@@ -64,42 +67,76 @@ final class Summarizer {
     }
 }
 
-/// The one Anthropic call: Messages API over URLSession, no SDK. Wire types are private; the
-/// only things that cross this boundary are a `Note` in and a `Summary.Outcome` out.
+/// Whose key it is. A key that starts with `sk-ant-` is Anthropic's and any other key is
+/// OpenAI's: this is the one place that reads a key's start. The only things that cross this
+/// boundary are a `Note` in and a `Summary.Outcome` out; the wire formats are `Anthropic` and
+/// `OpenAI`.
+enum Provider: Equatable {
+    case anthropic, openAI
+
+    init(key: String) {
+        self = key.hasPrefix("sk-ant-") ? .anthropic : .openAI
+    }
+
+    var name: String {
+        switch self {
+        case .anthropic: "Anthropic"
+        case .openAI: "OpenAI"
+        }
+    }
+
+    func request(for note: Note, apiKey: String) throws -> URLRequest {
+        switch self {
+        case .anthropic: try Anthropic.request(for: note, apiKey: apiKey)
+        case .openAI: try OpenAI.request(for: note, apiKey: apiKey)
+        }
+    }
+
+    func outcome(status: Int, data: Data) -> Summary.Outcome {
+        switch self {
+        case .anthropic: Anthropic.outcome(status: status, data: data)
+        case .openAI: OpenAI.outcome(status: status, data: data)
+        }
+    }
+
+    /// Never throws: every failure becomes `.failed(reason:)`, whose reason is the hover text
+    /// under "Summary unavailable".
+    func summarize(_ note: Note, apiKey: String) async -> Summary.Outcome {
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request(for: note, apiKey: apiKey))
+            return outcome(status: (response as? HTTPURLResponse)?.statusCode ?? 0, data: data)
+        } catch {
+            return .failed(reason: error.localizedDescription)
+        }
+    }
+}
+
 enum Anthropic {
     static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     static let model = "claude-haiku-5-5"
 
-    /// Never throws: every failure becomes `.failed(reason:)`, whose reason is the hover text
-    /// under "Summary unavailable".
-    ///
     /// Haiku 5.5 thinks adaptively by default and thinking counts toward `max_tokens`, so the cap
-    /// leaves room for it and `effort: "low"` keeps it short. The answer is read from the `text`
-    /// blocks by type, never as `content[0]`, because a response can begin with `thinking` blocks.
-    static func summarize(_ note: Note, apiKey: String) async -> Summary.Outcome {
+    /// leaves room for it and `effort: "low"` keeps it short.
+    static func request(for note: Note, apiKey: String) throws -> URLRequest {
         var request = URLRequest(url: endpoint, timeoutInterval: 30)
         request.httpMethod = "POST"
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        let body = RequestBody(model: model, max_tokens: 1024, output_config: .init(effort: "low"),
-                               system: Summary.instructions,
-                               messages: [.init(role: "user", content: note.plainText)])
+        request.httpBody = try JSONEncoder().encode(RequestBody(
+            model: model, max_tokens: 1024, output_config: .init(effort: "low"), system: Summary.instructions,
+            messages: [.init(role: "user", content: note.plainText)]))
+        return request
+    }
+
+    /// The answer is read from the `text` blocks by type, never as `content[0]`, because a
+    /// response can begin with `thinking` blocks.
+    static func outcome(status: Int, data: Data) -> Summary.Outcome {
+        guard (200..<300).contains(status) else { return httpFailure(status: status, data: data) }
         do {
-            request.httpBody = try JSONEncoder().encode(body)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(status) else {
-                let message = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error.message
-                return .failed(reason: "HTTP \(status): \(message ?? "request failed")")
-            }
             let reply = try JSONDecoder().decode(Reply.self, from: data)
-            if reply.stop_reason == "refusal" {
-                return .failed(reason: "The model declined to summarize this card.")
-            }
-            let text = reply.content.filter { $0.type == "text" }.compactMap(\.text).joined()
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? .failed(reason: "The response had no text.") : .text(text)
+            if reply.stop_reason == "refusal" { return declined }
+            return summary(from: reply.content.filter { $0.type == "text" }.compactMap(\.text).joined())
         } catch {
             return .failed(reason: error.localizedDescription)
         }
@@ -130,12 +167,103 @@ enum Anthropic {
             let text: String?
         }
     }
+}
 
-    private struct ErrorBody: Decodable {
-        let error: Detail
+/// Request and reply shapes: https://developers.openai.com/api/reference/resources/responses/methods/create
+enum OpenAI {
+    static let endpoint = URL(string: "https://api.openai.com/v1/responses")!
+    static let model = "gpt-6-luna"
 
-        struct Detail: Decodable {
-            let message: String
+    /// `gpt-6-luna` reasons, and reasoning tokens count toward `max_output_tokens`, so the cap
+    /// leaves room for them and `effort: "low"` keeps them few. `temperature` and `top_p` are left
+    /// out because a reasoning model may refuse them. `store: false` because OpenAI keeps a stored
+    /// response for 30 days and the app never reads one back.
+    static func request(for note: Note, apiKey: String) throws -> URLRequest {
+        var request = URLRequest(url: endpoint, timeoutInterval: 30)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(RequestBody(
+            model: model, instructions: Summary.instructions, input: note.plainText, max_output_tokens: 4096,
+            reasoning: .init(effort: "low"), store: false))
+        return request
+    }
+
+    /// The answer is read from the `output_text` parts of the `message` items by type, never as
+    /// `output[0]`, because the output can begin with a `reasoning` item. A response that stopped
+    /// early is a failure: its text, if any, is a summary cut short.
+    static func outcome(status: Int, data: Data) -> Summary.Outcome {
+        guard (200..<300).contains(status) else { return httpFailure(status: status, data: data) }
+        do {
+            let reply = try JSONDecoder().decode(Reply.self, from: data)
+            if reply.status == "failed" { return .failed(reason: reply.error?.message ?? "The request failed.") }
+            if reply.status == "incomplete" {
+                return .failed(reason: "The response was cut off" + (reply.incomplete_details?.reason.map { " (\($0))" } ?? "") + ".")
+            }
+            let parts = (reply.output ?? []).flatMap(\.content)
+            if parts.contains(where: { $0.type == "refusal" }) { return declined }
+            return summary(from: parts.filter { $0.type == "output_text" }.compactMap(\.text).joined())
+        } catch {
+            return .failed(reason: error.localizedDescription)
         }
     }
+
+    // Wire types, matching the JSON field for field.
+
+    private struct RequestBody: Encodable {
+        let model: String
+        let instructions: String
+        let input: String
+        let max_output_tokens: Int
+        let reasoning: Reasoning
+        let store: Bool
+
+        struct Reasoning: Encodable { let effort: String }
+    }
+
+    private struct Reply: Decodable {
+        let status: String?
+        let incomplete_details: Incomplete?
+        let error: Failure?
+        let output: [Item]?
+
+        struct Incomplete: Decodable { let reason: String? }
+        struct Failure: Decodable { let message: String? }
+
+        /// Only a `message` item has parts worth reading; the other item types differ in shape.
+        struct Item: Decodable {
+            let content: [Part]
+
+            private enum Keys: String, CodingKey { case type, content }
+
+            init(from decoder: Decoder) throws {
+                let keys = try decoder.container(keyedBy: Keys.self)
+                let isMessage = try keys.decode(String.self, forKey: .type) == "message"
+                content = isMessage ? try keys.decode([Part].self, forKey: .content) : []
+            }
+        }
+
+        struct Part: Decodable {
+            let type: String
+            let text: String?
+        }
+    }
+}
+
+private let declined = Summary.Outcome.failed(reason: "The model declined to summarize this card.")
+
+private func summary(from text: String) -> Summary.Outcome {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? .failed(reason: "The response had no text.") : .text(trimmed)
+}
+
+/// Both APIs answer a refused request with `{"error": {"message": …}}`.
+private func httpFailure(status: Int, data: Data) -> Summary.Outcome {
+    struct ErrorBody: Decodable {
+        let error: Detail
+
+        struct Detail: Decodable { let message: String }
+    }
+    let message = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error.message
+    return .failed(reason: "HTTP \(status): \(message ?? "request failed")")
 }

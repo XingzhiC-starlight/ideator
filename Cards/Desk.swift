@@ -504,7 +504,7 @@ extension Desk {
     static func summaryFace(of card: Card, hasKey: Bool) -> SummaryFace {
         guard card.note.wantsSummary else { return .body(card.note.shortBody) }
         guard let summary = card.summary, summary.source == card.digest else {
-            return hasKey ? .loading : .unavailable(reason: "No Anthropic API key. Add one in Settings.")
+            return hasKey ? .loading : .unavailable(reason: "No API key. Add one in Settings.")
         }
         switch summary.outcome {
         case .text(let text): return .text(text)

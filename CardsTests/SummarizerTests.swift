@@ -236,7 +236,7 @@ final class ProviderTests: XCTestCase {
 final class OpenAITests: XCTestCase {
     private let note = Note(markdown: "# Trip\n\nflights\nhotel\n")
 
-    private func outcome(_ status: Int = 200, _ body: String) -> Summary.Outcome {
+    private func outcome(_ body: String, status: Int = 200) -> Summary.Outcome {
         OpenAI.outcome(status: status, data: Data(body.utf8))
     }
 
@@ -324,10 +324,10 @@ final class OpenAITests: XCTestCase {
     }
 
     func testAnErrorStatusShowsTheStatusAndTheServersMessage() {
-        let refused = outcome(401, #"{"error":{"message":"Incorrect API key provided: sk-fake.","type":"invalid_request_error","param":null,"code":"invalid_api_key"}}"#)
+        let refused = outcome(#"{"error":{"message":"Incorrect API key provided: sk-fake.","type":"invalid_request_error","param":null,"code":"invalid_api_key"}}"#, status: 401)
         XCTAssertEqual(refused, .failed(reason: "HTTP 401: Incorrect API key provided: sk-fake."))
 
-        XCTAssertEqual(outcome(502, "<html>Bad gateway</html>"), .failed(reason: "HTTP 502: request failed"), "a proxy's page has no JSON")
+        XCTAssertEqual(outcome("<html>Bad gateway</html>", status: 502), .failed(reason: "HTTP 502: request failed"), "a proxy's page has no JSON")
     }
 
     func testABodyThatIsNotAResponseIsAFailureWithAReason() {

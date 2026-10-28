@@ -1,19 +1,22 @@
 import AppKit
 import Security
 
-/// The Anthropic API key. Lives in the login Keychain (generic password, service "Ideator",
-/// account "anthropic-api-key"): never in code, in the card folder, or in user defaults.
-/// Read once at launch and cached; `set` is the only writer.
+/// The API key, an Anthropic key or an OpenAI key. Lives in the login Keychain (generic password,
+/// service "Ideator", account "api-key"): never in code, in the card folder, or in user defaults.
+/// One item holds the last key pasted; the "anthropic-api-key" item that earlier builds wrote is
+/// not read. Read once at launch and cached; `set` is the only writer.
 ///
 /// A scratch run gets `inKeychain: false`: the key lives in memory for that run only, starts empty,
 /// and no Keychain call is ever made, so a verify run can't trigger macOS's access prompt for the
 /// owner's key or touch it.
 class KeyStore {
     private static let service = "Ideator"
-    private static let account = "anthropic-api-key"
+    private static let account = "api-key"
 
     /// nil = no key: the app works fully, it just never requests summaries.
     private(set) var apiKey: String?
+
+    var provider: Provider? { apiKey.map { Provider(key: $0) } }
 
     let inKeychain: Bool
 
@@ -70,13 +73,25 @@ final class SettingsWindow: NSWindow {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
 
-    static let privacy = "With a key saved, Ideator sends a card's text to Anthropic, using your own key, to "
-        + "write its summary, whenever the card has no summary for its text as it is now. It does so, for "
-        + "example, after you change a card, when you save a key, at launch after a failed try, and after an "
-        + "update that changes how Ideator asks for summaries. The key stays in your login Keychain. Once a "
-        + "day, and whenever you click Check Now, Ideator asks GitHub whether a newer version exists. GitHub "
-        + "sees your IP address and which version you have. Nothing else leaves your Mac: no analytics, no "
-        + "crash reports."
+    /// Names the company of the saved key, or both while no key is saved.
+    static func privacy(for provider: Provider?) -> String {
+        let recipient = provider?.name ?? "Anthropic or OpenAI, whichever your key is for"
+        return "With a key saved, Ideator sends a card's text to \(recipient), using your own key, to "
+            + "write its summary, whenever the card has no summary for its text as it is now. It does so, for "
+            + "example, after you change a card, when you save a key, at launch after a failed try, and after an "
+            + "update that changes how Ideator asks for summaries. The key stays in your login Keychain. Once a "
+            + "day, and whenever you click Check Now, Ideator asks GitHub whether a newer version exists. GitHub "
+            + "sees your IP address and which version you have. Nothing else leaves your Mac: no analytics, no "
+            + "crash reports."
+    }
+
+    static func keyStatus(provider: Provider?, inKeychain: Bool) -> String {
+        guard let provider else {
+            return "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
+        }
+        let place = inKeychain ? "is saved in your Keychain" : "is held for this run only"
+        return "An \(provider.name) key \(place). Paste a new one to replace it."
+    }
 
     private let keys: KeyStore
     private let hotKey: HotKey
@@ -87,6 +102,7 @@ final class SettingsWindow: NSWindow {
     private let shortcutNote = NSTextField(wrappingLabelWithString: "")
     private let field = NSSecureTextField()
     private let status = NSTextField(wrappingLabelWithString: "")
+    private let privacyNote = NSTextField(wrappingLabelWithString: "")
     private let autoCheck = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
     private let checkNowButton = NSButton(title: "Check Now", target: nil, action: nil)
     private let stack = NSStackView()
@@ -137,7 +153,7 @@ final class SettingsWindow: NSWindow {
         let shortcutRow = NSStackView(views: [shortcutField, defaultButton])
         shortcutRow.spacing = 8
 
-        field.placeholderString = "sk-ant-…"
+        field.placeholderString = "sk-ant-… or sk-…"
         field.target = self
         field.action = #selector(save)
         let save = NSButton(title: "Save", target: self, action: #selector(save))
@@ -153,9 +169,9 @@ final class SettingsWindow: NSWindow {
         updatesRow.distribution = .equalSpacing
         let updatesNote = NSTextField(wrappingLabelWithString: Self.updatesCaption(build: updates.build, plan: updates.plan))
 
-        for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("Anthropic API key"), field,
+        for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("API key (Anthropic or OpenAI)"), field,
                      caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
-                     heading("Privacy"), caption(NSTextField(wrappingLabelWithString: Self.privacy))] {
+                     heading("Privacy"), caption(privacyNote)] {
             stack.addArrangedSubview(view)
         }
         stack.orientation = .vertical
@@ -194,11 +210,8 @@ final class SettingsWindow: NSWindow {
         shortcutNote.stringValue = Self.shortcutCaption(shortcut: hotKey.shortcut, problem: hotKey.problem,
                                                         usedByMacOS: hotKey.shortcut.isUsedByMacOS(),
                                                         rejected: rejected)
-        status.stringValue = keys.apiKey == nil
-            ? "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
-            : keys.inKeychain
-            ? "A key is saved in your Keychain. Paste a new one to replace it."
-            : "A key is held for this run only. Paste a new one to replace it."
+        status.stringValue = Self.keyStatus(provider: keys.provider, inKeychain: keys.inKeychain)
+        privacyNote.stringValue = Self.privacy(for: keys.provider)
         autoCheck.state = updates.checksAutomatically ? .on : .off
         autoCheck.isEnabled = updates.plan.checks
         checkNowButton.isEnabled = updates.canCheck
