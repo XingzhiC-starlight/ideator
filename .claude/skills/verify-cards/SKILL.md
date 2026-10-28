@@ -154,8 +154,8 @@ cv note "popped Alpha; badge 1 -> 0"
 ```
 
 Everything lands in `build/verify-evidence/<run>/` (`log.txt` has a timestamped line per step,
-every `cv ax` command included, and `app.log` the app's stdout/stderr). That folder survives
-`stop`. Proof standards:
+every `cv ax` command included, though `ax type` logs only how many characters it typed, never
+the text; and `app.log` the app's stdout/stderr). That folder survives `stop`. Proof standards:
 
 - Input from anyone but the helper: each `log.txt` line ends `[hid idle 4.8s; 4.4s since helper
   event]`. Every event the helper posts, keys too, resets the HID idle counter (measured

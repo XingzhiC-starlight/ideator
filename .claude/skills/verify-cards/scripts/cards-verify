@@ -158,6 +158,7 @@ ax() {
   ours || die "pid $PID is not this run's Cards; run: cards-verify doctor"
   local cmd="$1"; shift
   local what="ax $cmd${*:+ $*}"
+  [[ "$cmd" == type ]] && what="ax type <${#1} characters>"
   what="${what//$'\n'/ }"
   log_line "${what:0:80}" >> "$EVIDENCE/log.txt"
   CARDS_AX_STAMP="$EVIDENCE/.helper-event" "$AX" "$cmd" "$PID" "$@"
