@@ -81,7 +81,6 @@ final class BuildTests: XCTestCase {
         let feed = try XCTUnwrap(BuildInfo(info: release()).feed)
 
         XCTAssertEqual(feed.url.absoluteString, production)
-        XCTAssertEqual(feed.publicKey, releaseKey)
     }
 
     func testAFeedWithoutAURLOrAUsableKeyIsNoFeed() {
@@ -158,7 +157,7 @@ final class BuildTests: XCTestCase {
         let feed = try XCTUnwrap(BuildInfo.current.feed, "the plist's SUFeedURL and SUPublicEDKey parse")
 
         XCTAssertEqual(feed.url.absoluteString, production)
-        XCTAssertEqual(feed.publicKey, releaseKey)
+        XCTAssertEqual(plist["SUPublicEDKey"] as? String, releaseKey)
         XCTAssertNil(plist["IdeatorUpdateTest"])
         XCTAssertFalse(BuildInfo.current.isUpdateTest)
     }

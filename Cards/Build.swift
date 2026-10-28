@@ -32,10 +32,10 @@ struct BuildInfo: Equatable {
 
     struct Feed: Equatable {
         let url: URL
-        let publicKey: String
 
         /// Strict: https, or plain http to this Mac in an update-test build only, so a misbuilt
-        /// release can never check over plain http. The key is a base64 Ed25519 public key.
+        /// release can never check over plain http. The key must be a base64 Ed25519 public key;
+        /// Sparkle reads it from the plist itself.
         init?(url: String?, publicKey: String?, isUpdateTest: Bool) {
             guard let url, let parsed = URL(string: url), let host = parsed.host(), !host.isEmpty,
                   let publicKey, Data(base64Encoded: publicKey)?.count == 32 else { return nil }
@@ -45,7 +45,6 @@ struct BuildInfo: Equatable {
             default: return nil
             }
             self.url = parsed
-            self.publicKey = publicKey
         }
     }
 
