@@ -195,10 +195,16 @@ func checks(for sample: Sample, note: Note, summary: String) -> [Check] {
 
     let title = fold(note.header)
     let summaryKey = fold(summary)
-    if title.count >= (cardLanguage.isCJK ? 3 : 5) {
-        let restates = summaryKey == title || summaryKey.hasPrefix(title)
-        result.append(Check(rule: "does not restate the title", passed: !restates,
-                            detail: restates ? "starts with the title “\(note.header)”" : ""))
+    if !title.isEmpty {
+        let titleShare = summaryKey.contains(title) ? Double(title.count) / Double(summaryKey.count) : 0
+        result.append(Check(rule: "does not restate the title", passed: titleShare < 0.6,
+                            detail: titleShare < 0.6 ? "" : "the title “\(note.header)” is \(Int(titleShare * 100))% of the summary"))
+        let opening = summary.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let head = note.header.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let afterTitle = opening.hasPrefix(head) ? opening.dropFirst(head.count).drop { $0 == " " }.first : nil
+        let opensWithTitle = !head.isEmpty && opening.hasPrefix(head) && (afterTitle == nil || ":：,，;；.。-–—·、!！".contains(afterTitle!))
+        result.append(Check(rule: "does not open with the title as a heading", passed: !opensWithTitle,
+                            detail: opensWithTitle ? "starts with “\(note.header)” and a separator" : "", heuristic: true))
     }
 
     let open = note.body.compactMap { line -> String? in
@@ -211,13 +217,20 @@ func checks(for sample: Sample, note: Note, summary: String) -> [Check] {
         let missing = open.filter { item in !units(of: item).contains { fold(summary).contains($0) || summary.lowercased().contains($0) } }
         result.append(Check(rule: "to-do list names every unchecked item", passed: missing.isEmpty,
                             detail: missing.isEmpty ? "" : "missing: \(missing.joined(separator: ", "))"))
-        let openText = open.map { fold($0) }.joined(separator: " ")
-        let named = done.filter { item in
-            units(of: item).filter { !openText.contains($0) && !open.joined(separator: " ").lowercased().contains($0) }
-                .contains { fold(summary).contains($0) || summary.lowercased().contains($0) }
+        let openKeys = open.map(fold)
+        let namedWhole = done.filter { item in
+            let key = fold(item)
+            return key.count >= (Language(of: item).isCJK ? 3 : 5) && !openKeys.contains { $0.contains(key) } && summaryKey.contains(key)
         }
-        result.append(Check(rule: "to-do list names no checked item", passed: named.isEmpty,
-                            detail: named.isEmpty ? "" : "names: \(named.joined(separator: ", "))"))
+        result.append(Check(rule: "to-do list names no checked item", passed: namedWhole.isEmpty,
+                            detail: namedWhole.isEmpty ? "" : "names: \(namedWhole.joined(separator: ", "))"))
+        let openText = openKeys.joined(separator: " ")
+        let namedWords = done.filter { item in
+            units(of: item).filter { !openText.contains($0) && !open.joined(separator: " ").lowercased().contains($0) }
+                .contains { summaryKey.contains($0) || summary.lowercased().contains($0) }
+        }
+        result.append(Check(rule: "to-do list shares no word with a checked item", passed: namedWords.isEmpty,
+                            detail: namedWords.isEmpty ? "" : "shares words with: \(namedWords.joined(separator: ", "))", heuristic: true))
         if !done.isEmpty {
             result.append(Check(rule: "to-do list gives the count done (\(done.count))", passed: mentionsCount(done.count, in: summary),
                                 detail: ""))
@@ -324,7 +337,7 @@ guard !keys.isEmpty else {
     exit(2)
 }
 
-var cards = 0, rules = 0, failedRules = 0, failedRequests = 0
+var cards = 0, rules = 0, failedRules = 0, warnings = 0, failedRequests = 0
 for key in keys {
     let provider = Provider(key: key)
     print("==== \(provider.name): \(samples.count) sample cards ====\n")
@@ -342,15 +355,16 @@ for key in keys {
             print("Summary: \(summary)")
             for check in checks(for: sample, note: note, summary: summary) {
                 rules += 1
-                if !check.passed { failedRules += 1 }
-                print("  \(check.passed ? "PASS" : "FAIL")  \(check.rule)\(check.heuristic ? " (heuristic)" : "")\(check.detail.isEmpty ? "" : ": \(check.detail)")")
+                if !check.passed { if check.heuristic { warnings += 1 } else { failedRules += 1 } }
+                let verdict = check.passed ? "PASS" : check.heuristic ? "WARN" : "FAIL"
+                print("  \(verdict)  \(check.rule)\(check.heuristic ? " (heuristic)" : "")\(check.detail.isEmpty ? "" : ": \(check.detail)")")
             }
             print()
         }
     }
 }
 
-print("TOTAL: \(cards) cards, \(failedRequests) requests failed, \(rules) rule checks, \(failedRules) failed")
+print("TOTAL: \(cards) cards, \(failedRequests) requests failed, \(rules) rule checks, \(failedRules) failed, \(warnings) heuristic warnings")
 if failedRequests > 0 {
     print("A request failed, so its rules were not checked. The reason is above; HTTP 401 means the key is wrong or has no access to the model.")
 }
@@ -363,7 +377,9 @@ if failedRules > 0 {
           2. Run this script again.
           3. Because Desk.swift changed, run .claude/skills/check-desk-invariants/run.sh, then --mutants,
              then --reviewed, and commit the new reviewed.sha256.
-        A (heuristic) rule can fail on a good summary; read the summary and decide.
         """)
+}
+if warnings > 0 {
+    print("\nA WARN is a (heuristic) rule that can fire on a good summary. It does not fail the run: read the summary and decide.")
 }
 exit(failedRules == 0 && failedRequests == 0 ? 0 : 1)

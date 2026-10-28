@@ -127,6 +127,7 @@ The script sends fourteen sample cards (English, Chinese and Japanese: to-do lis
 notes, links, a nested plan, thin cards) through the app's own request, using the key in
 `$OPENAI_API_KEY` or one pasted at a hidden prompt, and checks each summary against the rules in
 CARDS-SPEC.md § AI summaries that a program can check. `--anthropic` also runs the Anthropic request.
+A rule marked (heuristic) can fire on a good summary, so it prints WARN and does not fail the run.
 The key is never an argument and is never printed or stored. The cards are in
 `scripts/check-summaries/main.swift`; none of yours are sent. When a rule fails, edit `Summary.instructions`
 in `Cards/Desk.swift`, the one prompt for both companies, and run the script again.

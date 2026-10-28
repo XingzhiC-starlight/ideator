@@ -9,7 +9,8 @@
 #   The OpenAI key is read from $OPENAI_API_KEY, else from a hidden prompt. It is never an
 #   argument and is never printed or stored. --anthropic also runs the Anthropic request, key from
 #   $ANTHROPIC_API_KEY or a second hidden prompt, to compare.
-# Exit status: 0 when every request worked and every rule passed, 1 when not, 2 without a key.
+# Exit status: 0 when every request worked and every hard rule passed (heuristic warnings do not
+#   count), 1 when not, 2 without a key.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
