@@ -121,19 +121,24 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private var connectButtons: [(tool: AITool, button: NSButton)] = []
     private var copied: AITool?
     private let stack = NSStackView()
+    private let document = FlippedView()
+    private let maxContentHeight: CGFloat?
     private var rejected: String?
     private var releasedForRecording = false
 
+    /// The window is as tall as its rows, and scrolls where the screen has less room. `maxContentHeight`
+    /// replaces the screen's room, for a test.
     init(keys: KeyStore, hotKey: HotKey, updates: Updates,
          aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
          connect: HelperCommand = HelperCommand(app: Bundle.main.bundleURL, scratchFolder: nil),
-         pasteboard: NSPasteboard = .general, onChange: @escaping () -> Void) {
+         pasteboard: NSPasteboard = .general, maxContentHeight: CGFloat? = nil, onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
         self.updates = updates
         self.aiTools = aiTools
         self.connect = connect
         self.pasteboard = pasteboard
+        self.maxContentHeight = maxContentHeight
         self.onChange = onChange
         super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -211,7 +216,7 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         editor.autoresizingMask = .width
         editor.textContainer?.widthTracksTextView = true
         editor.textContainerInset = NSSize(width: 2, height: 4)
-        editor.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        editor.font = .systemFont(ofSize: NSFont.systemFontSize)
         editor.drawsBackground = false
         editor.isRichText = false
         editor.allowsUndo = true
@@ -254,7 +259,11 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         stack.setCustomSpacing(18, after: buttons)
         stack.setCustomSpacing(18, after: updatesNote)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        document.addSubview(stack)
         NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: document.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor),
             stack.widthAnchor.constraint(equalToConstant: Self.width),
             field.widthAnchor.constraint(equalToConstant: Self.inner),
             buttons.trailingAnchor.constraint(equalTo: field.trailingAnchor),
@@ -262,7 +271,12 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
             editorScroll.widthAnchor.constraint(equalToConstant: Self.inner),
             editorScroll.heightAnchor.constraint(equalToConstant: Self.editorHeight),
         ])
-        contentView = stack
+        let scroll = NSScrollView()
+        scroll.documentView = document
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        contentView = scroll
         refresh()
     }
 
@@ -299,10 +313,19 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
         for (tool, button) in connectButtons { button.title = copied == tool ? "Copied" : tool.name }
         connectNote.stringValue = copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
-        contentView?.layoutSubtreeIfNeeded()
+        stack.layoutSubtreeIfNeeded()
+        let rows = stack.fittingSize.height
+        document.setFrameSize(NSSize(width: Self.width, height: rows))
         let top = frame.maxY
-        setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))
+        setContentSize(NSSize(width: Self.width, height: min(rows, roomForContent)))
         setFrameTopLeftPoint(NSPoint(x: frame.minX, y: top))
+    }
+
+    /// What the screen the window is on has left below its title bar, with a margin.
+    private var roomForContent: CGFloat {
+        if let maxContentHeight { return maxContentHeight }
+        guard let visible = (screen ?? NSScreen.main)?.visibleFrame else { return .greatestFiniteMagnitude }
+        return visible.height - (frame.height - contentRect(forFrameRect: frame).height) - 24
     }
 
     static func shortcutCaption(shortcut: Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
@@ -396,6 +419,11 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         if keys.set(nil) { onChange() } else { NSSound.beep() }
         refresh()
     }
+}
+
+/// A view whose origin is its top left, so a scroll view opens on its first row.
+private final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }
 
 /// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the
