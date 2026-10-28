@@ -34,14 +34,18 @@ struct MCPServer {
     }
 
     func respond(to line: Data) -> Data? {
-        guard let message = try? JSONSerialization.jsonObject(with: line) else {
+        guard let message = try? JSONSerialization.jsonObject(with: line, options: .fragmentsAllowed) else {
             return encode(id: nil, failure: Failure(code: -32700, message: "Parse error"))
         }
         guard let request = message as? [String: Any] else {
             return encode(id: nil, failure: Failure(code: -32600, message: "Invalid request: send one JSON-RPC object per line"))
         }
-        guard let method = request["method"] as? String, let id = request["id"], !(id is NSNull) else {
+        guard let method = request["method"] as? String, let id = request["id"] else {
             return nil   // a notification, or a response to a request this server never sends
+        }
+        // MCP takes a string or a number, never null. JSON's true and false also arrive as NSNumber.
+        guard id is String || (id as? NSNumber).map({ CFGetTypeID($0) != CFBooleanGetTypeID() }) == true else {
+            return encode(id: nil, failure: Failure(code: -32600, message: "Invalid request: the id must be a string or a number"))
         }
         let params = request["params"] as? [String: Any] ?? [:]
         do {
@@ -50,6 +54,7 @@ struct MCPServer {
             if era == .modern {
                 result["resultType"] = "complete"
                 result["_meta"] = ["io.modelcontextprotocol/serverInfo": serverInfo]
+                result.merge(Self.cachingHints[method] ?? [:]) { $1 }
             }
             return encode(["jsonrpc": "2.0", "id": id, "result": result])
         } catch let failure as Failure {
@@ -102,6 +107,15 @@ struct MCPServer {
             throw Failure(code: -32601, message: "Method not found: \(method)")
         }
     }
+
+    /// Complete results of these methods MUST carry both hints
+    /// (https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching.md). Never fresh:
+    /// Settings can change the instructions and an update the tool, and asking the helper again costs
+    /// nothing. Only the instructions are the user's own.
+    private static let cachingHints: [String: [String: Any]] = [
+        "server/discover": ["ttlMs": 0, "cacheScope": "private"],
+        "tools/list": ["ttlMs": 0, "cacheScope": "public"],
+    ]
 
     private var serverInfo: [String: Any] { ["name": Self.name, "title": "Ideator", "version": version] }
 
