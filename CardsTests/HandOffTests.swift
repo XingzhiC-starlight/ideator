@@ -29,7 +29,7 @@ final class HandOffTests: XCTestCase {
 
     @discardableResult
     private func open(_ endpoint: Endpoint,
-                      receive: @escaping @MainActor (AddCard, @escaping @Sendable (ToolReply) -> Void) -> Void) -> ToolInbox? {
+                      receive: @escaping @MainActor (HandOffRequest, @escaping @Sendable (ToolReply) -> Void) -> Void) -> ToolInbox? {
         let inbox = ToolInbox(endpoint: endpoint, receive: receive)
         if let inbox { inboxes.append(inbox) }
         return inbox
@@ -97,9 +97,9 @@ final class HandOffTests: XCTestCase {
     func testIdeatorReceivesTheCardAndItsReplyReachesTheHelper() async throws {
         let endpoint = endpoint("/tmp/folder")
         var received: [AddCard] = []
-        XCTAssertNotNil(open(endpoint) { card, reply in
-            received.append(card)
-            reply(.done("Added \"\(card.title)\" to the top of the stack."))
+        XCTAssertNotNil(open(endpoint) { request, reply in
+            received.append(request.card)
+            reply(.done("Added \"\(request.card.title)\" to the top of the stack."))
         })
 
         let reply = await send(try card("Buy milk", body: "- eggs"), to: endpoint)
@@ -127,7 +127,7 @@ final class HandOffTests: XCTestCase {
             launches.add()
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(300))
-                self.open(endpoint) { card, reply in reply(.done("started for \(card.title)")) }
+                self.open(endpoint) { request, reply in reply(.done("started for \(request.card.title)")) }
             }
             return nil
         }

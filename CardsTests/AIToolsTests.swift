@@ -43,6 +43,10 @@ final class AIToolsTests: XCTestCase {
         try AddCard.parse(["title": title, "body": body]).get()
     }
 
+    private func request(_ title: String, waiting wait: Duration) throws -> HandOffRequest {
+        HandOffRequest(card: try card(title), wait: wait)
+    }
+
     private func files() throws -> [String: String] {
         let names = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".md") }
         return try Dictionary(uniqueKeysWithValues: names.map { ($0, try String(contentsOf: folder.appending(path: $0), encoding: .utf8)) })
@@ -93,10 +97,10 @@ final class AIToolsTests: XCTestCase {
     // MARK: While the welcome card waits for Continue
 
     func testCardsHeldDuringTheWelcomeAreAnsweredInOrderOnContinue() async throws {
-        let held = HeldCards(patience: .seconds(30))
+        let held = HeldCards()
         let replies = Replies()
-        held.hold(try card("first")) { replies.add($0) }
-        held.hold(try card("second")) { replies.add($0) }
+        held.hold(try request("first", waiting: .seconds(30))) { replies.add($0) }
+        held.hold(try request("second", waiting: .seconds(30))) { replies.add($0) }
         XCTAssertEqual(replies.all, [], "nothing is answered before Continue")
 
         held.release { .done("saved \($0.title)") }
@@ -106,10 +110,10 @@ final class AIToolsTests: XCTestCase {
         XCTAssertEqual(replies.all.count, 2, "each card is answered once")
     }
 
-    func testACardHeldPastItsPatienceIsAnsweredPressContinueAndNeverSaved() async throws {
-        let held = HeldCards(patience: .milliseconds(100))
+    func testACardHeldPastItsWaitIsAnsweredPressContinueAndNeverSaved() async throws {
+        let held = HeldCards()
         let replies = Replies()
-        held.hold(try card("late")) { replies.add($0) }
+        held.hold(try request("late", waiting: .milliseconds(100))) { replies.add($0) }
 
         let deadline = Date().addingTimeInterval(5)
         while replies.all.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
@@ -123,12 +127,24 @@ final class AIToolsTests: XCTestCase {
         XCTAssertEqual(saved, [], "Continue after the reply does not add the card the tool was told about")
     }
 
-    func testAReleaseAfterThePatienceRanOutStillRefuses() async throws {
-        let held = HeldCards(patience: .zero)
+    func testAReleaseAfterTheWaitRanOutStillRefuses() async throws {
+        let held = HeldCards()
         let replies = Replies()
-        held.hold(try card("late")) { replies.add($0) }
+        held.hold(try request("late", waiting: .zero)) { replies.add($0) }
         held.release { _ in .done("saved") }
         XCTAssertEqual(replies.all, [.waitingForContinue], "a Documents prompt that held the main thread past the deadline")
+    }
+
+    func testTheAppWaitsAtMostTheSpecsFortySecondsWhateverItIsSent() throws {
+        let card = try card("T")
+        let wait = { (object: [String: Any]) in try HandOffRequest.parse(object.merging(card.arguments) { $1 }).get().wait }
+        XCTAssertEqual(try wait([:]), .seconds(40), "a line with no wait gets the longest")
+        XCTAssertEqual(try wait(["waitMs": 12_345]), .milliseconds(12_345))
+        XCTAssertEqual(try wait(["waitMs": 3_600_000]), .seconds(40))
+        XCTAssertEqual(try wait(["waitMs": -5]), .zero)
+        let line = try XCTUnwrap(HandOffRequest(card: card, wait: .milliseconds(1_500)).line)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: line) as? [String: Any])
+        XCTAssertEqual(try HandOffRequest.parse(object).get(), HandOffRequest(card: card, wait: .milliseconds(1_500)))
     }
 
     // MARK: The settings and where they live

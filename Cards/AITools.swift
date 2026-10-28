@@ -46,55 +46,61 @@ extension ToolReply {
     }
 }
 
-/// Cards that arrive while the welcome card waits for Continue. Each waits `patience` at most, then is
-/// answered "press Continue" and dropped: the AI tool gets an answer before its own timeout, and a card
-/// it was told is not saved never appears later.
+/// Cards that arrive while the welcome card waits for Continue. Each waits as long as its request
+/// allows, then is answered "press Continue" and dropped: the AI tool gets an answer before its own
+/// timeout, and a card it was told is not saved never appears later.
 final class HeldCards {
     private struct Held {
         let card: AddCard
         let reply: @Sendable (ToolReply) -> Void
         let deadline: ContinuousClock.Instant
+        let timer: DispatchSourceTimer
     }
 
-    private let patience: Duration
     private var held: [Held] = []
 
-    init(patience: Duration = .seconds(40)) {
-        self.patience = patience
-    }
-
-    func hold(_ card: AddCard, reply: @escaping @Sendable (ToolReply) -> Void) {
-        held.append(Held(card: card, reply: reply, deadline: .now + patience))
-        Task { [weak self, patience] in
-            try? await Task.sleep(for: patience)
-            self?.expire()
-        }
+    /// A strict timer: a plain 40 s sleep may fire seconds late, by the system's default leeway and
+    /// App Nap, which a background Ideator behind the AI tool gets.
+    func hold(_ request: HandOffRequest, reply: @escaping @Sendable (ToolReply) -> Void) {
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: .main)
+        timer.schedule(deadline: .now() + .milliseconds(Int(request.wait / .milliseconds(1))), leeway: .milliseconds(10))
+        timer.setEventHandler { [weak self, weak timer] in MainActor.assumeIsolated { self?.expire(timer) } }
+        held.append(Held(card: request.card, reply: reply, deadline: .now + request.wait, timer: timer))
+        timer.resume()
     }
 
     /// The notes are open: each card is answered by `answer`, in the order it came, unless its
-    /// patience ran out meanwhile, as it can while the Documents prompt holds the main thread.
+    /// wait ran out meanwhile, as it can while the Documents prompt holds the main thread.
     func release(_ answer: (AddCard) -> ToolReply) {
         expire()
         let ready = held
         held = []
-        for item in ready { item.reply(answer(item.card)) }
+        for item in ready {
+            item.timer.cancel()
+            item.reply(answer(item.card))
+        }
     }
 
-    private func expire() {
+    /// `fired` is late whatever the clock says: its timer and `ContinuousClock` can differ by a hair.
+    private func expire(_ fired: DispatchSourceTimer? = nil) {
         let now = ContinuousClock.now
-        let late = held.filter { $0.deadline <= now }
-        held.removeAll { $0.deadline <= now }
-        for item in late { item.reply(.waitingForContinue) }
+        let isLate = { (item: Held) in item.deadline <= now || item.timer === fired }
+        let late = held.filter(isLate)
+        held.removeAll(where: isLate)
+        for item in late {
+            item.timer.cancel()
+            item.reply(.waitingForContinue)
+        }
     }
 }
 
 /// Ideator's half of the hand-off: listens on this instance's endpoint and reads one card per
 /// connection. Any process of this user can connect, so each line is read like a tool call, by
-/// `AddCard.parse`, and `receive` answers through the reply it is given, once, when it is ready.
+/// `HandOffRequest.parse`, and `receive` answers through the reply it is given, once, when it is ready.
 /// `close` drops every connection still waiting, as quitting does, so each helper hears that
 /// nothing was saved.
 final class ToolInbox {
-    typealias Receive = @MainActor (AddCard, @escaping @Sendable (ToolReply) -> Void) -> Void
+    typealias Receive = @MainActor (HandOffRequest, @escaping @Sendable (ToolReply) -> Void) -> Void
 
     private let source: DispatchSourceRead
     private let path: String
@@ -148,13 +154,13 @@ final class ToolInbox {
         var timeout = timeval(tv_sec: 10, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         var reader = LineReader(fd: fd, limit: 8 * AddCard.byteLimit)
-        let parsed: Result<AddCard, AddCard.Refusal>? = switch reader.next() {
-        case .line(let line)?: ((try? JSONSerialization.jsonObject(with: line)) as? [String: Any]).map(AddCard.parse)
+        let parsed: Result<HandOffRequest, AddCard.Refusal>? = switch reader.next() {
+        case .line(let line)?: ((try? JSONSerialization.jsonObject(with: line)) as? [String: Any]).map(HandOffRequest.parse)
         case .tooLong?: .failure(.tooLong)
         case nil: nil
         }
         switch parsed {
-        case .success(let card)?: Task { @MainActor in receive(card) { connection.reply($0) } }
+        case .success(let request)?: Task { @MainActor in receive(request) { connection.reply($0) } }
         case .failure(let refusal)?: connection.reply(refusal.reply)
         case nil: connection.reply(.unreadable)
         }

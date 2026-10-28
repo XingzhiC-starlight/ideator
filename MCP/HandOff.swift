@@ -14,14 +14,15 @@ nonisolated struct HandOff: Sendable {
     static let backgroundVariable = "IDEATOR_BACKGROUND"
 
     func send(_ card: AddCard) -> ToolReply {
+        let called = ContinuousClock.now
         let fd: Int32
         switch reach() {
         case .success(let reached): fd = reached
         case .failure(let refusal): return refusal.reply
         }
         defer { close(fd) }
-        guard let line = try? JSONSerialization.data(withJSONObject: card.arguments),
-              Socket.write(line: line, to: fd) else { return .lost }
+        let request = HandOffRequest(card: card, wait: HandOffRequest.longestWait - (ContinuousClock.now - called))
+        guard let line = request.line, Socket.write(line: line, to: fd) else { return .lost }
         var reader = LineReader(fd: fd, limit: 1 << 20)
         guard case .line(let answer)? = reader.next(), let reply = ToolReply(line: answer) else { return .lost }
         return reply
@@ -51,5 +52,34 @@ nonisolated struct HandOff: Sendable {
         guard helpers.lastPathComponent == "Helpers", contents.lastPathComponent == "Contents",
               app.pathExtension == "app" else { return nil }
         return app
+    }
+}
+
+/// What the helper hands the app: the card, and how much longer it may wait for Continue. The wait
+/// counts from the AI tool's call, so the time a launch took is already spent.
+nonisolated struct HandOffRequest: Equatable, Sendable {
+    /// CARDS-SPEC.md's longest wait for Continue, from the call to the reply.
+    static let longestWait: Duration = .seconds(40)
+
+    let card: AddCard
+    let wait: Duration
+
+    init(card: AddCard, wait: Duration) {
+        self.card = card
+        self.wait = min(max(wait, .zero), Self.longestWait)
+    }
+
+    var line: Data? {
+        var object = card.arguments
+        object["waitMs"] = Int(wait / .milliseconds(1))
+        return try? JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// The card is read like a tool call, so the app takes only what the helper would pass. A line
+    /// with no wait gets the longest.
+    static func parse(_ object: [String: Any]) -> Result<HandOffRequest, AddCard.Refusal> {
+        AddCard.parse(object).map { card in
+            HandOffRequest(card: card, wait: (object["waitMs"] as? Int).map { .milliseconds($0) } ?? longestWait)
+        }
     }
 }

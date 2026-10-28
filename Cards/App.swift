@@ -48,8 +48,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A scratch run leaves the global shortcut to the owner's running Ideator.
         if !launch.isScratch { hotKey.register() }
         // Before the welcome, so a helper that started this run reaches it; the cards wait for Continue.
-        inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder)) { [unowned self] card, reply in
-            if let answer = answer(card) { reply(answer) } else { held.hold(card, reply: reply) }
+        inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder)) { [unowned self] request, reply in
+            if let answer = answer(request.card) { reply(answer) } else { held.hold(request, reply: reply) }
         }
         // Building the controller is the first touch of the notes folder, which starts macOS's
         // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
