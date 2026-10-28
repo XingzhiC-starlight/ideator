@@ -174,6 +174,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - That check runs again before every sidecar write, not only at launch (added 2026-10-27): the other Mac can arrange the folder while this one runs. The notice shows once per run, when the check first finds the newer file.
 - A folder that can't be listed at launch (macOS refused, a volume not mounted) opens empty with the notice "Ideator couldn't read your notes" (added 2026-10-27). That run never writes the sidecar, so the arrangement it never read survives. Cards written meanwhile save when the folder allows it, a rescan brings the folder's cards into the stack, and the next launch arranges everything from the sidecar.
 - A failed save is never silent (revised 2026-10-27): the first one shows "Ideator can't save your notes" (see First launch for the Documents case), and quitting while a save still fails asks "Quit without saving?" with Cancel and Quit Anyway, instead of dropping the changes that alert promised to keep.
+- A scratch run keeps its notes in the folder named by the `-CardsFolder <folder>` launch argument (added 2026-10-27). Only the argument counts: a `CardsFolder` default in Ideator's preferences changes nothing. An update-test copy (see Updates) also reads its own `CardsFolder` default, because Sparkle relaunches an app without its arguments.
 
 ## Look
 - Warm beige frosted-glass cards (revised 2026-10-22, see DESIGN.md), thin border, soft shadow, system font. Per-card colors later.

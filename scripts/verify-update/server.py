@@ -1,6 +1,8 @@
+import functools
 import http.server
 import socket
 import sys
+import threading
 import time
 
 LATEST = "/releases/latest/download/"
@@ -26,16 +28,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 # `localhost` names ::1 and 127.0.0.1, and clients try ::1 first. Answering on both keeps the feed on ::1:
-# on this Mac a connect to 127.0.0.1 once went unanswered for 8 seconds while ::1 was fine.
-class Server(http.server.ThreadingHTTPServer):
-    address_family = socket.AF_INET6
+# on this Mac a connect to 127.0.0.1 once went unanswered for 8 seconds while ::1 was fine. Each family gets
+# its own loopback socket, because a wildcard socket would also serve the dmg to the LAN.
+class Server4(http.server.ThreadingHTTPServer):
+    address_family = socket.AF_INET
 
-    def server_bind(self):
-        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-        super().server_bind()
+
+class Server6(http.server.ThreadingHTTPServer):
+    address_family = socket.AF_INET6
 
 
 port, directory = int(sys.argv[1]), sys.argv[2]
-server = Server(("::", port), lambda *a, **k: Handler(*a, directory=directory, **k))
+handler = functools.partial(Handler, directory=directory)
+ipv6 = Server6(("::1", port), handler)
+ipv4 = Server4(("127.0.0.1", port), handler)
+threading.Thread(target=ipv4.serve_forever, daemon=True).start()
 print(f"listening on {port}", flush=True)
-server.serve_forever()
+ipv6.serve_forever()

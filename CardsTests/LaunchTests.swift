@@ -9,10 +9,15 @@ final class LaunchTests: XCTestCase {
         super.tearDown()
     }
 
-    private func launch(folder: String? = nil, environment: [String: String] = [:]) -> Launch {
-        let arguments = suites.make()
-        if let folder { arguments.set(folder, forKey: "CardsFolder") }
-        return Launch(arguments: arguments, environment: environment)
+    /// `folder` is the `-CardsFolder` launch argument. `defaultFolder` is a `CardsFolder` key in the
+    /// preferences, as `defaults write` leaves it.
+    private func launch(folder: String? = nil, defaultFolder: String? = nil, updateTest: Bool = false,
+                        environment: [String: String] = [:]) -> Launch {
+        let defaults = suites.make()
+        if let defaultFolder { defaults.set(defaultFolder, forKey: "CardsFolder") }
+        return Launch(arguments: folder.map { ["CardsFolder": $0] } ?? [:], defaults: defaults,
+                      build: BuildInfo(info: updateTest ? ["IdeatorUpdateTest": "YES"] : [:]),
+                      environment: environment)
     }
 
     func testTheNotesAreInTheDocumentsFolderUnlessARunNamesAnother() {
@@ -22,6 +27,28 @@ final class LaunchTests: XCTestCase {
         let scratch = launch(folder: "/tmp/scratch-folder")
         XCTAssertEqual(scratch.notesFolder.path, "/tmp/scratch-folder")
         XCTAssertTrue(scratch.isScratch)
+    }
+
+    func testACardsFolderDefaultInThePreferencesIsNotAScratchRun() {
+        let stray = launch(defaultFolder: "/tmp/stray-folder")
+
+        XCTAssertFalse(stray.isScratch)
+        XCTAssertEqual(stray.notesFolder, Library.defaultFolder)
+    }
+
+    func testALaunchArgumentIsAScratchRunWhateverThePreferencesHold() {
+        let both = launch(folder: "/tmp/scratch-folder", defaultFolder: "/tmp/stray-folder")
+
+        XCTAssertTrue(both.isScratch)
+        XCTAssertEqual(both.notesFolder.path, "/tmp/scratch-folder")
+    }
+
+    func testAnUpdateTestCopyAlsoKeepsItsFolderInItsOwnPreferences() {
+        let relaunchedBySparkle = launch(defaultFolder: "/tmp/update-test-folder", updateTest: true)
+
+        XCTAssertTrue(relaunchedBySparkle.isScratch)
+        XCTAssertEqual(relaunchedBySparkle.notesFolder.path, "/tmp/update-test-folder")
+        XCTAssertFalse(launch(updateTest: true).isScratch)
     }
 
     func testAScratchRunReadsTheFactoryShortcutAndWritesNothingToTheOwnersDefaults() {

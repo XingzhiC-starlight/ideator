@@ -9,6 +9,7 @@ APP="$DERIVED/Build/Products/Release/Ideator.app"
 RESOLVED=Cards.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 die() { echo "package.sh: $*" >&2; exit 1; }
+source scripts/signing.sh
 
 # The build number is the number of commits on HEAD, so every release from main gets a higher one
 # without anyone editing it. Sparkle compares it to decide which build is newer.
@@ -49,6 +50,7 @@ release_key=aU79Ryz97RGp9XiQfDRmXkV4198Z8g6cp+8nhrIpaJ4=
 [[ -z "$(info NSAppTransportSecurity)" ]] || die "Info.plist has NSAppTransportSecurity: the feed is https only"
 echo "updates: the production feed and release key, no system profile, no automatic installs"
 
+sign_for_release "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 # A debuggable build lets any program running as the user read the API key out of Ideator's memory.
@@ -67,9 +69,10 @@ grep -qF "includes Sparkle $pinned " "$APP/Contents/Resources/ThirdPartyNotices.
   || die "Cards/ThirdPartyNotices.txt is missing or does not name Sparkle $pinned: replace its text with the LICENSE of the Sparkle package"
 echo "sparkle: $embedded, as pinned, with its notices"
 
-# Signing policy, the one place that knows about the bypass. An ad-hoc app with the hardened runtime cannot
-# load the Sparkle.framework inside it (dyld: "different Team IDs"), so until a Team ID signs the build,
-# Release carries one entitlement that turns library validation off. With a Team ID the bypass must go.
+# Signing policy. An ad-hoc app with the hardened runtime cannot load the Sparkle.framework inside it
+# (dyld: "different Team IDs"), so until a Team ID signs the build, Release carries one entitlement that
+# turns library validation off. With a Team ID the bypass must go, and sign_for_release has signed
+# everything inside the app with the app's identity.
 disable_validation=com.apple.security.cs.disable-library-validation
 team="$(sed -n 's/^TeamIdentifier=//p' <<<"$signature")"
 [[ -n "$team" ]] || die "codesign did not report a TeamIdentifier for Ideator"
@@ -85,7 +88,7 @@ else
     [[ "$(file -b "$file")" == Mach-O* ]] || continue
     other="$(codesign -dv "$file" 2>&1 | sed -n 's/^TeamIdentifier=//p' || true)"
     [[ "$other" == "$team" ]] \
-      || die "${file#"$APP"/} has Team ID '${other:-none}', Ideator's is $team: sign everything in Contents/Frameworks with the app's identity, innermost first (Xcode signs Sparkle.framework itself, not the helpers inside it)"
+      || die "${file#"$APP"/} has Team ID '${other:-none}', Ideator's is $team: sign_for_release in scripts/signing.sh does not sign it (a program this Sparkle version ships that it does not list)"
   done < <(find "$APP/Contents/Frameworks" -type f -print0)
   echo "signing policy: Team ID $team, library validation on, embedded code signed by the same team"
 fi
