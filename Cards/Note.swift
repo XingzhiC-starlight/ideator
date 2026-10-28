@@ -200,11 +200,13 @@ extension Note {
     /// Writes a card file: `# header`, a blank line, then one Markdown line per body line.
     /// Inverse of `init(markdown:)` for every note.
     var markdown: String {
-        var out = ["# " + Note.escape(header)]
+        var out = [markdownHeader]
         if !body.isEmpty { out.append("") }
         out += Note.markdownLines(body)
         return out.joined(separator: "\n") + "\n"
     }
+
+    var markdownHeader: String { "# " + Note.escape(header) }
 
     /// Markdown body lines to `Line`s, the one reader for files and pasted text.
     ///
@@ -285,7 +287,7 @@ extension Note {
 
     // MARK: Inline
 
-    static func escape(_ text: String) -> String {
+    private static func escape(_ text: String) -> String {
         text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "*", with: "\\*")
     }
 
