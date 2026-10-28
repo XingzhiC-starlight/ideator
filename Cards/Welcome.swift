@@ -34,6 +34,8 @@ struct WelcomeCopy: Equatable {
                           + "use your Documents folder. Choose Allow."),
             Paragraph(lead: "Summaries are optional.",
                       text: "To show a short summary when you collapse a card, add your own Anthropic API key in Settings. "
+                          + "Ideator then sends a card's text to Anthropic whenever the card has no summary for its text "
+                          + "as it is now, such as when you save the key or change the card. "
                           + "Only a card's text goes to Anthropic."),
             Paragraph(lead: "Updates come from GitHub.",
                       text: "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "

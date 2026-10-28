@@ -41,7 +41,8 @@ final class WelcomeTests: XCTestCase {
         XCTAssertEqual(WelcomeCopy.version, 2)
         XCTAssertEqual(disclosed, [
             "To show a short summary when you collapse a card, add your own Anthropic API key in Settings. "
-                + "Only a card's text goes to Anthropic.",
+                + "Ideator then sends a card's text to Anthropic whenever the card has no summary for its text "
+                + "as it is now, such as when you save the key or change the card. Only a card's text goes to Anthropic.",
             "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "
                 + "installs one. You can turn the daily check off in Settings. Nothing else leaves your Mac.",
         ], "These paragraphs are what an owner agreed to. If they now say something else, raise "

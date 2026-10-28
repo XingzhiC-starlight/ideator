@@ -72,9 +72,12 @@ final class SettingsWindow: NSWindow {
     private static let inner: CGFloat = 400
 
     static let privacy = "With a key saved, Ideator sends a card's text to Anthropic, using your own key, to "
-        + "write its summary. The key stays in your login Keychain. Once a day, and whenever you click Check "
-        + "Now, Ideator asks GitHub whether a newer version exists. GitHub sees your IP address and which "
-        + "version you have. Nothing else leaves your Mac: no analytics, no crash reports."
+        + "write its summary, whenever the card has no summary for its text as it is now. It does so, for "
+        + "example, after you change a card, when you save a key, at launch after a failed try, and after an "
+        + "update that changes how Ideator asks for summaries. The key stays in your login Keychain. Once a "
+        + "day, and whenever you click Check Now, Ideator asks GitHub whether a newer version exists. GitHub "
+        + "sees your IP address and which version you have. Nothing else leaves your Mac: no analytics, no "
+        + "crash reports."
 
     private let keys: KeyStore
     private let hotKey: HotKey
