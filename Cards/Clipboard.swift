@@ -156,7 +156,8 @@ enum Clipboard {
 
     /// One pasted line in the card file's grammar, so Note's one reader can read it: other
     /// bullets and `1)` become `- ` and `1. `, a tab after a marker becomes a space, and a `#`
-    /// heading becomes plain text.
+    /// heading's text becomes a plain line written the way the writer writes one, so it reads back
+    /// as the heading showed it whatever it starts with (`\1. x`, `- x`).
     private static func fileGrammar(_ row: String) -> String {
         let indent = String(row.prefix { $0 == " " || $0 == "\t" })
         let rest = row.dropFirst(indent.count)
@@ -171,7 +172,7 @@ enum Clipboard {
         }
         let hashes = rest.prefix { $0 == "#" }
         if (1...6).contains(hashes.count), gap(rest.dropFirst(hashes.count).first) {
-            return Note.escapeLineStart(String(rest.dropFirst(hashes.count + 1)))
+            return Note.markdownLines([Line(runs: Note.parseInline(rest.dropFirst(hashes.count + 1)))])[0]
         }
         return indent + rest
     }
