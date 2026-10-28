@@ -68,6 +68,9 @@ commands and observable proof.
   folder.
 - [Move cards and the stack](./drag.md): dragging a card or the stack to snap, swap, stay free
   between slots, or hang off a screen edge, and the places the sidecar saves.
+- [Card buttons on hover](./hover-buttons.md): the buttons that fade in over a card, what a click
+  reaches while they are hidden, Show all, Pop and snaps under a resting pointer, and the room a
+  long title leaves them.
 - [Nested lists](./nested-lists.md): typing lists, Tab and Shift-Tab, Enter and Backspace on
   nested items, numbering per parent, undo, and the 4-space indents in the file.
 - [Saving fails](./save-failure.md): the alert at the first failed save, the question at quit while

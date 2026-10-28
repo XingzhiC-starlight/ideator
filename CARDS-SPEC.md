@@ -98,6 +98,8 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
 - Per-card buttons (clarity toggle, summary refresh, ↩ Stack, trash) fade in on hover only. Trash asks "Delete this card?". The stacked card has every one of them, with ↗ Pop where a popped card has ↩ Stack (revised 2026-10-22).
+- Hover is where the pointer is, also when a card appears or moves under a pointer that rests (Show all, Pop, a snap). While the buttons are hidden a click there is a click on the card under them, never on a button. VoiceOver still lists and presses them (added 2026-10-27).
+- A long title wraps, or truncates on a collapsed card, before the buttons, whether they show or not (added 2026-10-27).
 - New: creates a blank card and pops it straight out, cursor on the header line, always expanded. Desktop full → New shows the stack's blank page instead.
 
 ## Nested lists (new 2026-10-23)
