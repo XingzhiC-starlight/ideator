@@ -154,10 +154,12 @@ func send(_ command: Command) {
   and read by `Note`'s one reader, which keeps Markdown's backslash rule for files and pastes alike. `Clipboard.paste` splices the run
   into the note as a pure function; the editor then replaces only the paragraphs that changed, in
   one undo step.
-- **Summaries.** A summary records the fingerprint of the note it describes and the version of
-  the prompt that wrote it; it is fresh only while both match. Bumping the prompt version
-  therefore regenerates every summary once, and a saved summary without a version counts as
-  stale. Spinner, failure and "no key" are derived, not stored as flags.
+- **Summaries.** A summary records the fingerprint of the note it describes, and is fresh while
+  that matches. Within a run every summary comes from the current prompt, so only the sidecar's
+  copy records which prompt wrote it (`SavedSummary.prompt`, a digest of the instructions), and
+  `Desk.init` drops a saved summary from another prompt. Editing the instructions therefore
+  regenerates every summary once, and a saved summary without a prompt counts as stale. Spinner,
+  failure and "no key" are derived, not stored as flags.
 - **One dependency.** Sparkle 2.10.0 is pinned exactly, `Package.resolved` is committed, and every
   `xcodebuild` passes `-disableAutomaticPackageResolution`, so a drifted pin fails the build instead
   of changing what ships. Only `Updates.swift` imports it. Xcode embeds and signs the framework
