@@ -27,7 +27,8 @@ final class StackLayoutTests: XCTestCase {
     }
 
     private func hoverButton(_ title: String, in card: CardView) -> NSButton? {
-        let row = card.subviews.first { type(of: $0) == NSStackView.self } as? NSStackView
+        let row = card.subviews.compactMap { $0 as? NSStackView }
+            .first { $0.arrangedSubviews.contains { $0.toolTip == "Delete this card" } }
         return row?.arrangedSubviews.compactMap { $0 as? NSButton }.first { $0.title == title }
     }
 

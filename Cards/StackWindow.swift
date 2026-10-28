@@ -9,6 +9,8 @@ final class StackWindow: NSWindow {
     private var swipes = SwipeTracker()
     /// The full card frame from the last `apply`, which the window is only the top of under Hide all.
     private var cardFrame = CGRect.zero
+    /// The window's frame from the last `apply`. A snap slides there, and hover goes by where it is going.
+    private var placed = CGRect.zero
 
     init(send: @escaping (Command) -> Void, menu: @escaping () -> NSMenu, toggleHidden: @escaping () -> Void,
          drag: WindowDrag) {
@@ -60,6 +62,7 @@ final class StackWindow: NSWindow {
         cardFrame = cell
         stackView.apply(face, visibility: visibility)
         let frame = visibility.showsStackCard ? cell : Self.ribbonOnlyFrame(in: cell)
+        placed = frame
         guard self.frame != frame else { return }
         if isVisible && self.frame.size == frame.size {
             animator().setFrame(frame, display: true)   // snapping or sliding back on screen
@@ -83,9 +86,10 @@ final class StackWindow: NSWindow {
     /// The shown card's selection while it is being edited, for Pop to carry to the popped card.
     var editingSelection: NSRange? { stackView.editingSelection }
 
-    /// The pointer moved; `location` is in screen coordinates.
+    /// The pointer is at `location`, in screen coordinates.
     func pointerMoved(to location: NSPoint) {
-        stackView.hover(at: isVisible && frame.contains(location) ? convertPoint(fromScreen: location) : nil)
+        let point = NSPoint(x: location.x - placed.minX, y: location.y - placed.minY)
+        stackView.hover(at: isVisible && placed.contains(location) ? point : nil)
     }
 }
 
