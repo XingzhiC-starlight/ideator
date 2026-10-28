@@ -619,6 +619,14 @@ Later changes, after trying the app:
     a copy from a build without one fails visibly in the tool.
   - The copy buttons write to `NSPasteboard.general` only on a click, and the unit tests write to a
     pasteboard of their own, so a test run never replaces the clipboard.
+  - The two blocks made Settings 982 points tall, more than a 13-inch display has below the menu bar,
+    and the window is not resizable. Its rows now sit in a scroll view over a flipped document view, and
+    the window is as tall as the rows or as the screen's visible room (minus the title bar and 24
+    points), whichever is less, so a short screen scrolls from the Shortcut row and a tall one shows
+    everything. Rejected: shrinking the rows to fit (the instruction box and three buttons need about
+    300 points), and collapsing the two blocks behind disclosure arrows, which hide the Connect
+    buttons from the user who comes for them. A unit test sets the room through `maxContentHeight`;
+    capped scrolling on a short screen was not driven live, since this Mac's display fits the window.
   - `MCPServer` is `nonisolated` like the rest of `MCP/`: the helper's server asks the socket from
     its own thread, and a test must be able to do the same without the main actor.
 
