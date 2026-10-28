@@ -257,7 +257,7 @@ it now says something new about what Ideator sends. To see the card again, quit 
 run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
 `CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
 `-CardsFolder` shows no card on its own, remembers nothing, does not register the global shortcut,
-and never checks for updates.
+and never checks for updates, except in the test copies `scripts/verify-update.sh` makes.
 
 ## Where notes live
 
