@@ -89,9 +89,12 @@ Preconditions:
   shows nothing.
 - **Toggle and close.** A real click on the badge while open closes it, and the next one opens it.
   A click on the ribbon, or `cv ax key escape`, closes it. `cv ax tree` has no `AXPopover` after.
-- **Hide all.** Run `cv ax press "Hide all" stack`, then `cv ax press "Arrange the stack"`. The popover
-  hangs under the ribbon (`cv ax windows` lists a 342x46 stack and the popover). `cv ax key opt+down`
-  moves a card and the stack stays 342x46. `cv ax act "Beta card" AXPress` turns the stack to Beta
+- **Hide all.** Start with the popover closed, since the badge is a toggle and pressing it while the
+  popover is open closes it. Run `cv ax press "Hide all" stack`, then `cv ax press "Arrange the
+  stack"`. The popover hangs under the ribbon (`cv ax windows` lists a 342x46 stack and the popover)
+  and opens with the shown card's row selected. If that row is the bottom one, run `cv ax key up`
+  first, because `opt+down` moves nothing from there. `cv ax key opt+down` moves a card and the
+  stack stays 342x46. `cv ax act "Beta card" AXPress` turns the stack to Beta
   and `cv ax windows` lists the stack at 342x268 again, the toggle still `Show all`, and the popover
   under the badge in the card's corner.
 - **Live updates.** Pop the shown card with `cv ax press "↗ Pop" stack`: the popped card becomes the
