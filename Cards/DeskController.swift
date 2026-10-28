@@ -9,7 +9,7 @@ import AppKit
 /// world and fixes the difference, so each is safe to run any number of times.
 final class DeskController {
     private(set) var desk: Desk
-    private var grid: Grid
+    private(set) var grid: Grid
     /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk,
     /// not persisted.
     private var visibility = Visibility.all
@@ -29,17 +29,21 @@ final class DeskController {
     private let appMenu: () -> NSMenu
     /// Shows an alert and returns the button pressed. The default runs it modally; tests answer it.
     private let present: (NSAlert) -> NSApplication.ModalResponse
+    /// Where the pointer is on screen. The default reads the real one; tests place it.
+    private let pointer: () -> NSPoint
     private var pendingSave: Task<Void, Never>?
     private var saveFailing = false
     private var warnedAboutLayout = false
     private var pointerMonitors: [Any] = []
 
     init(library: Library, keys: KeyStore, appMenu: @escaping () -> NSMenu,
-         present: @escaping (NSAlert) -> NSApplication.ModalResponse = { NSApp.activate(); return $0.runModal() }) {
+         present: @escaping (NSAlert) -> NSApplication.ModalResponse = { NSApp.activate(); return $0.runModal() },
+         pointer: @escaping () -> NSPoint = { NSEvent.mouseLocation }) {
         self.library = library
         self.keys = keys
         self.appMenu = appMenu
         self.present = present
+        self.pointer = pointer
         desk = library.load()
         grid = Self.currentGrid() ?? Grid(area: CGRect(x: 0, y: 0, width: 1512, height: 949))
         summarizer.sync(desk.allCards, typing: nil)
@@ -160,6 +164,7 @@ final class DeskController {
         stackWindow.apply(desk.stackFace(hasKey: keys.apiKey != nil), cell: grid.frame(of: desk.stackPlace),
                           visibility: visibility)
         setVisible(stackWindow, true)   // Hide all keeps the ribbon
+        updateHover()   // a card can appear or move under a pointer that rests
     }
 
     private func setVisible(_ window: NSWindow, _ visible: Bool) {
@@ -214,10 +219,10 @@ final class DeskController {
     /// Hover follows the pointer's real position, not per-view enter/exit events: a fast pointer
     /// can skip a window's exit event, which would leave its hover buttons showing. A global
     /// monitor sees moves while another app is active, a local one while Ideator is; watching the
-    /// mouse needs no special permission.
+    /// mouse needs no special permission. Every render checks it again too.
     private func trackPointer() {
         let moved: (NSEvent) -> Void = { [weak self] _ in
-            MainActor.assumeIsolated { self?.pointerMoved() }
+            MainActor.assumeIsolated { self?.updateHover() }
         }
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: moved) {
             pointerMonitors.append(monitor)
@@ -227,8 +232,8 @@ final class DeskController {
         }
     }
 
-    private func pointerMoved() {
-        let location = NSEvent.mouseLocation
+    private func updateHover() {
+        let location = pointer()
         for window in cardWindows.values { window.pointerMoved(to: location) }
         stackWindow.pointerMoved(to: location)
     }

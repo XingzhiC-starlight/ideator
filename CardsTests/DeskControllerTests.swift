@@ -1,8 +1,12 @@
 import XCTest
 @testable import Ideator
 
+/// A point no screen reaches, so no card is under it.
+private let offScreen = NSPoint(x: -10_000, y: -10_000)
+
 /// The controller in front of a folder that refuses: every alert goes through the `present` seam,
-/// so a test answers it instead of a modal loop waiting for a click.
+/// so a test answers it instead of a modal loop waiting for a click. The pointer goes through its
+/// own seam, so a test places it where the real one cannot be put.
 final class DeskControllerTests: XCTestCase {
     private var folder: URL!
     private var cardFile: URL { folder.appending(path: "card.md") }
@@ -24,12 +28,13 @@ final class DeskControllerTests: XCTestCase {
         try? FileManager.default.removeItem(at: folder)
     }
 
-    private func makeController() -> DeskController {
+    private func makeController(pointer: @escaping () -> NSPoint = { offScreen }) -> DeskController {
         DeskController(library: Library(folder: folder), keys: KeyStore(inKeychain: false), appMenu: { NSMenu() },
                        present: { [self] alert in
                            shown.append(alert.messageText)
                            return answers.isEmpty ? .alertFirstButtonReturn : answers.removeFirst()
-                       })
+                       },
+                       pointer: pointer)
     }
 
     private func makeFolder(writable: Bool) throws {
@@ -143,5 +148,51 @@ final class DeskControllerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appending(path: "doomed.md").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: cardFile.path), "the other card's file stayed")
         XCTAssertEqual(controller.desk.allCards.map(\.id), [card])
+    }
+
+    func testEveryRenderChecksHoverAgainstThePointerThatRests() async throws {
+        var pointer = offScreen
+        let controller = makeController(pointer: { pointer })
+        let slot = controller.grid.frame(of: try XCTUnwrap(controller.desk.firstFreeSlot))
+        let insideSlot = NSPoint(x: slot.midX, y: slot.midY)
+
+        pointer = insideSlot
+        controller.send(.pop)
+        let windows = NSApp.windows.compactMap { $0 as? CardWindow }.filter(\.isVisible)
+        XCTAssertEqual(windows.count, 1, "Pop puts the one card on the desktop")
+        let window = try XCTUnwrap(windows.first)
+        defer { window.orderOut(nil) }
+        try await expectHoverButtons(shown: true, in: window, "Pop put the card under a pointer that rests")
+
+        pointer = offScreen
+        controller.send(.toggleClarity)
+        try await expectHoverButtons(shown: false, in: window, "the pointer rests away from the card")
+
+        pointer = insideSlot
+        controller.send(.toggleClarity)
+        try await expectHoverButtons(shown: true, in: window, "the pointer rests on the card again")
+    }
+
+    /// What the user can tell about the card's buttons: a press at Delete's point reaches the button
+    /// only while they are shown, and their row fades to opaque or clear.
+    private func expectHoverButtons(shown: Bool, in window: NSWindow, _ context: String) async throws {
+        window.contentView!.layoutSubtreeIfNeeded()
+        let delete = try XCTUnwrap(button("Delete this card", under: window.contentView!))
+        let point = delete.convert(NSPoint(x: delete.bounds.midX, y: delete.bounds.midY), to: nil)
+        XCTAssertEqual(window.contentView!.hitTest(point) === delete, shown,
+                       "\(context): a press on Delete should \(shown ? "reach it" : "go to the card under it")")
+        let row = try XCTUnwrap(delete.superview)
+        let faded: CGFloat = shown ? 1 : 0
+        var waits = 0
+        while row.alphaValue != faded, waits < 200 {   // the row fades over 0.15 s
+            try await Task.sleep(for: .milliseconds(10))
+            waits += 1
+        }
+        XCTAssertEqual(row.alphaValue, faded, "\(context): the buttons should be \(shown ? "shown" : "hidden")")
+    }
+
+    private func button(_ tooltip: String, under view: NSView) -> NSButton? {
+        if let button = view as? NSButton, button.toolTip == tooltip { return button }
+        return view.subviews.lazy.compactMap { self.button(tooltip, under: $0) }.first
     }
 }

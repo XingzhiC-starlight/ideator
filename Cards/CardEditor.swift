@@ -53,8 +53,6 @@ enum EditorStyle {
     static let listIndent: CGFloat = 20
     /// Bullets by level.
     static let bullets = ["•", "◦", "▪"]
-    /// Keeps the header's text clear of the hover buttons in the card's top-right corner.
-    static let headerTrailingSpace: CGFloat = 76
 
     static func font(for style: Style) -> NSFont {
         var traits: NSFontDescriptor.SymbolicTraits = []
@@ -77,7 +75,6 @@ enum EditorStyle {
 
     static let headerAttributes: [NSAttributedString.Key: Any] = {
         let paragraph = NSMutableParagraphStyle()
-        paragraph.tailIndent = -headerTrailingSpace
         paragraph.paragraphSpacing = 6
         return [.font: header, .foregroundColor: Palette.ink, .paragraphStyle: paragraph]
     }()

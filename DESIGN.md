@@ -329,6 +329,16 @@ Later changes, after trying the app:
   at the storage boundary: `attributedParagraphs` shows every other line break as a space, whatever
   put it in a run (an HTML paste, a file edited elsewhere), and `HTMLReader.add` collapses
   Unicode's line breaks like HTML whitespace. The two splitters stay as they are.
+- 2026-10-27, hover buttons, the 2026-10-21 finding the audit found still open: the buttons were
+  hidden by alpha alone, which AppKit ignores when it hit tests, and hover changed only on a mouse
+  move, so after Show all a click with no move first acted on a button nobody could see. The row
+  (`HoverButtons`) now refuses the hit test while hidden and the press goes to the card under it.
+  It stays in the accessibility tree, not `isHidden`, because VoiceOver users cannot hover and the
+  verify recipes press the buttons by name. `DeskController` checks hover after every render, and
+  each window answers by the frame `apply` gave it, since a move slides there and `frame` lags.
+  The title's room comes from the row: the collapsed title ends before it, and the editor wraps
+  the title around it with an exclusion path, so only the lines beside the row are short. The
+  76 pt reserve it replaces had fallen behind a row of 91.5 pt (111.5 pt collapsed, with Refresh).
 - 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
   explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
   whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records

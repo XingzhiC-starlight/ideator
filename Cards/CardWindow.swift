@@ -5,6 +5,9 @@ import AppKit
 /// (hover, editing, a drag in progress); everything else it reports as a `Command`.
 final class CardWindow: NSWindow {
     private let cardView: CardView
+    /// Where the last `apply` put the window. The window slides there, and hover goes by where it
+    /// is going, so a card that arrives under a resting pointer shows its buttons.
+    private var placed = CGRect.zero
 
     init(id: CardID, send: @escaping (Command) -> Void, drag: WindowDrag) {
         cardView = CardView(home: .desktop(drag), send: send)
@@ -27,6 +30,7 @@ final class CardWindow: NSWindow {
     }
 
     func apply(_ face: CardFace, frame: CGRect) {
+        placed = frame
         if self.frame != frame {
             if isVisible {
                 animator().setFrame(frame, display: true)
@@ -43,10 +47,10 @@ final class CardWindow: NSWindow {
         cardView.focusEditor(range: range)
     }
 
-    /// The pointer moved; `location` is in screen coordinates. The hover buttons show while it is
+    /// The pointer is at `location`, in screen coordinates. The hover buttons show while it is
     /// over this card.
     func pointerMoved(to location: NSPoint) {
-        cardView.setHovering(isVisible && frame.contains(location))
+        cardView.setHovering(isVisible && placed.contains(location))
     }
 }
 
@@ -171,7 +175,7 @@ final class CardView: NSView {
     private let collapsedHeader = NSTextField(labelWithString: "")
     private let summaryView = SummaryView()
     private let formatBar: FormatBar
-    private let hoverButtons = NSStackView()
+    private let hoverButtons = HoverButtons()
     private let clarityButton = ActionButton(symbol: "rectangle.compress.vertical", help: "Collapse this card")
     private let refreshButton = ActionButton(symbol: "arrow.clockwise", help: "Refresh summary")
     private let moveButton: ActionButton
@@ -179,7 +183,6 @@ final class CardView: NSView {
     private var face: CardFace?
     /// Whether the last `apply` showed the collapsed look; nil before the first one.
     private var showsCollapsed: Bool?
-    private var hovering = false
     /// Derived from AppKit (key window + editor is first responder), never set from outside.
     private var isEditing = false {
         didSet {
@@ -334,9 +337,20 @@ final class CardView: NSView {
         let buttons = hoverButtons.fittingSize
         hoverButtons.frame = NSRect(x: content.maxX - buttons.width, y: content.maxY - buttons.height,
                                     width: buttons.width, height: buttons.height)
+        // The title stops short of the buttons, shown or not, so hovering never reflows it.
+        let titleEnd = hoverButtons.frame.minX - hoverButtons.spacing
         let headerHeight = ceil(EditorStyle.header.boundingRectForFont.height) + 2
         collapsedHeader.frame = NSRect(x: content.minX + 7, y: content.maxY - headerHeight - 2,
-                                       width: content.width - 7 - EditorStyle.headerTrailingSpace, height: headerHeight)
+                                       width: titleEnd - content.minX - 7, height: headerHeight)
+        // The editor wraps the title around them. The rect is in its text container's top-down
+        // coordinates, so it stays beside the title when the text scrolls.
+        let text = NSPoint(x: scrollView.frame.minX + editor.textContainerOrigin.x,
+                           y: scrollView.frame.maxY - editor.textContainerOrigin.y)
+        let besideButtons = NSRect(x: titleEnd - text.x, y: 0, width: bounds.maxX - titleEnd,
+                                   height: text.y - hoverButtons.frame.minY)
+        if editor.textContainer?.exclusionPaths.first?.bounds != besideButtons {   // setting it lays out all the text again
+            editor.textContainer?.exclusionPaths = [NSBezierPath(rect: besideButtons)]
+        }
         summaryView.frame = NSRect(x: content.minX + 7, y: content.minY,
                                    width: content.width - 14, height: collapsedHeader.frame.minY - content.minY - 4)
     }
@@ -377,14 +391,7 @@ final class CardView: NSView {
         }
     }
 
-    func setHovering(_ on: Bool) {
-        guard on != hovering else { return }
-        hovering = on
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.15
-            hoverButtons.animator().alphaValue = on ? 1 : 0
-        }
-    }
+    func setHovering(_ on: Bool) { hoverButtons.shown = on }
 
     /// Header press: drag the window if the pointer moves; report a plain click otherwise.
     private func dragIfMoved(_ event: NSEvent) -> Bool {
@@ -406,6 +413,23 @@ final class CardView: NSView {
             if response == .alertFirstButtonReturn { self?.send(.delete(id)) }
         }
     }
+}
+
+/// The buttons in a card's top-right corner. They fade in while the pointer is over the card. While
+/// hidden they take no press, which goes to the card under them, but accessibility still lists and
+/// presses them, so VoiceOver users, who cannot hover, keep them.
+private final class HoverButtons: NSStackView {
+    var shown = false {
+        didSet {
+            guard shown != oldValue else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                animator().alphaValue = shown ? 1 : 0
+            }
+        }
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { shown ? super.hitTest(point) : nil }
 }
 
 /// What a window drag reports, in screen coordinates: every move while it lasts (for the guide)
