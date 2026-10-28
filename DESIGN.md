@@ -158,8 +158,8 @@ func send(_ command: Command) {
   that matches. Within a run every summary comes from the current prompt, so only the sidecar's
   copy records which prompt wrote it (`SavedSummary.prompt`, a digest of the instructions), and
   `Desk.init` drops a saved summary from another prompt. Editing the instructions therefore
-  regenerates every summary once, and a saved summary without a prompt counts as stale. Spinner,
-  failure and "no key" are derived, not stored as flags.
+  regenerates every summary once, and a saved summary with no stamp, from a sidecar older than the
+  stamp, is dropped too. Spinner, failure and "no key" are derived, not stored as flags.
 - **One dependency.** Sparkle 2.10.0 is pinned exactly, `Package.resolved` is committed, and every
   `xcodebuild` passes `-disableAutomaticPackageResolution`, so a drifted pin fails the build instead
   of changing what ships. Only `Updates.swift` imports it. Xcode embeds and signs the framework
