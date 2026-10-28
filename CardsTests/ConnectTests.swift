@@ -59,12 +59,17 @@ final class ConnectTests: XCTestCase {
         }
     }
 
-    func testTheStartupVolumeReachedThroughVolumesIsStillTheStartupVolume() throws {
-        guard let startup = try FileManager.default.contentsOfDirectory(atPath: "/Volumes").first(where: {
+    func testAnAppReachedThroughALinkToTheStartupVolumeIsNotTemporaryWhetherOrNotItIsThere() throws {
+        let links = try FileManager.default.contentsOfDirectory(atPath: "/Volumes").filter {
             (try? FileManager.default.destinationOfSymbolicLink(atPath: "/Volumes/" + $0)) == "/"
-        }) else { throw XCTSkip("no link to the startup volume in /Volumes") }
+        }
 
-        XCTAssertFalse(command(app: URL(filePath: "/Volumes/\(startup)/Applications/Ideator.app", directoryHint: .isDirectory)).isTemporary)
+        for link in links {
+            for app in ["Applications/Ideator.app", "Applications/NoSuchIdeator.app"] {
+                let path = "/Volumes/\(link)/\(app)"
+                XCTAssertFalse(command(app: URL(filePath: path, directoryHint: .isDirectory)).isTemporary, path)
+            }
+        }
     }
 
     func testClaudeCodeGetsAUserScopeStdioCommand() {
