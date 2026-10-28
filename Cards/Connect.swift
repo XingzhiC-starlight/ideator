@@ -60,10 +60,8 @@ nonisolated struct HelperCommand: Equatable {
         arguments = scratchFolder.map { ["-CardsFolder", $0.standardizedFileURL.path] } ?? []
     }
 
-    /// Whether the app runs from a place its path does not outlast: a mounted volume, such as a disk image
-    /// (`/Volumes/<name>`), or the copy macOS makes of a downloaded app that was not moved yet, under
-    /// `AppTranslocation`. Links are followed first, so the startup volume reached through `/Volumes` is
-    /// not one.
+    /// A mounted volume (a disk image) or macOS's `AppTranslocation` copy. Links are followed first, so the
+    /// startup volume reached through `/Volumes` is not one.
     var isTemporary: Bool {
         let parts = app.resolvingSymlinksInPath().standardizedFileURL.pathComponents
         return parts.contains("AppTranslocation") || parts.dropFirst().first == "Volumes"

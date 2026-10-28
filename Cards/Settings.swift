@@ -379,7 +379,6 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         refresh()
     }
 
-    /// A change that would pass the instruction's limit is not made, and the note above the box says so.
     func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
         guard textView === editor, let replacement = replacementString else { return true }
         let removed = (editor.string as NSString).substring(with: range).utf8.count

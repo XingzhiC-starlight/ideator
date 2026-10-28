@@ -108,7 +108,6 @@ final class InstructionTests: XCTestCase {
         XCTAssertEqual(again, AIToolSettings(enabled: false, landing: .bottom, instruction: Instruction(edited: "Kept.")))
     }
 
-    /// CARDS-SPEC.md: the instruction holds up to 100,000 bytes of UTF-8.
     private let limit = 100_000
 
     func testAnInstructionAtTheLimitIsKeptWholeAndOnePastItIsCut() {
