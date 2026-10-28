@@ -19,11 +19,11 @@ final class ConnectSettingsTests: XCTestCase {
 
     private func settings(_ choice: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
                           scratch: String? = nil, board: NSPasteboard? = nil, maxContentHeight: CGFloat? = nil,
-                          runningFrom path: String? = nil) -> SettingsWindow {
+                          place: RunPlace? = nil) -> SettingsWindow {
         SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
                        updates: Updates(build: .current, isScratch: true), aiTools: choice,
-                       connect: HelperCommand(app: path.map { URL(filePath: $0, directoryHint: .isDirectory) } ?? app,
-                                              scratchFolder: scratch.map { URL(filePath: $0, directoryHint: .isDirectory) }),
+                       connect: HelperCommand(app: app, scratchFolder: scratch.map { URL(filePath: $0, directoryHint: .isDirectory) },
+                                              place: place),
                        pasteboard: board ?? privateBoard(), maxContentHeight: maxContentHeight) {}
     }
 
@@ -196,7 +196,7 @@ final class ConnectSettingsTests: XCTestCase {
 
     func testAnAppRunFromADiskImageOffersNoCopyAndSaysToMoveItToApplicationsFirst() throws {
         let board = privateBoard()
-        let window = settings(board: board, runningFrom: "/Volumes/Ideator/Ideator.app")
+        let window = settings(board: board, place: RunPlace(path: "/Volumes/Ideator/Ideator.app", onStartupVolume: false))
         let move = "Ideator is running from a disk image, another volume or a quarantined download, so a setup copied now "
             + "would point at a path that goes away. Move Ideator to Applications, open it from there, then copy a setup."
 
@@ -212,12 +212,12 @@ final class ConnectSettingsTests: XCTestCase {
     }
 
     func testAnAppRunFromATranslocatedCopyIsTreatedTheSame() throws {
-        let window = settings(runningFrom: "/private/var/folders/zz/T/AppTranslocation/6E2F1C2A/d/Ideator.app")
+        let window = settings(place: RunPlace(path: "/private/var/folders/zz/T/AppTranslocation/6E2F1C2A/d/Ideator.app", onStartupVolume: true))
         for tool in AITool.allCases { XCTAssertFalse(try button(tool.name, in: window).isEnabled, tool.name) }
     }
 
     func testAnAppInApplicationsKeepsItsCopyButtons() throws {
-        let window = settings(runningFrom: "/Applications/Ideator.app")
+        let window = settings(place: RunPlace(path: "/Applications/Ideator.app", onStartupVolume: true))
         for tool in AITool.allCases { XCTAssertTrue(try button(tool.name, in: window).isEnabled, tool.name) }
     }
 

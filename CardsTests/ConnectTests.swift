@@ -42,34 +42,61 @@ final class ConnectTests: XCTestCase {
         }
     }
 
-    func testAnAppOnAMountedVolumeOrInMacOSsTranslocatedCopyIsInATemporaryPlace() {
+    func testAnAppOnAnotherVolumeOrInMacOSsTranslocatedCopyIsInATemporaryPlace() {
         let translocated = "/private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/T/AppTranslocation/"
             + "6E2F1C2A-1B3D-4C5E-8F70-A1B2C3D4E5F6/d/Ideator.app"
-        for path in ["/Volumes/Ideator/Ideator.app", "/Volumes/Ideator 0.9/Ideator.app", "/Volumes/Backup/Apps/Ideator.app",
-                     translocated, "/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/T/AppTranslocation/6E2F/d/Ideator.app"] {
-            XCTAssertTrue(command(app: URL(filePath: path, directoryHint: .isDirectory)).isTemporary, path)
+        for place in [RunPlace(path: "/Volumes/Ideator/Ideator.app", onStartupVolume: false),
+                      RunPlace(path: "/Volumes/Backup/Apps/Ideator.app", onStartupVolume: false),
+                      RunPlace(path: "/Users/me/Ideator.app", onStartupVolume: false),
+                      RunPlace(path: translocated, onStartupVolume: true),
+                      RunPlace(path: translocated, onStartupVolume: nil)] {
+            XCTAssertTrue(place.isTemporary, place.path)
         }
     }
 
-    func testAnAppInApplicationsOrAnyFolderOfTheUsersIsNotTemporary() {
-        for path in ["/Applications/Ideator.app", "/Users/me/Applications/Ideator.app", "/Users/me/Desktop/my apps/Ideator.app",
-                     "/Users/me/Volumes/Ideator.app", "/Users/me/AppTranslocationNotes/Ideator.app",
-                     "/Users/me/Code/ideator/build/VerifyDerivedData/Build/Products/Debug/Ideator.app"] {
-            XCTAssertFalse(command(app: URL(filePath: path, directoryHint: .isDirectory)).isTemporary, path)
+    func testTheFileSystemDecidesAndANameInThePathNeverDoes() {
+        for place in [RunPlace(path: "/Applications/Ideator.app", onStartupVolume: true),
+                      RunPlace(path: "/Volumes/Macintosh HD/Applications/Ideator.app", onStartupVolume: true),
+                      RunPlace(path: "/Users/me/Volumes/Ideator.app", onStartupVolume: true),
+                      RunPlace(path: "/Users/me/AppTranslocationNotes/Ideator.app", onStartupVolume: true),
+                      RunPlace(path: "/Applications/Ideator.app", onStartupVolume: nil)] {
+            XCTAssertFalse(place.isTemporary, place.path)
         }
     }
 
-    func testAnAppReachedThroughALinkToTheStartupVolumeIsNotTemporaryWhetherOrNotItIsThere() throws {
-        let links = try FileManager.default.contentsOfDirectory(atPath: "/Volumes").filter {
-            (try? FileManager.default.destinationOfSymbolicLink(atPath: "/Volumes/" + $0)) == "/"
+    func testThePlaceOfAPathThatIsNotThereIsUnknownAndNotTemporary() {
+        for path in ["/Applications/NoSuchIdeator.app", "/Volumes/NoSuchDisk/Ideator.app"] {
+            let place = RunPlace(app: URL(filePath: path, directoryHint: .isDirectory))
+            XCTAssertNil(place.onStartupVolume, path)
+            XCTAssertFalse(place.isTemporary, path)
+        }
+    }
+
+    func testTheStartupVolumeIsNotTemporaryWhereverThePathReachesIt() throws {
+        var paths = ["/", "/Applications", NSHomeDirectory(), NSTemporaryDirectory()]
+        for name in try FileManager.default.contentsOfDirectory(atPath: "/Volumes")
+        where (try? FileManager.default.destinationOfSymbolicLink(atPath: "/Volumes/" + name)) == "/" {
+            paths += ["/Volumes/\(name)", "/Volumes/\(name)/Applications", "/Volumes/\(name)/Applications/NoSuchIdeator.app"]
         }
 
-        for link in links {
-            for app in ["Applications/Ideator.app", "Applications/NoSuchIdeator.app"] {
-                let path = "/Volumes/\(link)/\(app)"
-                XCTAssertFalse(command(app: URL(filePath: path, directoryHint: .isDirectory)).isTemporary, path)
-            }
+        for path in paths {
+            let place = RunPlace(app: URL(filePath: path, directoryHint: .isDirectory))
+            XCTAssertFalse(place.isTemporary, path)
         }
+    }
+
+    func testEveryVolumeTheHostMountsIsTemporaryExactlyWhenItIsNotTheStartupVolume() throws {
+        let keys: [URLResourceKey] = [.volumeURLKey, .volumeIsRootFileSystemKey]
+        let volumes = try XCTUnwrap(FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: []))
+
+        var sawStartup = false
+        for volume in volumes {
+            let values = try volume.resourceValues(forKeys: Set(keys))
+            let startup = values.volume?.path == "/"
+            sawStartup = sawStartup || startup
+            XCTAssertEqual(RunPlace(app: volume).isTemporary, !startup, volume.path)
+        }
+        XCTAssertTrue(sawStartup, "the host reports its startup volume among the mounted ones")
     }
 
     func testClaudeCodeGetsAUserScopeStdioCommand() {

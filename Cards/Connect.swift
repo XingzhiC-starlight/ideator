@@ -48,24 +48,41 @@ nonisolated enum AITool: CaseIterable {
     }
 }
 
+/// Where an app runs from, as the file system reports it.
+nonisolated struct RunPlace: Equatable, Sendable {
+    let path: String
+    /// Nil when the file system has no answer, as for a path that is not there.
+    let onStartupVolume: Bool?
+
+    init(path: String, onStartupVolume: Bool?) {
+        self.path = path
+        self.onStartupVolume = onStartupVolume
+    }
+
+    init(app: URL) {
+        path = app.path
+        onStartupVolume = try? app.resourceValues(forKeys: [.volumeIsRootFileSystemKey]).volumeIsRootFileSystem
+    }
+
+    /// Another volume, such as a disk image, or macOS's `AppTranslocation` copy of a downloaded app.
+    var isTemporary: Bool {
+        onStartupVolume == false || URL(filePath: path).pathComponents.contains("AppTranslocation")
+    }
+}
+
 /// A scratch run's `-CardsFolder` argument keeps a pasted setup off the owner's notes.
 nonisolated struct HelperCommand: Equatable {
-    let app: URL
     let executable: URL
     let arguments: [String]
+    let place: RunPlace
 
-    init(app: URL, scratchFolder: URL?) {
-        self.app = app
+    init(app: URL, scratchFolder: URL?, place: RunPlace? = nil) {
         executable = app.appending(path: "Contents/Helpers/ideator-mcp")
         arguments = scratchFolder.map { ["-CardsFolder", $0.standardizedFileURL.path] } ?? []
+        self.place = place ?? RunPlace(app: app)
     }
 
-    /// A mounted volume (a disk image) or macOS's `AppTranslocation` copy. Links are followed first, so the
-    /// startup volume reached through `/Volumes` is not one.
-    var isTemporary: Bool {
-        let parts = app.resolvingSymlinksInPath().standardizedFileURL.pathComponents
-        return parts.contains("AppTranslocation") || parts.dropFirst().first == "Volumes"
-    }
+    var isTemporary: Bool { place.isTemporary }
 
     var shellLine: String {
         ([executable.path] + arguments).map(Self.shellWord).joined(separator: " ")
