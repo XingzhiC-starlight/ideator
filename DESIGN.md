@@ -653,9 +653,10 @@ Later changes, after trying the app:
     since the user pastes before reading it; asking DiskArbitration which volumes are disk images, when
     one flag already separates them from the startup volume; and exempting other volumes, which can be
     unplugged as an image can be ejected (the cost: someone who keeps the app on an external drive moves
-    it to use Connect). Not driven live: this Mac's builds run from a build folder. The unit tests hand
-    `RunPlace` the file system's answer for the disk image and translocated cases, and read the host's
-    own answer for every volume it has mounted.
+    it to use Connect). The disk image case was driven live with a scratch image (recipe
+    `mcp-connect-volume`, also at a mount point outside `/Volumes`); the translocated case was not, since
+    only Gatekeeper makes that copy. The unit tests hand `RunPlace` the file system's answer and a path
+    for both cases, and read the host's own answer for every volume it has mounted.
   - `MCPServer` is `nonisolated` like the rest of `MCP/`: the helper's server asks the socket from
     its own thread, and a test must be able to do the same without the main actor.
 
