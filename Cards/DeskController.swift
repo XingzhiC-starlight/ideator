@@ -127,7 +127,10 @@ final class DeskController {
     func add(_ card: AddCard, landing: Landing) -> ToolReply {
         let typing = NSApp.isActive && stackWindow.editingSelection != nil
         send(.addFromTool(card.note, at: Date(), to: landing, typing: typing))
-        return flush() ? .added(card.title, to: landing) : .notSaved(card.title, folder: library.folder)
+        pendingSave?.cancel()
+        // The AI tool gives up on a call it waits too long for, then adds the card again: the alert
+        // of a first failed save waits for the reply.
+        return saveNow(alertLater: true) ? .added(card.title, to: landing) : .notSaved(card.title, folder: library.folder)
     }
 
     /// Save now: on deactivate, quit, and before a rescan. False when the folder doesn't match the desk.
@@ -255,7 +258,7 @@ final class DeskController {
         }
     }
 
-    private func saveNow() -> Bool {
+    private func saveNow(alertLater: Bool = false) -> Bool {
         let saved = library.save(desk)
         let firstFailure = !saved && !saveFailing
         saveFailing = !saved   // before the alert: its modal loop can deliver another save
@@ -264,7 +267,11 @@ final class DeskController {
             alert.alertStyle = .warning
             alert.messageText = "Ideator can't save your notes"
             alert.informativeText = Self.saveFailureText(folder: library.folder)
-            _ = present(alert)
+            if alertLater {
+                DispatchQueue.main.async { [present] in _ = present(alert) }
+            } else {
+                _ = present(alert)
+            }
         }
         warnIfLayoutIsLocked()   // a save can be the first to see a newer sidecar
         return saved
