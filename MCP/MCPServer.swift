@@ -43,7 +43,7 @@ struct MCPServer {
         guard let method = request["method"] as? String, let id = request["id"] else {
             return nil   // a notification, or a response to a request this server never sends
         }
-        // MCP takes a string or a number, never null. JSON's true and false also arrive as NSNumber.
+        // JSON's true and false also arrive as NSNumber.
         guard id is String || (id as? NSNumber).map({ CFGetTypeID($0) != CFBooleanGetTypeID() }) == true else {
             return encode(id: nil, failure: Failure(code: -32600, message: "Invalid request: the id must be a string or a number"))
         }

@@ -59,8 +59,8 @@ final class HeldCards {
 
     private var held: [Held] = []
 
-    /// A strict timer: a plain 40 s sleep may fire seconds late, by the system's default leeway and
-    /// App Nap, which a background Ideator behind the AI tool gets.
+    /// A strict timer with 10 ms of leeway, so timer coalescing cannot move the answer past the
+    /// spec's 40 seconds.
     func hold(_ request: HandOffRequest, reply: @escaping @Sendable (ToolReply) -> Void) {
         let timer = DispatchSource.makeTimerSource(flags: .strict, queue: .main)
         timer.schedule(deadline: .now() + .milliseconds(Int(request.wait / .milliseconds(1))), leeway: .milliseconds(10))
