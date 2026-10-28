@@ -9,7 +9,7 @@ import AppKit
 /// world and fixes the difference, so each is safe to run any number of times.
 final class DeskController {
     private(set) var desk: Desk
-    private var grid: Grid
+    private(set) var grid: Grid
     /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk,
     /// not persisted.
     private var visibility = Visibility.all
@@ -29,17 +29,21 @@ final class DeskController {
     private let appMenu: () -> NSMenu
     /// Shows an alert and returns the button pressed. The default runs it modally; tests answer it.
     private let present: (NSAlert) -> NSApplication.ModalResponse
+    /// Where the pointer is on screen. The default reads the real one; tests place it.
+    private let pointer: () -> NSPoint
     private var pendingSave: Task<Void, Never>?
     private var saveFailing = false
     private var warnedAboutLayout = false
     private var pointerMonitors: [Any] = []
 
     init(library: Library, keys: KeyStore, appMenu: @escaping () -> NSMenu,
-         present: @escaping (NSAlert) -> NSApplication.ModalResponse = { NSApp.activate(); return $0.runModal() }) {
+         present: @escaping (NSAlert) -> NSApplication.ModalResponse = { NSApp.activate(); return $0.runModal() },
+         pointer: @escaping () -> NSPoint = { NSEvent.mouseLocation }) {
         self.library = library
         self.keys = keys
         self.appMenu = appMenu
         self.present = present
+        self.pointer = pointer
         desk = library.load()
         grid = Self.currentGrid() ?? Grid(area: CGRect(x: 0, y: 0, width: 1512, height: 949))
         summarizer.sync(desk.allCards, typing: nil)
