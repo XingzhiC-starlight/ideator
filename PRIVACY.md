@@ -43,3 +43,7 @@ Once a day, and whenever you click **Check Now** in Settings or **Check for Upda
 The first check happens right after you press **Continue** on the welcome card, never before. If you used a build from before the card mentioned GitHub, it shows once more and nothing is sent until you press Continue. A build that `scripts/package.sh` did not make never checks, and neither does a run started with `-CardsFolder`. The test copies that `scripts/verify-update.sh` makes are the one exception, and they ask only a server on your own Mac.
 
 To turn the daily check off, clear **Check for updates automatically** in Settings. Ideator then asks GitHub only when you click **Check Now** or **Check for Updates…**. GitHub's own privacy statement covers its server logs.
+
+### AI tools, on your Mac only
+
+When an AI tool such as Claude Code, Codex or Claude Desktop adds a card, the connection is local: the tool runs a helper inside Ideator.app on your Mac, and the helper hands the card to Ideator, which saves it. Nothing new leaves your Mac. A card from an AI tool is saved like any other card and, with a key saved, sent for its summary like any other card. What the AI tool sends to its own servers, including the card it writes and the instruction and replies Ideator gives it, is covered by that tool's own terms.
