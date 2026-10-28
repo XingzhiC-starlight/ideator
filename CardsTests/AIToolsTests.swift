@@ -1,0 +1,203 @@
+import XCTest
+@testable import Ideator
+
+/// Ideator's side of a card from an AI tool: the reply only after the save, the cards held while the
+/// welcome card waits, the two Settings rows and where they are kept.
+final class AIToolsTests: XCTestCase {
+    private var folder: URL!
+    private var windowsBefore: [NSWindow] = []
+    private var controllers: [DeskController] = []
+    private var alerts: [String] = []
+    private let suites = TestDefaults()
+
+    override func setUpWithError() throws {
+        windowsBefore = NSApp.windows
+        folder = FileManager.default.temporaryDirectory
+            .appending(path: "CardsTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() async throws {
+        for window in NSApp.windows where !windowsBefore.contains(window) {
+            window.orderOut(nil)
+            window.close()
+        }
+        controllers = []
+        suites.removeAll()
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+        try? FileManager.default.removeItem(at: folder)
+    }
+
+    private func makeController() -> DeskController {
+        let controller = DeskController(library: Library(folder: folder), keys: KeyStore(inKeychain: false), appMenu: { NSMenu() },
+                                        present: { [self] alert in
+                                            alerts.append(alert.messageText)
+                                            return .alertFirstButtonReturn
+                                        },
+                                        pointer: { NSPoint(x: -10_000, y: -10_000) })
+        controllers.append(controller)
+        return controller
+    }
+
+    private func card(_ title: String, body: String = "") throws -> AddCard {
+        try AddCard.parse(["title": title, "body": body]).get()
+    }
+
+    private func files() throws -> [String: String] {
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".md") }
+        return try Dictionary(uniqueKeysWithValues: names.map { ($0, try String(contentsOf: folder.appending(path: $0), encoding: .utf8)) })
+    }
+
+    // MARK: Saving, then replying
+
+    func testTheReplyComesAfterTheCardFileIsSaved() async throws {
+        let controller = makeController()
+        let reply = controller.add(try card("Buy milk", body: "- eggs\n- [ ] bread"), landing: .top)
+
+        XCTAssertEqual(reply, .done("Added \"Buy milk\" to the top of the stack."))
+        XCTAssertEqual(Array(try files().values), ["# Buy milk\n\n- eggs\n- [ ] bread\n"], "saved before the reply, with no wait for the debounce")
+        XCTAssertEqual(controller.desk.stack.first?.note.header, "Buy milk")
+    }
+
+    func testBottomSaysBottom() async throws {
+        let controller = makeController()
+        XCTAssertEqual(controller.add(try card("Later"), landing: .bottom), .done("Added \"Later\" to the bottom of the stack."))
+    }
+
+    func testAFolderThatRefusesTheSaveIsAnErrorThatSaysNotToAddItAgain() async throws {
+        let controller = makeController()
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+
+        let reply = controller.add(try card("Buy milk"), landing: .top)
+
+        XCTAssertTrue(reply.isError)
+        XCTAssertTrue(reply.text.contains("couldn't save"), reply.text)
+        XCTAssertTrue(reply.text.contains("don't add it again"), reply.text)
+        XCTAssertEqual(alerts, ["Ideator can't save your notes"], "the usual alert says so on screen too")
+    }
+
+    func testTheRepliesSayWhatTheSpecSays() {
+        XCTAssertEqual(ToolReply.added("T", to: .top), .done("Added \"T\" to the top of the stack."))
+        XCTAssertEqual(ToolReply.added("T", to: .bottom), .done("Added \"T\" to the bottom of the stack."))
+        XCTAssertEqual(ToolReply.turnedOff, .failed("Turned off in Ideator's Settings"))
+    }
+
+    // MARK: While the welcome card waits for Continue
+
+    func testCardsHeldDuringTheWelcomeAreAnsweredInOrderOnContinue() async throws {
+        let held = HeldCards(patience: .seconds(30))
+        let replies = Replies()
+        held.hold(try card("first")) { replies.add($0) }
+        held.hold(try card("second")) { replies.add($0) }
+        XCTAssertEqual(replies.all, [], "nothing is answered before Continue")
+
+        held.release { .done("saved \($0.title)") }
+
+        XCTAssertEqual(replies.all, [.done("saved first"), .done("saved second")])
+        held.release { _ in .done("again") }
+        XCTAssertEqual(replies.all.count, 2, "each card is answered once")
+    }
+
+    func testACardHeldPastItsPatienceIsAnsweredPressContinueAndNeverSaved() async throws {
+        let held = HeldCards(patience: .milliseconds(100))
+        let replies = Replies()
+        held.hold(try card("late")) { replies.add($0) }
+
+        let deadline = Date().addingTimeInterval(5)
+        while replies.all.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+
+        XCTAssertEqual(replies.all, [.waitingForContinue])
+        XCTAssertTrue(ToolReply.waitingForContinue.isError)
+        XCTAssertTrue(ToolReply.waitingForContinue.text.contains("Press Continue"), ToolReply.waitingForContinue.text)
+        var saved: [String] = []
+        held.release { saved.append($0.title); return .done("saved") }
+        XCTAssertEqual(saved, [], "Continue after the reply does not add the card the tool was told about")
+    }
+
+    func testAReleaseAfterThePatienceRanOutStillRefuses() async throws {
+        let held = HeldCards(patience: .zero)
+        let replies = Replies()
+        held.hold(try card("late")) { replies.add($0) }
+        held.release { _ in .done("saved") }
+        XCTAssertEqual(replies.all, [.waitingForContinue], "a Documents prompt that held the main thread past the deadline")
+    }
+
+    // MARK: The settings and where they live
+
+    func testTheFactorySettingsAreOnAndTop() {
+        XCTAssertEqual(Preferences(defaults: nil).aiTools, AIToolSettings(enabled: true, landing: .top))
+        XCTAssertEqual(Preferences(defaults: suites.make()).aiTools, AIToolSettings(enabled: true, landing: .top))
+    }
+
+    func testAnOrdinaryRunKeepsTheSettingsAcrossLaunches() {
+        let owners = suites.make()
+        AIToolsChoice(preferences: Preferences(defaults: owners)).value = AIToolSettings(enabled: false, landing: .bottom)
+        XCTAssertEqual(AIToolsChoice(preferences: Preferences(defaults: owners)).value, AIToolSettings(enabled: false, landing: .bottom))
+    }
+
+    func testAScratchRunKeepsAChangeForTheRunAndWritesNothing() {
+        let owners = suites.make()
+        let launch = Launch(arguments: ["CardsFolder": "/tmp/scratch"], defaults: owners, build: BuildInfo(info: [:]), environment: [:])
+        let choice = AIToolsChoice(preferences: launch.preferences(standard: owners))
+
+        choice.value.landing = .bottom
+        choice.value.enabled = false
+
+        XCTAssertEqual(choice.value, AIToolSettings(enabled: false, landing: .bottom), "the change lasts for the run")
+        XCTAssertEqual(owners.dictionaryRepresentation().keys.filter { $0.hasPrefix("AITools") }, [])
+        XCTAssertEqual(AIToolsChoice(preferences: launch.preferences(standard: owners)).value, AIToolSettings(enabled: true, landing: .top))
+    }
+
+    func testTheHelperStartsIdeatorInTheBackground() {
+        let background = Launch(arguments: [:], build: BuildInfo(info: [:]), environment: [HandOff.backgroundVariable: "1"])
+        XCTAssertTrue(background.inBackground)
+        XCTAssertFalse(Launch(arguments: [:], build: BuildInfo(info: [:]), environment: [:]).inBackground)
+    }
+
+    func testSettingsHasTheTwoRowsAfterUpdatesAndBeforePrivacy() throws {
+        let choice = AIToolsChoice(preferences: Preferences(defaults: nil))
+        let window = SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
+                                    updates: Updates(build: .current, isScratch: true), aiTools: choice) {}
+        let views = descendants(of: try XCTUnwrap(window.contentView))
+        let labels = views.compactMap { view -> String? in
+            if let button = view as? NSButton { return button.title }
+            if let field = view as? NSTextField, !field.isEditable { return field.stringValue }
+            return nil
+        }
+        func index(_ label: String) throws -> Int { try XCTUnwrap(labels.firstIndex(of: label), label) }
+        XCTAssertLessThan(try index("Updates"), try index("Let AI tools add cards"))
+        XCTAssertLessThan(try index("Let AI tools add cards"), try index("Cards from AI tools go to:"))
+        XCTAssertLessThan(try index("Cards from AI tools go to:"), try index("Top"))
+        XCTAssertLessThan(try index("Top"), try index("Bottom"))
+        XCTAssertLessThan(try index("Bottom"), try index("Privacy"))
+
+        let buttons = views.compactMap { $0 as? NSButton }
+        let allow = try XCTUnwrap(buttons.first { $0.title == "Let AI tools add cards" })
+        let top = try XCTUnwrap(buttons.first { $0.title == "Top" })
+        let bottom = try XCTUnwrap(buttons.first { $0.title == "Bottom" })
+        XCTAssertEqual(allow.state, .on)
+        XCTAssertEqual(top.state, .on)
+
+        bottom.performClick(nil)
+        XCTAssertEqual(choice.value.landing, .bottom)
+        XCTAssertEqual(top.state, .off)
+
+        allow.performClick(nil)
+        XCTAssertEqual(choice.value.enabled, false)
+        XCTAssertFalse(top.isEnabled, "where cards go means nothing while AI tools may not add them")
+        XCTAssertFalse(bottom.isEnabled)
+    }
+
+    /// Every view under `view` in reading order: each view, then what it holds.
+    private func descendants(of view: NSView) -> [NSView] {
+        view.subviews.flatMap { [$0] + descendants(of: $0) }
+    }
+}
+
+/// Replies collected from closures that may run on any thread.
+private final class Replies: @unchecked Sendable {
+    private let lock = NSLock()
+    private var replies: [ToolReply] = []
+    var all: [ToolReply] { lock.withLock { replies } }
+    func add(_ reply: ToolReply) { lock.withLock { replies.append(reply) } }
+}
