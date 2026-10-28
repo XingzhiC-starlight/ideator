@@ -153,7 +153,47 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual((object["error"] as? [String: Any])?["code"] as? Int, -32700)
     }
 
+    /// JSON-RPC 2.0: JSON that is not a request object is an Invalid Request, not a parse error.
+    func testJSONThatIsNotAnObjectIsAnInvalidRequestWithANullID() throws {
+        for line in ["null", "5", "\"ping\"", "[]"] {
+            let reply = try XCTUnwrap(server().respond(to: Data(line.utf8)), line)
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: reply) as? [String: Any], line)
+            XCTAssertTrue(object["id"] is NSNull, line)
+            XCTAssertEqual((object["error"] as? [String: Any])?["code"] as? Int, -32600, line)
+        }
+    }
+
+    /// MCP, unlike base JSON-RPC: a request ID must be a string or an integer, never null
+    /// (https://modelcontextprotocol.io/specification/2026-07-28/basic/index.md, Requests).
+    func testARequestWhoseIDIsNullOrNotAStringOrNumberIsAnInvalidRequest() throws {
+        for id in [NSNull(), true, ["x": 1]] as [Any] {
+            let reply = try respond(request("tools/list", id: id))
+            XCTAssertEqual(try error(reply).code, -32600, "\(id)")
+            XCTAssertTrue(reply?["id"] is NSNull, "\(id)")
+        }
+        XCTAssertTrue(calls.isEmpty)
+    }
+
     // MARK: Modern clients (2026-07-28)
+
+    /// https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching.md: a complete
+    /// `server/discover` or `tools/list` result MUST carry `ttlMs` (>= 0) and `cacheScope`.
+    func testDiscoverAndToolsListCarryCachingHints() throws {
+        let discover = try result(respond(request("server/discover", ["_meta": modernMeta])))
+        XCTAssertEqual(discover["ttlMs"] as? Int, 0, "the instructions are the user's to edit, so never fresh")
+        XCTAssertEqual(discover["cacheScope"] as? String, "private")
+
+        let list = try result(respond(request("tools/list", ["_meta": modernMeta])))
+        XCTAssertEqual(list["ttlMs"] as? Int, 0, "an update can change the tool, and asking again costs nothing")
+        XCTAssertEqual(list["cacheScope"] as? String, "public", "the same tool for every user")
+
+        for other in [try result(respond(request("ping", ["_meta": modernMeta]))), try callAddCard(["title": "T"], meta: modernMeta)] {
+            XCTAssertNil(other["ttlMs"])
+            XCTAssertNil(other["cacheScope"])
+        }
+        let legacy = try result(respond(request("tools/list")))
+        XCTAssertNil(legacy["ttlMs"], "a legacy result carries no caching hints")
+    }
 
     func testDiscoverListsTheVersionsTheToolsCapabilityAndTheInstructions() throws {
         let result = try result(respond(request("server/discover", ["_meta": modernMeta])))

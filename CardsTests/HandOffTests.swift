@@ -53,6 +53,22 @@ final class HandOffTests: XCTestCase {
         XCTAssertEqual(normal.path, directory.appending(path: "ideator-mcp.sock").path)
     }
 
+    /// The app opens its folder by the path it was given, and the file system resolves it, so a helper
+    /// with another spelling of the same folder must reach that run, not start a second one on it.
+    func testTheSameFolderSpelledAnotherWayIsTheSameEndpoint() throws {
+        let folder = directory.appending(path: "Notes", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        XCTAssertTrue(folder.path.hasPrefix("/tmp/"), folder.path)
+        let given = endpoint(folder.path)
+
+        XCTAssertEqual(endpoint("/private" + folder.path), given, "/tmp is a link to /private/tmp")
+        XCTAssertEqual(endpoint(directory.path + "/NOTES"), given, "the file system ignores letter case")
+        XCTAssertEqual(endpoint(directory.path + "/x/../Notes"), given)
+        XCTAssertEqual(endpoint("/private" + folder.path + "/later"), endpoint(folder.path + "/later"),
+                       "a folder not made yet: the part that exists is resolved")
+        XCTAssertNotEqual(endpoint(directory.path + "/Other"), given)
+    }
+
     func testTheEndpointFitsInASocketAddress() {
         let path = Endpoint(scratchFolder: URL(filePath: "/tmp/x"), directory: Endpoint.userTemporaryDirectory).path
         XCTAssertLessThan(path.utf8.count, 104, path)
@@ -117,6 +133,32 @@ final class HandOffTests: XCTestCase {
         }
         XCTAssertEqual(reply, .done("started for T"))
         XCTAssertEqual(launches.value, 1)
+    }
+
+    /// The welcome wait counts from the call, so the time the launch took comes off what the app may
+    /// still wait, and the AI tool hears back within the spec's 40 seconds.
+    func testTheCardCarriesTheWaitForContinueLeftAfterTheLaunch() async throws {
+        let path = endpoint("/tmp/slow-start").path
+        let reply = await send(try card("T"), to: endpoint("/tmp/slow-start")) {
+            Thread.sleep(forTimeInterval: 0.5)
+            DispatchQueue.global().async {
+                guard let listener = Socket.listen(at: path) else { return }
+                defer {
+                    close(listener)
+                    unlink(path)
+                }
+                let fd = accept(listener, nil, nil)
+                defer { close(fd) }
+                var reader = LineReader(fd: fd, limit: 1 << 20)
+                guard case .line(let line)? = reader.next(),
+                      let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { return }
+                Socket.write(line: ToolReply.done("\(object["waitMs"] ?? "none")").line, to: fd)
+            }
+            return nil
+        }
+        let waitMs = try XCTUnwrap(Int(reply.text), reply.text)
+        XCTAssertLessThanOrEqual(waitMs, 39_500, "the half second the launch took is spent")
+        XCTAssertGreaterThan(waitMs, 35_000)
     }
 
     func testALaunchThatFailsSaysWhyAndSavesNothing() async throws {
