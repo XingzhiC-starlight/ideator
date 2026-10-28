@@ -55,6 +55,9 @@ func send(_ command: Command) {
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
 | `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
+| `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls) |
+| `Helper/main.swift` | the `ideator-mcp` process: its arguments, starting the app that contains it, and the stdio loop |
+| `AITools.swift` | the app's side: `ToolInbox` on this instance's endpoint, `HeldCards` while the welcome card waits, and the two settings (`AIToolsChoice`) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
   `Place`) or a stack position. There is no id-to-card map to keep in step,
@@ -121,6 +124,13 @@ func send(_ command: Command) {
   old one, so a refusal leaves the working shortcut live. Carbon reports a conflict only inside one
   process, since two apps registering one combination both succeed, so Settings also says when macOS
   has its own shortcut on it (`CopySymbolicHotKeys`).
+- **An AI tool's card enters like any other command.** The helper parses the call into `AddCard`
+  and hands it over a Unix socket; the app parses the line again with the same `AddCard.parse`,
+  since any process of the user can connect. `DeskController.add` reads one fact from the windows,
+  whether the user is typing in the stacked card (Ideator active and the stack's editor first
+  responder), sends `Command.addFromTool` with it, and replies only after `flush()` saved the card.
+  So where the card lands is a pure rule in `Desk.apply`, which the desk check explores. Before
+  the notes open, `HeldCards` keeps the card and its reply until Continue, for 40 seconds at most.
 - **Derived, idempotent side effects.** `render()` compares the desk with the real windows,
   `Library.save` with the disk, and `Summarizer.sync` with the requests in flight. Each is safe
   to run any number of times.
@@ -515,6 +525,41 @@ Later changes, after trying the app:
   The sixth run (`b15b8f30`) passed: 28 of 28 requests, 0 hard fails in 304 checks, longest English
   summary 126 characters and the mixed Chinese card 55 and 57. One warning, Haiku's thin Dentist card
   at 62 characters against 60 expected, is left as a judgment call.
+- 2026-10-28, AI tools add cards (MCP, step 2 of CARDS-SPEC.md's AI tools section). The server is a
+  Swift command-line target, `ideator-mcp`, embedded at `Contents/Helpers` and signed with the app,
+  so notarization and Sparkle cover it and the user installs nothing: an npm or Python server would
+  need a runtime on the Mac and a second way to update. The helper never writes a card. It hands
+  the card to the running app, which saves it, so the notes folder keeps one writer (`Library`'s
+  snapshot assumes it), the AI tool's process never meets macOS's Documents prompt, and the app
+  knows the card came from an AI tool. `Desk` gained `Command.addFromTool`, with its rule in the desk
+  check and seven mutants.
+  - Transport: a Unix domain socket in the user's own temporary folder (`confstr`, so the tool's
+    environment cannot move it), mode 0600, one line of JSON each way, the framing MCP's stdio
+    binding itself suggests for sockets. "Is Ideator running?" is whether the socket answers, never a
+    process or bundle-id lookup, since the owner's Ideator shares the bundle id. A normal run listens
+    on `ideator-mcp.sock` and a scratch run on `ideator-mcp-<16 hex digits of its folder>.sock`, so a
+    helper reaches only the run its `-CardsFolder` names. A file left by a killed run is replaced when
+    nothing answers on it, and `close` removes only the file this instance made. Rejected: an XPC Mach
+    service, which needs a launchd job (`SMAppService`), one name per bundle, and none for a scratch
+    run; `CFMessagePort`, whose reply must come back inside the callback on the main thread, so it
+    cannot wait for Continue; loopback TCP, open to every local user and needing a port to be found;
+    Apple Events, which find the app by pid or bundle id and ask for Automation permission; and an
+    inbox file in the notes folder, which makes the tool a writer and brings back the Documents prompt.
+  - With nothing answering, the helper starts the app that contains it by its URL, never by bundle
+    id, with `activates` off and `IDEATOR_BACKGROUND=1`, so `openNotes` skips its `NSApp.activate()`.
+    A scratch run asks for a new instance: Launch Services would otherwise give the request, and
+    not its arguments, to the owner's running Ideator.
+  - The helper serves both MCP eras: `initialize` for 2025-11-25 and earlier, and the stateless
+    2026-07-28 protocol (`server/discover`, the version and capabilities in each request's `_meta`,
+    `resultType` on each result). A session start never reaches the app, so an AI tool opening a
+    session does not start Ideator.
+  - While the welcome card waits for Continue the app listens already, and holds a card 40 seconds
+    at most, then answers "press Continue" and drops it. Codex and the MCP TypeScript SDK give up on
+    a call after 60 seconds, and a card saved after the tool gave up would be added again when the
+    tool retries. The app keeps the deadline, not the helper, so the answer and the save cannot
+    disagree; a Documents prompt that holds the main thread past it still refuses.
+  - `package.sh` checks the helper's signature, runtime, team and slices, and its launch check hands
+    the scratch run a card through the shipped helper and reads the saved file.
 
 ## Tradeoffs accepted
 
@@ -609,3 +654,9 @@ Later changes, after trying the app:
   Settings warns about macOS's own shortcuts, which are the one other conflict that can be read.
 - The welcome is taller than a grid cell, in exchange for its copy fitting at body size in the
   stack's width. It is top-right where the stack appears.
+- A card from an AI tool with Top keeps the page while the cursor is in the stack's editor, the
+  blank page included, since a first character there is about to become a card.
+- A card from an AI tool that cannot be saved stays in the stack, as any unsaved edit does, and the
+  reply says not to add it again, because a retry would add a second copy.
+- The welcome card that a background start shows still activates Ideator, as it does at any first
+  launch; only the start itself takes no focus.
