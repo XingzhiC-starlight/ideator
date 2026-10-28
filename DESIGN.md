@@ -126,8 +126,10 @@ func send(_ command: Command) {
   to run any number of times.
 - **Editor.** TextKit 1. The text storage holds exactly the note's text. A body line's shape
   (its kind and level) is a paragraph attribute and its marker is drawn in the indent, so a
-  marker can never be half-deleted. Fonts and indents are re-derived from the content after
-  every change; that pass never writes the shape attribute, so undo restores shapes exactly.
+  marker can never be half-deleted. A run's bold and italic are a character attribute too, not
+  the font. Fonts and indents are re-derived from the two attributes after every change; that
+  pass writes neither, so undo restores shapes and styles exactly, even for text that sat in the
+  header, whose font is always the header's, in between.
 - **A level is part of the line.** A `Line` is a `LineShape` (kind plus a `Level`, 0 to 2) and its
   runs. `LineShape` drops the level of a plain line, so plain text always sits at the left edge.
   One pure function, `tidyLevels`, is the whole nesting rule: no item more than one level deeper
@@ -348,6 +350,15 @@ Later changes, after trying the app:
   summary. The one non-CommonMark rule left is the writer's own `\1.` before a plain line that
   starts like a numbered item. Paste lost `keepingLiteralBackslashes` with it, since `Note`'s
   reader now applies that rule itself.
+- 2026-10-27, undo and inline styles: bold and italic lived only in the fonts, read back by point
+  size, and `restyle()` re-derives every font after each change without registering undo. Text
+  joined into the header took the header's font, so undo brought its characters back plain and
+  the next save dropped the `**` and `*`. Bold and italic are now the `.cardStyle` attribute of
+  each character, written only by `attributedText`, ⌘B/⌘I and typing; fonts follow from it and
+  are never read back, and undo restores it with the text, as it does `.cardLine`. Reading the
+  font's traits at any size would not have done it: the header font is bold, so every line that
+  passed through the header would come back bold. Text in the header keeps a style it does not
+  show, so Enter that splits it back out of the header also brings its style back.
 - 2026-10-24, first launch: a stranger opening the dmg met macOS's Documents prompt with no
   explanation and a shortcut that fought Finder. `Launch.run` now builds the `DeskController`,
   whose `Library.load` creates the notes folder, only after a welcome card's Continue, and records

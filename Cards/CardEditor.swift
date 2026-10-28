@@ -7,8 +7,10 @@ import AppKit
 // paragraph's shape (kind and level) is the `.cardLine` attribute over its whole range, and
 // `CardTextView` draws "•", "1." or a checkbox in the paragraph's indent. So the user can never
 // half-delete a marker, numbering can't go stale, and `Note(attributedText:)` is a plain walk over
-// paragraphs. Inline bold/italic are font traits. Fonts and indents are re-derived after every
-// change; `.cardLine` changes only through `applyShapes`, which registers undo.
+// paragraphs. Inline bold/italic is the `.cardStyle` attribute, not the font: text joined into the
+// header takes the header's font, and undo must still find its style. Fonts and indents are
+// re-derived from `.cardLine` and `.cardStyle` after every change; `.cardLine` changes only
+// through `applyShapes`, which registers undo.
 //
 // An empty last paragraph has no characters to hold an attribute, so while the caret is in it,
 // its shape lives in the typing attributes.
@@ -16,6 +18,15 @@ import AppKit
 extension NSAttributedString.Key {
     /// Paragraph-level `LineShape.attributeValue` of a body paragraph. Absent means plain text.
     static let cardLine = NSAttributedString.Key("cards.line")
+    /// A body character's `Style.rawValue`. Absent means plain.
+    static let cardStyle = NSAttributedString.Key("cards.style")
+}
+
+extension Style {
+    /// Anything but a known style reads as plain.
+    init(attributeValue: Any?) {
+        self = Style(rawValue: (attributeValue as? Int) ?? 0).intersection([.bold, .italic])
+    }
 }
 
 extension LineShape {
@@ -62,17 +73,6 @@ enum EditorStyle {
         return NSFont(descriptor: body.fontDescriptor.withSymbolicTraits(traits), size: body.pointSize) ?? body
     }
 
-    /// Bold/italic of a body font. A font of any other size (the header font carried into the
-    /// body by Enter, or pasted text) counts as plain.
-    static func style(of font: NSFont?) -> Style {
-        guard let font, abs(font.pointSize - body.pointSize) < 0.5 else { return [] }
-        let traits = font.fontDescriptor.symbolicTraits
-        var style: Style = []
-        if traits.contains(.bold) { style.insert(.bold) }
-        if traits.contains(.italic) { style.insert(.italic) }
-        return style
-    }
-
     static let headerAttributes: [NSAttributedString.Key: Any] = {
         let paragraph = NSMutableParagraphStyle()
         paragraph.paragraphSpacing = 6
@@ -91,7 +91,7 @@ enum EditorStyle {
     }
 
     static func bodyAttributes(shape: LineShape, style: Style) -> [NSAttributedString.Key: Any] {
-        bodyLook(shape: shape, style: style).merging([.cardLine: shape.attributeValue]) { $1 }
+        bodyLook(shape: shape, style: style).merging([.cardLine: shape.attributeValue, .cardStyle: style.rawValue]) { $1 }
     }
 }
 
@@ -131,7 +131,7 @@ extension Note {
 
     /// Inverse of `attributedText`. Paragraph 0 → `header` (plain string, attributes ignored).
     /// Paragraph i > 0 → a line whose shape is the `.cardLine` at its start and whose runs follow
-    /// the fonts. `trailingShape` is the shape of an empty last paragraph, which has no characters.
+    /// `.cardStyle`. `trailingShape` is the shape of an empty last paragraph, which has no characters.
     init(attributedText text: NSAttributedString, trailingShape: LineShape = .plain) {
         let string = text.string as NSString
         var ranges: [NSRange] = []
@@ -152,8 +152,8 @@ extension Note {
                 : trailingShape
             var runs: [Run] = []
             if range.length > 0 {
-                text.enumerateAttribute(.font, in: range) { value, sub, _ in
-                    runs.append(Run(text: string.substring(with: sub), style: EditorStyle.style(of: value as? NSFont)))
+                text.enumerateAttribute(.cardStyle, in: range) { value, sub, _ in
+                    runs.append(Run(text: string.substring(with: sub), style: Style(attributeValue: value)))
                 }
             }
             return Line(shape: shape, runs: runs)
@@ -262,23 +262,24 @@ final class CardTextView: NSTextView {
         let selection = selectedRange()
         if selection.length == 0 {
             guard currentParagraph().location > 0 else { return }
-            var current = EditorStyle.style(of: typingAttributes[.font] as? NSFont)
+            var current = Style(attributeValue: typingAttributes[.cardStyle])
             current.formSymmetricDifference(style)
-            typingAttributes[.font] = EditorStyle.font(for: current)
+            typingAttributes[.cardStyle] = current.rawValue
+            fixTypingAttributes()
             return
         }
         let body = NSIntersectionRange(selection, NSRange(location: headerEnd, length: string.length - headerEnd))
         guard body.length > 0 else { return }
         var everyRunHasIt = true
-        storage.enumerateAttribute(.font, in: body) { value, _, _ in
-            if !EditorStyle.style(of: value as? NSFont).isSuperset(of: style) { everyRunHasIt = false }
+        storage.enumerateAttribute(.cardStyle, in: body) { value, _, _ in
+            if !Style(attributeValue: value).isSuperset(of: style) { everyRunHasIt = false }
         }
         guard shouldChangeText(in: body, replacementString: nil) else { return }
         storage.beginEditing()
-        storage.enumerateAttribute(.font, in: body) { value, sub, _ in
-            var runStyle = EditorStyle.style(of: value as? NSFont)
+        storage.enumerateAttribute(.cardStyle, in: body) { value, sub, _ in
+            var runStyle = Style(attributeValue: value)
             if everyRunHasIt { runStyle.subtract(style) } else { runStyle.formUnion(style) }
-            storage.addAttribute(.font, value: EditorStyle.font(for: runStyle), range: sub)
+            storage.addAttribute(.cardStyle, value: runStyle.rawValue, range: sub)
         }
         storage.endEditing()
         didChangeText()
@@ -371,7 +372,7 @@ final class CardTextView: NSTextView {
     override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
         guard !hasMarkedText(), let lines = Clipboard.lines(from: pboard.clipboardOffer) else { return false }
         let pasted = Clipboard.paste(lines, into: note, replacing: span(of: selectedRange()),
-                                     typing: EditorStyle.style(of: typingAttributes[.font] as? NSFont))
+                                     typing: Style(attributeValue: typingAttributes[.cardStyle]))
         undoStep("Paste") { replaceDocument(with: pasted) }
         return true
     }
@@ -725,8 +726,8 @@ final class CardTextView: NSTextView {
     }
 
     /// Paragraph 0 gets the header look and each body paragraph the look of its shape (the one at
-    /// its start) with its own bold/italic. Attributes only, and never `.cardLine`, so it neither
-    /// changes the note nor needs undo.
+    /// its start) with its own `.cardStyle`. It never writes `.cardLine` or `.cardStyle`, so it
+    /// neither changes the note nor needs undo.
     private func restyle() {
         guard let storage = textStorage else { return }
         var looks: [(NSRange, [NSAttributedString.Key: Any])] = []
@@ -734,8 +735,9 @@ final class CardTextView: NSTextView {
             let shape = LineShape(attributeValue: storage.attribute(.cardLine, at: paragraph.location, effectiveRange: nil))
             storage.enumerateAttributes(in: paragraph) { attributes, range, _ in
                 var look = index == 0 ? EditorStyle.headerAttributes
-                    : EditorStyle.bodyLook(shape: shape, style: EditorStyle.style(of: attributes[.font] as? NSFont))
+                    : EditorStyle.bodyLook(shape: shape, style: Style(attributeValue: attributes[.cardStyle]))
                 look[.cardLine] = attributes[.cardLine]
+                look[.cardStyle] = attributes[.cardStyle]
                 looks.append((range, look))
             }
         }
@@ -752,7 +754,7 @@ final class CardTextView: NSTextView {
             typingAttributes = EditorStyle.headerAttributes
             return
         }
-        let style = EditorStyle.style(of: typingAttributes[.font] as? NSFont)
+        let style = Style(attributeValue: typingAttributes[.cardStyle])
         typingAttributes = EditorStyle.bodyAttributes(shape: shape(ofParagraph: paragraph), style: style)
     }
 

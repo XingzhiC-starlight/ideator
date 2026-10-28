@@ -95,6 +95,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - First line (first paragraph) is automatically the bold level-1 header, regardless of formatting.
 - Body formatting: bold, italic, bullet list, numbered list, checkboxes, and list items nested up to three levels (see Nested lists). Nothing else (revised 2026-10-23).
 - Apply via ⌘B / ⌘I; typing `- `, `1. `, `[] ` starts lists; Enter continues a list, Enter on an empty top-level item ends it.
+- Undo gives back text exactly, bold and italic included, also after an edit that joined a body line into the header (added 2026-10-27).
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
 - Per-card buttons (clarity toggle, summary refresh, ↩ Stack, trash) fade in on hover only. Trash asks "Delete this card?". The stacked card has every one of them, with ↗ Pop where a popped card has ↩ Stack (revised 2026-10-22).
