@@ -15,8 +15,10 @@ final class DeskControllerTests: XCTestCase {
     private var shown: [String] = []
     /// The answer to each coming alert, in order; the first button when the queue runs dry.
     private var answers: [NSApplication.ModalResponse] = []
+    private var windowsBefore: [NSWindow] = []
 
     override func setUpWithError() throws {
+        windowsBefore = NSApp.windows
         folder = FileManager.default.temporaryDirectory
             .appending(path: "CardsTests-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -24,6 +26,8 @@ final class DeskControllerTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        let left = NSApp.windows.filter { $0.isVisible && !windowsBefore.contains($0) }
+        XCTAssertEqual(left.map(\.className), [], "a window left on screen sends a click to a controller that is gone")
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
         try? FileManager.default.removeItem(at: folder)
     }
