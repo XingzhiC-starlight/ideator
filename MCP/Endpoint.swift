@@ -16,7 +16,24 @@ nonisolated struct Endpoint: Equatable, Sendable {
 
     /// 16 hex digits of the folder's path: a socket address holds at most 103 bytes.
     private static func tag(of folder: URL) -> String {
-        SHA256.hash(data: Data(folder.standardizedFileURL.path.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+        SHA256.hash(data: Data(resolved(folder).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// The folder as the file system finds it, the way the app opens it by the path it is given: links
+    /// followed and letter case as on disk, so `/tmp/x`, `/private/tmp/x` and `/tmp/X` are one folder.
+    /// The part that does not exist yet stays as written.
+    static func resolved(_ folder: URL) -> String {
+        var existing = folder.absoluteURL.standardizedFileURL.path
+        var missing: [String] = []
+        while true {
+            if let real = realpath(existing, nil) {
+                defer { free(real) }
+                return missing.reversed().reduce(String(cString: real)) { ($0 as NSString).appendingPathComponent($1) }
+            }
+            guard existing != "/" else { return folder.absoluteURL.standardizedFileURL.path }
+            missing.append((existing as NSString).lastPathComponent)
+            existing = (existing as NSString).deletingLastPathComponent
+        }
     }
 
     /// `confstr`, not `TMPDIR`: the AI tool starts the helper with an environment of its own, and
