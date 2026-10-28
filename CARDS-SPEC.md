@@ -54,7 +54,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - "↩ Stack" button returns a card to the top of the stack. It forgets where the card was; a later Pop takes the first free slot.
 
 ## Moving cards and the stack (new 2026-10-22)
-- Drag a card by its header, or the stack by its ribbon's empty space.
+- Drag a card, expanded or collapsed, by its header or by the margin around its text, or the stack by its ribbon's empty space (revised 2026-10-27).
 - While dragging, a guide outlines the slot nearest the dragged card's center: faint and dashed while a drop would stay free, solid and filled in once a drop would snap.
 - On release it snaps to that slot if its center is within 15% of a cell (in cell widths and heights) of the slot's center. Otherwise it stays exactly where it was dropped.
 - Snapping onto a slot held by another snapped card or the stack swaps them: the occupant goes to the dragged one's old place, a slot or an exact free spot. Free cards that only overlap the slot stay put.
@@ -66,7 +66,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 
 ## Switching stacked cards (stack only; revised 2026-10-22)
 - Purpose: show the cards hidden under the stack.
-- The stack is a loop. Next sends the selected card to the bottom and shows the one under it; previous brings the bottom card back up.
+- The stack is a loop. Next shows the card under the selected one, and previous the card above it. Flipping never changes the stack's order (revised 2026-10-27).
 - The loop always holds one blank page, after the last card and before the first.
 - Two-finger horizontal swipe on the stack: one card per swipe, next or previous following the system scroll direction. Vertical scroll scrolls the selected card's text.
 - Edge bands stay as a click alternative: an invisible band = 5% of the stack's width/height along all four edges. Right/bottom = next, left/top = previous. On hover the band tints faintly and shows ‹ or ›. Popped cards have no bands.
@@ -94,7 +94,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Applies to popped cards and to the selected stacked card alike.
 - First line (first paragraph) is automatically the bold level-1 header, regardless of formatting.
 - Body formatting: bold, italic, bullet list, numbered list, checkboxes, and list items nested up to three levels (see Nested lists). Nothing else (revised 2026-10-23).
-- Apply via ⌘B / ⌘I; typing `- `, `1. `, `[] ` starts lists; Enter continues a list, Enter on an empty top-level item ends it.
+- Apply via ⌘B / ⌘I; typing `- ` or `* ` (bullet), `1. ` with any number (numbered), or `[] ` or `[ ] ` (checkbox) starts lists (revised 2026-10-27); Enter continues a list, Enter on an empty top-level item ends it.
 - Undo gives back text exactly, bold and italic included, also after an edit that joined a body line into the header (added 2026-10-27).
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
@@ -174,7 +174,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - One Markdown (.md) file per card in ~/Documents/Ideator/.
 - A card file reads the way CommonMark reads it (added 2026-10-27): a backslash escapes only punctuation, so `C:\Users\me` keeps its backslashes, and asterisks style text only when they hug it (`*word*`), so `rm *.txt *.log` and `2 * 3 * 4` keep theirs. A file edited outside Ideator shows what it says, and saving it changes none of its text. Files Ideator wrote read back to the same bytes.
 - One hidden sidecar file for positions (each card's and the stack's slot or free spot), stack order, collapsed state, and cached summaries.
-- The sidecar carries a format version. A sidecar written by a newer Ideator is never overwritten: cards open and card files save as usual, places, Clarity and summaries are not saved, and a notice at launch says to update (added 2026-10-24).
+- The sidecar carries a format version. A sidecar written by a newer Ideator is never overwritten: cards open and card files save as usual, nothing the sidecar holds is saved (places, stack order, collapsed cards, Clarity and summaries), and a notice at launch says to update (added 2026-10-24, revised 2026-10-27).
 - That check runs again before every sidecar write, not only at launch (added 2026-10-27): the other Mac can arrange the folder while this one runs. The notice shows once per run, when the check first finds the newer file.
 - A folder that can't be listed at launch (macOS refused, a volume not mounted) opens empty with the notice "Ideator couldn't read your notes" (added 2026-10-27). That run never writes the sidecar, so the arrangement it never read survives. Cards written meanwhile save when the folder allows it, a rescan brings the folder's cards into the stack, and the next launch arranges everything from the sidecar.
 - A failed save is never silent (revised 2026-10-27): the first one shows "Ideator can't save your notes" (see First launch for the Documents case), and quitting while a save still fails asks "Quit without saving?" with Cancel and Quit Anyway, instead of dropping the changes that alert promised to keep.

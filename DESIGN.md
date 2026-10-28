@@ -154,10 +154,13 @@ func send(_ command: Command) {
   and read by `Note`'s one reader, which keeps Markdown's backslash rule for files and pastes alike. `Clipboard.paste` splices the run
   into the note as a pure function; the editor then replaces only the paragraphs that changed, in
   one undo step.
-- **Summaries.** A summary records the fingerprint of the note it describes and the version of
-  the prompt that wrote it; it is fresh only while both match. Bumping the prompt version
-  therefore regenerates every summary once, and a saved summary without a version counts as
-  stale. Spinner, failure and "no key" are derived, not stored as flags.
+- **Summaries.** A summary records the fingerprint of the note it describes, and is fresh while
+  that matches. Within a run every summary comes from the current prompt, so only the sidecar's
+  copy records which prompt wrote it (`SavedSummary.prompt`, a digest of the instructions), and
+  `Desk.init` drops a saved summary from another prompt. Editing the instructions therefore
+  regenerates every summary once. A sidecar from before the stamp holds summaries with no
+  `prompt`, so it does not decode and is read as no sidecar (see 2026-10-27, old sidecars).
+  Spinner, failure and "no key" are derived, not stored as flags.
 - **One dependency.** Sparkle 2.10.0 is pinned exactly, `Package.resolved` is committed, and every
   `xcodebuild` passes `-disableAutomaticPackageResolution`, so a drifted pin fails the build instead
   of changing what ships. Only `Updates.swift` imports it. Xcode embeds and signs the framework
@@ -210,7 +213,7 @@ chosen: it stays beige over white windows and only hints at what is behind.
 
 | Token | Value | Used for |
 | --- | --- | --- |
-| `paper` | `#F4ECDE` at 78 % | the glass tint of the card body |
+| `paper` | `#F4ECDE` at 78 % | the glass tint of the card body; at 85 % under the count badge in the ribbon |
 | `ribbon` | `#E6D8BC` at 85 % | the stack's ribbon; at 55 % under the count badge on the card |
 | `glassMaterial` | `.popover` | the blur behind every card |
 | `sheen` | white, 10 % to 0 | the top half of a card, fading down |
@@ -225,7 +228,7 @@ chosen: it stays beige over white windows and only hints at what is behind.
 | `focus` | `#DDB880` | the 2 pt border of the card you are typing in |
 | `accent` | `#823F1D` | a guide that will snap, Clarity when on |
 | `danger` | `#9A2818` | "Desktop full" |
-| `highlight` | `#E8D5AE` | selected text |
+| `highlight` | `#E8D5AE` | selected text and the arranger's selected row; at 50 % the row of the card the stack shows |
 
 `CardShape.radius` is 10 points.
 

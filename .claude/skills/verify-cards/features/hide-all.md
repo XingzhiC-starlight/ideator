@@ -26,7 +26,7 @@ Preconditions:
 
 - `cv launch --seed`; `cv doctor` prints `healthy`.
 - One card popped: run `cv ax press "↗ Pop" stack`. `cv ax windows` lists two windows, both
-  342x267 on the owner's display.
+  342x268 on the owner's display.
 
 - **Hide.** Click the eye button. Run `cv ax press "Hide all" stack`. `cv ax windows` lists one
   window, the stack, now only ribbon-high (`342x46` on the owner's display). `cv ax tree` shows

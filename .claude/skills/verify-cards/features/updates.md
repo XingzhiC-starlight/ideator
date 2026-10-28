@@ -22,7 +22,7 @@ an error and nothing changes on disk.
 - Settings (⌘,) › Updates › Check Now. It is user-initiated, so Sparkle answers every outcome with a
   window.
 - The menu bar icon › Check for Updates…, which is Check Now from anywhere. After a scheduled check
-  has found an update, it reads "Update to 0.9 (58)…".
+  has found an update, it reads "Update to 0.9 (N+1)…".
 - The daily scheduled check, which opens its window behind other apps.
 
 ## Driving it with cards-verify
@@ -34,7 +34,8 @@ under a test bundle id and drives them with `cards-ax` by pid.
 
 - **updates-all.** `scripts/verify-update.sh` runs the four phases below, prints a `PASS` line for each,
   then `PASS: the owner's Ideator is untouched`, and keeps its evidence in
-  `build/verify-evidence/update-<time>/`. About 45 seconds.
+  `build/verify-evidence/update-<time>/`. About 50 seconds. Below, N+1 is the shipped build number
+  (the number of commits on `HEAD`, so it moves with every commit) and N is one less.
 - **updates-current.** Phase `up to date`: `up-to-date.tree.txt` has `AXStaticText value="You’re up
   to date!"` and an `AXButton "OK"`, and `up-to-date.feed.log` has no `.dmg` request.
 - **updates-forged-feed.** Phase `forged feed`: `forged-feed.tree.txt` has "Update Error!" and "The
@@ -42,9 +43,9 @@ under a test bundle id and drives them with `cards-ax` by pid.
 - **updates-forged-image.** Phase `forged disk image`: the feed log has one `.dmg` request, and
   `forged-disk-image.tree.txt` has "The update is improperly signed and could not be validated".
 - **updates-offer, updates-install.** Phase `real update`: `real-update-offer.tree.txt` has "A new
-  version of Ideator is available!", "Ideator 0.9 (54) is now available—you have 0.9 (53).",
+  version of Ideator is available!", "Ideator 0.9 (N+1) is now available—you have 0.9 (N).",
   `Install Update` and `Skip This Version`. `real-update-ready.tree.txt` has "Ready to Install" and
-  `Install and Relaunch`. `real-update-relaunched.tree.txt` has the Settings line `Version 0.9 (54),
+  `Install and Relaunch`. `real-update-relaunched.tree.txt` has the Settings line `Version 0.9 (N+1),
   commit …`, and `real-update-current.tree.txt` has "You’re up to date!" again.
 - **updates-scheduled.** The same phase waits for the offer without pressing anything. Its `PASS` line
   says "offered by the scheduled check at launch".

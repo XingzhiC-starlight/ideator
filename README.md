@@ -26,7 +26,7 @@ show, a slashed eye while they are hidden), and **⋯** at its right opens Setti
 ## Build from the command line
 
 ```bash
-xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derivedDataPath build/DerivedData build
+xcodebuild -project Cards.xcodeproj -scheme Ideator -configuration Debug -derivedDataPath build/DerivedData -disableAutomaticPackageResolution build
 ```
 
 ```bash
@@ -36,7 +36,7 @@ open build/DerivedData/Build/Products/Debug/Ideator.app
 Run the unit tests (they use the app as their host and never touch `~/Documents/Ideator`):
 
 ```bash
-xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData
+xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData -disableAutomaticPackageResolution
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs on every pull request and every push to
@@ -131,9 +131,9 @@ It prints one of these verdicts and exits 0 only for "current":
 | not current | The app was built with local changes, so its files are not any commit's. |
 | can't tell | The app has no stamp. It is older than the stamp, or `scripts/package.sh` did not make it. |
 
-Settings shows the same stamp on its last line: `Version 0.9 (57), commit 1a2b3c4`, `… with local
-changes`, or `Version 0.9 (1), a development build` for a build without one, such as a run from
-Xcode. To read the stamp yourself:
+Settings shows the same stamp at the start of the caption under its Updates rows: `Version 0.9 (57),
+commit 1a2b3c4`, `… with local changes`, or `Version 0.9 (1), a development build` for a build
+without one, such as a run from Xcode. To read the stamp yourself:
 
 ```bash
 defaults read /Applications/Ideator.app/Contents/Info.plist IdeatorCommit
@@ -166,7 +166,7 @@ with a fresh preferences domain and `-CardsFolder` naming a temporary notes fold
 | up to date | lists N | Check Now says "You're up to date!", no disk image requested |
 | forged feed | N+1, signed by another key | Check Now says "The update feed is improperly signed", no disk image requested |
 | forged disk image | N+1, one byte of the disk image flipped after signing | Check Now offers it, Install Update downloads it, then "The update is improperly signed", N stays |
-| real update | N+1 | the check Sparkle makes at launch offers it with no click, then Install Update, Install and Relaunch, a new process running N+1 with the shipped code, and a Check Now that finds nothing |
+| real update | N+1 | the check Sparkle makes at launch offers it with no click; if it has not within 30 seconds, Check Now does, and the `PASS` line names which one offered it. Then Install Update, Install and Relaunch, a new process running N+1 with the shipped code, and a Check Now that finds nothing |
 
 It prints a `PASS` line per phase, then one for the owner: `/Applications/Ideator.app`, the
 `com.systemlabs.Ideator` preferences, the running Ideator processes and `~/Documents/Ideator` are
@@ -257,7 +257,7 @@ it now says something new about what Ideator sends. To see the card again, quit 
 run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
 `CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
 `-CardsFolder` shows no card on its own, remembers nothing, does not register the global shortcut,
-and never checks for updates.
+and never checks for updates, except in the test copies `scripts/verify-update.sh` makes.
 
 ## Where notes live
 
@@ -269,7 +269,10 @@ Ideator's preferences changes nothing.
 
 Builds from before the rename were called Cards and used `~/Documents/Cards` and the Keychain
 service "Cards". Ideator does not read either: quit Cards, move the files (including the hidden
-`.cards.json`) into `~/Documents/Ideator`, and paste the API key into Settings again.
+`.cards.json`) into `~/Documents/Ideator`, and paste the API key into Settings again. A
+`.cards.json` from a build before 2026-10-22 (version 1), or from a build before 2026-10-24 with any
+summary in it, opens as if there were none: every card in the stack, with no places, Clarity or
+collapsed cards, and the first save replaces it. The notes themselves are kept.
 
 ## Using it
 
@@ -279,10 +282,14 @@ service "Cards". Ideator does not read either: quit Cards, move the files (inclu
 | Select a stacked card | Swipe left or right with two fingers on the stack, or click the thin band along its edge: right/bottom = next, left/top = previous |
 | Edit a stacked card | Click into it on the stack; it edits like any other card |
 | Bring a card out | Select it, hover it and click **↗ Pop** |
-| Move a card | Drag it by its title; it snaps to the nearest cell and swaps with whatever is there, or stays where you let go, even partly off the left, right or bottom edge |
+| Move a card | Drag it by its title or by the margin around its text. Let go close to a cell's center (within 15 % of a cell) and it snaps into that cell, and a card or the stack snapped there trades places with it; let go anywhere else and it stays exactly there, over other cards, even partly off the left, right or bottom edge |
 | Put a card back | Hover it and click **↩ Stack** |
+| Reorder the stack | Click the count badge in the stack's corner, then drag a card's row by its grip (≡), or select a row and press ⌥↑ or ⌥↓ |
 | Collapse to a summary | Hover a card and click the collapse button, or use **Clarity** on the stack for every card (its text turns reddish brown while on) |
-| Format | ⌘B, ⌘I, or start a line with `- `, `1. ` or `[] `; the bar at the bottom of the card has the same five actions |
+| Hide every card | Click the eye on the stack's ribbon, press ⌃⌥I, or choose **Hide All** from the menu bar icon; the stack shrinks to its ribbon, and the same again shows everything |
+| Format | ⌘B, ⌘I, or start a line with `- `, `* `, `1. `, `[] ` or `[ ] `; the bar at the bottom of the card has the same five actions |
+| Nest a list item | **Tab** moves it one level deeper, up to three levels, and **Shift-Tab** one level up |
+| Copy and paste | ⌘C on a selection inside one line copies just its text. A selection across a line break copies every line it touches as Markdown and as an HTML list, so Notes and Mail paste a real list and Markdown apps paste Markdown; ⌘V reads lists from Notes, web pages, the Claude app and terminal output |
 
 The stack is a loop with one blank page after the last card. Swiping past the last card shows the
 blank page, and swiping once more shows the top card again. Typing on the blank page makes a new

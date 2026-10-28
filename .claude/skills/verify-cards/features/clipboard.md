@@ -37,7 +37,8 @@ Preconditions:
 
 - **Copy lines.** In `Plan`, `cv ax key cmd+up`, `cv ax key down`, `cv ax key cmd+left`, then
   `cv ax key shift+down` three times (Day one through hotel). `cv ax key cmd+c`, then
-  `cv clip show` prints `public.html` and `public.utf8-plain-text`: the Markdown
+  `cv clip show` lists `public.html` and `public.utf8-plain-text` among its types (with their
+  older aliases, `Apple HTML pasteboard type` and `NSStringPboardType`), then the Markdown
   `1. Day one` / `    1. flight` / `    2. hotel` and the HTML
   `<meta charset="utf-8"><ol><li>Day one<ol><li>flight</li><li>hotel</li></ol></li></ol>`.
 - **Levels from the shallowest.** Select only flight (`cv ax key cmd+up`, `cv ax key down` twice,
