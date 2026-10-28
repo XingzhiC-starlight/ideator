@@ -1,6 +1,6 @@
 import Foundation
 
-/// The AI tools Settings copies a setup for. Ideator only copies text: it never edits a tool's config.
+/// Ideator only copies a setup for these tools: it never edits a tool's config.
 nonisolated enum AITool: CaseIterable {
     case claudeCode, codex, claudeDesktop
 
@@ -12,7 +12,6 @@ nonisolated enum AITool: CaseIterable {
         }
     }
 
-    /// Where the copied text goes, said after the copy.
     var pasteNote: String {
         switch self {
         case .claudeCode: "Paste it into Terminal and press Return."
@@ -22,7 +21,6 @@ nonisolated enum AITool: CaseIterable {
         }
     }
 
-    /// The text to paste, in the syntax the tool takes. All three server names are `ideator`:
     /// - Claude Code: `claude mcp add`, with `--scope user` so every project has it
     ///   (https://code.claude.com/docs/en/mcp);
     /// - Codex: a `[mcp_servers.<name>]` table for `~/.codex/config.toml` (https://developers.openai.com/codex/mcp);
@@ -50,8 +48,7 @@ nonisolated enum AITool: CaseIterable {
     }
 }
 
-/// What an AI tool runs: the helper inside the running Ideator.app, found from that app's own path,
-/// and for a scratch run the `-CardsFolder` argument that keeps a pasted setup off the owner's notes.
+/// A scratch run's `-CardsFolder` argument keeps a pasted setup off the owner's notes.
 nonisolated struct HelperCommand: Equatable {
     let executable: URL
     let arguments: [String]
@@ -61,7 +58,6 @@ nonisolated struct HelperCommand: Equatable {
         arguments = scratchFolder.map { ["-CardsFolder", $0.standardizedFileURL.path] } ?? []
     }
 
-    /// The command as a shell reads it, each word quoted when it needs it.
     var shellLine: String {
         ([executable.path] + arguments).map(Self.shellWord).joined(separator: " ")
     }

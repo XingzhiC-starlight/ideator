@@ -15,8 +15,7 @@ nonisolated struct MCPServer {
     static let legacyVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
 
     let version: String
-    /// The instruction for a session, asked at each `initialize` and `server/discover`; nil leaves the
-    /// field out. Asking never starts Ideator (see `InstructionSource`).
+    /// Asked at each `initialize` and `server/discover`; nil leaves the field out.
     let instructions: () -> String?
     let addCard: (AddCard) -> ToolReply
 

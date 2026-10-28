@@ -1,7 +1,6 @@
 import XCTest
 @testable import Ideator
 
-/// Settings' instruction editor with Reset to Default, and the "Connect AI tools" copy buttons.
 final class ConnectSettingsTests: XCTestCase {
     private var boards: [NSPasteboard] = []
     private let app = URL(filePath: "/Applications/Ideator.app", directoryHint: .isDirectory)

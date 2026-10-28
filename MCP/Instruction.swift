@@ -1,8 +1,7 @@
 import CoreFoundation
 import Foundation
 
-// Compiled into both the app, which lets the user edit the instruction and saves it, and the helper
-// (`ideator-mcp`), which reads it at every session start. Pure values: no AppKit.
+// Compiled into the app and the helper (`ideator-mcp`): pure values, no AppKit.
 
 /// What Ideator's MCP server tells an AI tool when a session starts (MCP's server `instructions`).
 nonisolated struct Instruction: Equatable, Sendable {
@@ -13,8 +12,7 @@ nonisolated struct Instruction: Equatable, Sendable {
         + "matters, and keep one topic per card. Create a card only when the user asks; you may offer when something "
         + "looks worth saving."
 
-    /// Where the app keeps an edit, in its own preferences. No key means the standard text, so a later
-    /// build's standard text reaches everyone who never edited it.
+    /// No key means the standard text, so a later build's standard text reaches everyone who never edited it.
     static let preferenceKey = "AIToolsInstruction"
 
     /// What the user typed, or nil while the standard text stands. Typing the standard text is no edit.
@@ -24,13 +22,11 @@ nonisolated struct Instruction: Equatable, Sendable {
         self.edited = edited == Self.standard ? nil : edited
     }
 
-    /// What the editor shows.
     var text: String { edited ?? Self.standard }
 
     var isStandard: Bool { edited == nil }
 
-    /// What a session is given: the text without spaces and line breaks at its ends, and nothing when
-    /// that leaves nothing, since a user who clears the editor wants no instruction.
+    /// Nil when blank: a user who clears the editor wants no instruction.
     var forSession: String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
@@ -40,7 +36,7 @@ nonisolated struct Instruction: Equatable, Sendable {
 
     mutating func reset() { self = Instruction() }
 
-    /// What the app saved in the preferences domain `domain`, read without the app running.
+    /// Read without the app running.
     static func saved(inDomain domain: String) -> Instruction {
         Instruction(edited: CFPreferencesCopyAppValue(preferenceKey as CFString, domain as CFString) as? String)
     }

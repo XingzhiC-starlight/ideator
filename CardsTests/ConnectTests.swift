@@ -1,8 +1,6 @@
 import XCTest
 @testable import Ideator
 
-/// The text each "Connect AI tools" button copies: the helper inside the running app, in the syntax the
-/// tool takes, with a scratch run's `-CardsFolder` so a pasted setup can never reach the owner's notes.
 final class ConnectTests: XCTestCase {
     private let app = URL(filePath: "/Applications/Ideator.app", directoryHint: .isDirectory)
     private let helper = "/Applications/Ideator.app/Contents/Helpers/ideator-mcp"
@@ -10,8 +8,6 @@ final class ConnectTests: XCTestCase {
     private func command(app: URL? = nil, scratch: String? = nil) -> HelperCommand {
         HelperCommand(app: app ?? self.app, scratchFolder: scratch.map { URL(filePath: $0, directoryHint: .isDirectory) })
     }
-
-    // MARK: The helper
 
     func testTheHelperIsNamedByItsPlaceInsideTheAppItWasGiven() {
         XCTAssertEqual(command().executable.path, helper)
@@ -46,8 +42,6 @@ final class ConnectTests: XCTestCase {
         }
     }
 
-    // MARK: Claude Code
-
     func testClaudeCodeGetsAUserScopeStdioCommand() {
         XCTAssertEqual(AITool.claudeCode.setup(for: command()),
                        "claude mcp add --transport stdio --scope user ideator -- \(helper)")
@@ -59,8 +53,6 @@ final class ConnectTests: XCTestCase {
                        "claude mcp add --transport stdio --scope user ideator -- "
                        + "'/Users/me/Desktop/my apps/Ideator.app/Contents/Helpers/ideator-mcp' -CardsFolder '/tmp/scratch run'")
     }
-
-    // MARK: Codex
 
     func testCodexGetsAConfigTomlTable() {
         XCTAssertEqual(AITool.codex.setup(for: command()), """
@@ -81,8 +73,6 @@ final class ConnectTests: XCTestCase {
         let odd = URL(filePath: "/Users/a\"b\\c/Ideator.app", directoryHint: .isDirectory)
         XCTAssertTrue(AITool.codex.setup(for: command(app: odd)).contains(#"command = "/Users/a\"b\\c/Ideator.app/Contents/Helpers/ideator-mcp""#))
     }
-
-    // MARK: Claude Desktop
 
     private func entry(_ text: String) throws -> [String: Any] {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any], text)
@@ -114,8 +104,6 @@ final class ConnectTests: XCTestCase {
         XCTAssertEqual(ideator["command"] as? String, "/Users/a\"b\\c d/Ideator.app/Contents/Helpers/ideator-mcp")
         XCTAssertEqual(ideator["args"] as? [String], ["-CardsFolder", "/tmp/it's here"])
     }
-
-    // MARK: All three
 
     func testOnlyAScratchRunsSetupsNameACardsFolder() {
         for tool in AITool.allCases {

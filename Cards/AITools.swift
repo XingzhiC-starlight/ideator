@@ -101,7 +101,7 @@ final class HeldCards {
 /// `HandOffRequest.parse`, and `receive` answers through the reply it is given, once, when it is ready.
 /// `close` drops every connection still waiting, as quitting does, so each helper hears that
 /// nothing was saved. A connection may instead ask for the instruction (`InstructionSource`), which
-/// `instruction` answers; a nil `instruction` refuses the ask, as an app from before it did.
+/// `instruction` answers.
 final class ToolInbox {
     typealias Receive = @MainActor (HandOffRequest, @escaping @Sendable (ToolReply) -> Void) -> Void
     typealias CurrentInstruction = @MainActor () -> String

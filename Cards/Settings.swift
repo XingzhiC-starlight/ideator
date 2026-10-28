@@ -72,9 +72,10 @@ class KeyStore {
 final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
+    private static let editorHeight: CGFloat = 112
 
-    static let connectCaption = "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files."
-    static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next session."
+    private static let connectCaption = "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files."
+    private static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next session."
 
     /// Names the company of the saved key, or both while no key is saved.
     static func privacy(for provider: Provider?) -> String {
@@ -123,9 +124,6 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private var rejected: String?
     private var releasedForRecording = false
 
-    private static let editorHeight: CGFloat = 112
-
-    /// `connect` names the helper in the running app, and `pasteboard` is where the copy buttons write.
     init(keys: KeyStore, hotKey: HotKey, updates: Updates,
          aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
          connect: HelperCommand = HelperCommand(app: Bundle.main.bundleURL, scratchFolder: nil),

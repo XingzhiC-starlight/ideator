@@ -1,8 +1,6 @@
 import XCTest
 @testable import Ideator
 
-/// The instruction an AI tool gets when a session starts: the value, where it is kept, and the ways
-/// the helper learns it without starting Ideator.
 final class InstructionTests: XCTestCase {
     private let suites = TestDefaults()
     private var directory: URL!
@@ -25,8 +23,6 @@ final class InstructionTests: XCTestCase {
         + "remember later. A card has a title, then lines, bullets or checkboxes (up to 3 levels). Cards scroll, so "
         + "length is fine, but the first few lines are what the user sees at a glance: lead with what matters, and "
         + "keep one topic per card. Create a card only when the user asks; you may offer when something looks worth saving."
-
-    // MARK: The value
 
     func testTheStandardInstructionIsTheSpecsText() {
         XCTAssertEqual(Instruction.standard, standard)
@@ -67,8 +63,6 @@ final class InstructionTests: XCTestCase {
         XCTAssertNil(instruction.forSession, "a blank instruction is no instruction, not the standard one")
         XCTAssertFalse(instruction.isStandard)
     }
-
-    // MARK: Where it is kept
 
     func testAnEditSurvivesALaunchAndResetForgetsIt() {
         let owners = suites.make()
@@ -113,8 +107,6 @@ final class InstructionTests: XCTestCase {
         let again = AIToolsChoice(preferences: Preferences(defaults: owners)).value
         XCTAssertEqual(again, AIToolSettings(enabled: false, landing: .bottom, instruction: Instruction(edited: "Kept.")))
     }
-
-    // MARK: What the helper gives at a session start
 
     private func endpoint(_ folder: String? = nil) -> Endpoint {
         Endpoint(scratchFolder: folder.map { URL(filePath: $0, directoryHint: .isDirectory) }, directory: directory)
