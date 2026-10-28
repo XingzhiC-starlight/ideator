@@ -21,12 +21,11 @@ app_identity() {
   echo "$name"
 }
 
-# Xcode signs Sparkle.framework and the app with the build's identity but not the programs Sparkle
-# ships inside the framework, and signing any of them breaks the seal of everything around it. So each
-# is signed again, innermost first. Entitlements are not carried over from the helpers (Autoupdate
-# arrives with an application-identifier that only a provisioning profile can back). The app keeps
-# the ones its build gave it. A missing helper is skipped; package.sh's Team ID check names any it
-# still finds unsigned. Nothing happens for an ad-hoc app.
+# Signing any program inside Sparkle.framework breaks the seal of everything around it, and what Xcode
+# left on those programs is not something to rely on, so each is signed again, innermost first. The
+# helpers keep no entitlements (Autoupdate arrives with Sparkle's own application-identifier). The app
+# keeps the ones its build gave it. A missing helper is skipped; package.sh's Team ID check names any
+# it still finds unsigned. Nothing happens for an ad-hoc app.
 sign_for_release() {
   local app="$1" framework="$1/Contents/Frameworks/Sparkle.framework" identity path
   local sign=(--force --options runtime --timestamp)
@@ -43,8 +42,8 @@ sign_for_release() {
 }
 
 # Seals a copy of the shipped app again after its Info.plist changed, as the app was sealed: with
-# identity $1 (from app_identity) and the entitlements in file $3 when it holds any. Its embedded
-# code keeps the signatures it has, which the same identity makes the same team.
+# identity $1 (from app_identity) and the entitlements in file $3 when it holds any. Embedded code
+# keeps its own signatures, which already carry the shipped app's team.
 seal_copy() {
   local identity="$1" app="$2" entitlements="${3:-}"
   local args=(--force --options runtime)
