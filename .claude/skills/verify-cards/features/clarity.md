@@ -57,13 +57,17 @@ Preconditions:
 
 - **Three lines and the stamp, without the API.** Write two sidecars that hold a long summary
   (over 150 characters) for `seed-b`, with `clarity` on and both cards collapsed: one stamped
-  with `Summary.prompt`, one without `prompt`. Build them by encoding `SavedDesk` from a
-  `main.swift` compiled with `Cards/{Desk,Grid,Note}.swift`, using `Note(markdown:).digest` of
-  Beta's seed text as `source`, so they always match the current code. Run
+  with `Summary.prompt`, one with another prompt's digest, such as `Digest(of: "another prompt")`.
+  Build them by encoding `SavedDesk` from a `main.swift` compiled with
+  `Cards/{Desk,Grid,Note}.swift`, using `Note(markdown:).digest` of Beta's seed text as `source`,
+  so they always match the current code. Run
   `cv launch --seed stamped.json` and flip to Beta (collapse it with its button if it shows
   expanded). `cv shot` shows the summary on three lines ending in `…`. Then `cv stop`,
-  `cv launch --seed unstamped.json`: Beta shows `Summary unavailable` (or a spinner with a
-  working key), never the old text. On 2026-10-24 both passed.
+  `cv launch --seed other-prompt.json`: Clarity is still on and Beta still collapsed, but Beta
+  shows `Summary unavailable` (or a spinner with a working key), never the old text. A sidecar
+  whose summary has no `prompt` at all no longer decodes and opens as no sidecar: Clarity off,
+  both cards expanded in the stack. The stamped and unstamped pair passed on 2026-10-24; the
+  other-prompt sidecar has not run yet.
 
 ## Gotchas
 

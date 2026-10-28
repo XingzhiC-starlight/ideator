@@ -269,7 +269,10 @@ Ideator's preferences changes nothing.
 
 Builds from before the rename were called Cards and used `~/Documents/Cards` and the Keychain
 service "Cards". Ideator does not read either: quit Cards, move the files (including the hidden
-`.cards.json`) into `~/Documents/Ideator`, and paste the API key into Settings again.
+`.cards.json`) into `~/Documents/Ideator`, and paste the API key into Settings again. A
+`.cards.json` from a build before 2026-10-22 (version 1), or from a build before 2026-10-24 with any
+summary in it, opens as if there were none: every card in the stack, with no places, Clarity or
+collapsed cards, and the first save replaces it. The notes themselves are kept.
 
 ## Using it
 
