@@ -23,11 +23,12 @@ app_identity() {
 
 # Signing any program inside Sparkle.framework breaks the seal of everything around it, and what Xcode
 # left on those programs is not something to rely on, so each is signed again, innermost first. The
-# helpers keep no entitlements (Autoupdate arrives with Sparkle's own application-identifier). The app
-# keeps the ones its build gave it. A missing helper is skipped; package.sh's Team ID check names any
-# it still finds unsigned. Nothing happens for an ad-hoc app.
+# helpers keep no entitlements (Autoupdate arrives with Sparkle's own application-identifier). The AI
+# tools helper (Contents/Helpers/ideator-mcp) keeps the identifier Xcode gave it. The app keeps the
+# entitlements its build gave it. A missing helper is skipped; package.sh's Team ID check names any it
+# still finds unsigned. Nothing happens for an ad-hoc app.
 sign_for_release() {
-  local app="$1" framework="$1/Contents/Frameworks/Sparkle.framework" identity path
+  local app="$1" framework="$1/Contents/Frameworks/Sparkle.framework" helper="$1/Contents/Helpers/ideator-mcp" identity path
   local sign=(--force --options runtime --timestamp)
   [[ "$(app_team "$app")" != "not set" ]] || return 0
   identity="$(app_identity "$app")"
@@ -37,8 +38,9 @@ sign_for_release() {
       || codesign "${sign[@]}" --sign "$identity" "$framework/Versions/Current/$path"
   done
   codesign "${sign[@]}" --sign "$identity" "$framework"
+  [[ ! -e "$helper" ]] || codesign "${sign[@]}" --preserve-metadata=identifier --sign "$identity" "$helper"
   codesign "${sign[@]}" --preserve-metadata=entitlements --sign "$identity" "$app"
-  echo "signing: Sparkle's helpers, Sparkle.framework and the app signed with $identity"
+  echo "signing: Sparkle's helpers, Sparkle.framework, the AI tools helper and the app signed with $identity"
 }
 
 # Seals a copy of the shipped app again after its Info.plist changed, as the app was sealed: with
