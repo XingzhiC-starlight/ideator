@@ -22,13 +22,19 @@ When Ideator is not running, the helper starts it in the background.
 - `mcp-launch` With Ideator not running, the helper starts it in the background and the card is saved.
 - `mcp-welcome` While the welcome card waits for Continue, the card waits too: Continue within 40 s saves it, and
   after 40 s the reply says to press Continue and nothing is saved.
+- `mcp-instruction` The instruction box in Settings: a fresh session's `initialize` returns the default text, then
+  an edit, then the default again after Reset to Default, and nothing for a blank box. A helper for another folder
+  keeps the default.
+- `mcp-connect` Each Connect AI tools button copies its tool's setup, naming this build's helper and the run's
+  `-CardsFolder`.
 
 ## How to get to it (user POV)
 
 - An AI tool configured with the helper's path, asked to "put this in Ideator". Not driven here: the three-app
   check is the operator's, and this skill never edits an AI tool's config.
 - Settings (the stack ribbon's ⋯ › Settings…, or ⌘,), rows "Let AI tools add cards" and "Cards from AI tools go
-  to: Top / Bottom", after Updates.
+  to: Top / Bottom", after Updates. Under them the "Instruction for AI tools" box with "Reset to Default", then
+  "Connect AI tools" with the buttons Claude Code, Codex and Claude Desktop, before Privacy.
 
 ## Driving it with cards-verify
 
@@ -77,9 +83,28 @@ under the run's evidence folder.
   `CARDS_SHOW_WELCOME=1` on a new folder in the background, wait for the run's `Continue` button in `cards-ax
   tree <pid>`, then either `cards-ax press <pid> Continue` (the reply says Added and the folder has that card) or
   end the run by its pid (the reply says Ideator quit before it saved the card, and the folder has none).
+- **mcp-instruction.** Record `defaults export com.systemlabs.Ideator - | shasum` first. `cv ax key cmd+,` opens
+  Settings, which is `w0` while it is the front window (`cv ax tree` says). `cv mcp initialize` prints `instructions
+  (412 characters)` and the default text. `cv ax focus w0` clicks into the box (the window's only text area),
+  `cv ax key cmd+a`, `cv ax type 'Only save to-dos.\nUse a short title.'`; `cv ax text w0` shows both lines, and
+  `cv mcp initialize discover` (a new helper, so a new session) prints that text for each. Next
+  `build/verify-tools/cards-mcp <the build's helper> -CardsFolder <a new temp folder> initialize` prints the default and
+  starts no app. `cv ax press "Reset to Default"`, then `cv mcp initialize` prints the default. `cv ax focus w0`, `cv
+  ax key cmd+a`, `cv ax key delete`, then `cv mcp initialize` prints `instructions (none)`. Press Reset to Default
+  again. The preferences hash is the same as at the start: a scratch run saves no edit.
+- **mcp-connect.** `cv clip save` first. `cv ax press "Claude Code" w0`, then `cv clip show` prints `claude mcp add
+  --transport stdio --scope user ideator -- '<this build's .app>/Contents/Helpers/ideator-mcp' -CardsFolder
+  <the run's folder>`. The same for `Codex` (a `[mcp_servers.ideator]` table with `command` and `args`) and `Claude
+  Desktop` (a `mcpServers` object with an `ideator` entry). `cv shot` after a press shows the button reading
+  "Copied" and the line above the buttons saying where to paste. `cv clip restore`, then `osascript -e 'clipboard
+  info' | shasum` and `pbpaste | shasum` match their values from before `clip save`.
 
 ## Gotchas
 
+- `cv clip show` prints whatever the clipboard holds: run it only after a press, never before, and never print the
+  owner's clipboard.
+- `cv mcp` prints the `instructions` of every initialize and discover reply in full on its own line; the reply
+  line above it is cut at 300 characters.
 - Never start the helper without `-CardsFolder`: with no normal Ideator of this build listening, it would start
   this build as a normal run, on the owner's `~/Documents/Ideator` and login Keychain.
 - Run each step as its own command, after the last one returned. "Typing in the stacked card" is whatever the stack
@@ -99,5 +124,6 @@ under the run's evidence folder.
   letter case, reaches the same run.
 - A first failed save (`chmod 555` the run's folder) answers the call at once with the "don't add it again" error,
   and the "Ideator can't save your notes" alert comes after it.
-- Not verified here: the three AI tools themselves, Gatekeeper on a downloaded build, and a normal (not scratch)
-  run.
+- Not verified here: that Claude Code, Codex and Claude Desktop pass the instruction to the model, the pasted setups
+  inside those tools, a helper reading a normal (not scratch) run's saved preference, the three AI tools themselves,
+  Gatekeeper on a downloaded build, and a normal (not scratch) run.
