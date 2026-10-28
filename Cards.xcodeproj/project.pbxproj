@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CA000000000000000000002F /* ideator-mcp in Embed Helper */ = {isa = PBXBuildFile; fileRef = CA0000000000000000000025 /* ideator-mcp */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		CA000000000000000000001F /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = CA000000000000000000001E /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -18,13 +19,35 @@
 			remoteGlobalIDString = CA0000000000000000000006;
 			remoteInfo = Ideator;
 		};
+		CA000000000000000000002C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CA000000000000000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CA0000000000000000000026;
+			remoteInfo = "ideator-mcp";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CA000000000000000000002E /* Embed Helper */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				CA000000000000000000002F /* ideator-mcp in Embed Helper */,
+			);
+			name = "Embed Helper";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		CA0000000000000000000001 /* Ideator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ideator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA0000000000000000000010 /* CardsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CardsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA000000000000000000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CA0000000000000000000022 /* Ideator-adhoc.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Ideator-adhoc.entitlements"; sourceTree = "<group>"; };
+		CA0000000000000000000025 /* ideator-mcp */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ideator-mcp"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -36,6 +59,16 @@
 		CA0000000000000000000011 /* CardsTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CardsTests;
+			sourceTree = "<group>";
+		};
+		CA0000000000000000000023 /* MCP */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MCP;
+			sourceTree = "<group>";
+		};
+		CA0000000000000000000024 /* Helper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Helper;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -56,6 +89,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CA000000000000000000002B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -65,6 +105,8 @@
 				CA0000000000000000000002 /* Cards */,
 				CA0000000000000000000011 /* CardsTests */,
 				CA000000000000000000001B /* Config */,
+				CA0000000000000000000023 /* MCP */,
+				CA0000000000000000000024 /* Helper */,
 				CA0000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -74,6 +116,7 @@
 			children = (
 				CA0000000000000000000001 /* Ideator.app */,
 				CA0000000000000000000010 /* CardsTests.xctest */,
+				CA0000000000000000000025 /* ideator-mcp */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -97,13 +140,16 @@
 				CA0000000000000000000008 /* Sources */,
 				CA0000000000000000000003 /* Frameworks */,
 				CA0000000000000000000009 /* Resources */,
+				CA000000000000000000002E /* Embed Helper */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CA000000000000000000002D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				CA0000000000000000000002 /* Cards */,
+				CA0000000000000000000023 /* MCP */,
 			);
 			name = Ideator;
 			packageProductDependencies = (
@@ -136,6 +182,28 @@
 			productReference = CA0000000000000000000010 /* CardsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		CA0000000000000000000026 /* ideator-mcp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CA0000000000000000000027 /* Build configuration list for PBXNativeTarget "ideator-mcp" */;
+			buildPhases = (
+				CA000000000000000000002A /* Sources */,
+				CA000000000000000000002B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CA0000000000000000000023 /* MCP */,
+				CA0000000000000000000024 /* Helper */,
+			);
+			name = "ideator-mcp";
+			packageProductDependencies = (
+			);
+			productName = "ideator-mcp";
+			productReference = CA0000000000000000000025 /* ideator-mcp */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -152,6 +220,9 @@
 					CA0000000000000000000015 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = CA0000000000000000000006;
+					};
+					CA0000000000000000000026 = {
+						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
@@ -174,6 +245,7 @@
 			targets = (
 				CA0000000000000000000006 /* Ideator */,
 				CA0000000000000000000015 /* CardsTests */,
+				CA0000000000000000000026 /* ideator-mcp */,
 			);
 		};
 /* End PBXProject section */
@@ -210,6 +282,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CA000000000000000000002A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -217,6 +296,11 @@
 			isa = PBXTargetDependency;
 			target = CA0000000000000000000006 /* Ideator */;
 			targetProxy = CA0000000000000000000019 /* PBXContainerItemProxy */;
+		};
+		CA000000000000000000002D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CA0000000000000000000026 /* ideator-mcp */;
+			targetProxy = CA000000000000000000002C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -368,6 +452,39 @@
 			};
 			name = Release;
 		};
+		CA0000000000000000000028 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				ENABLE_HARDENED_RUNTIME = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemlabs.Ideator.mcp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CA0000000000000000000029 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Manual;
+				ENABLE_HARDENED_RUNTIME = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemlabs.Ideator.mcp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -394,6 +511,15 @@
 			buildConfigurations = (
 				CA0000000000000000000017 /* Debug */,
 				CA0000000000000000000018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CA0000000000000000000027 /* Build configuration list for PBXNativeTarget "ideator-mcp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CA0000000000000000000028 /* Debug */,
+				CA0000000000000000000029 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

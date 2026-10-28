@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.withDesk { $0.toggleHidden() }
     }
     private lazy var updates = Updates(build: .current, isScratch: launch.isScratch)
+    private lazy var aiTools = AIToolsChoice(preferences: preferences)
+    /// Cards from AI tools that came during the welcome card, until Continue opens the notes.
+    private let held = HeldCards()
+    private var inbox: ToolInbox?
     private var controller: DeskController?
     private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
@@ -44,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = makeStatusItem()
         // A scratch run leaves the global shortcut to the owner's running Ideator.
         if !launch.isScratch { hotKey.register() }
+        // Before the welcome, so a helper that started this run reaches it; the cards wait for Continue.
+        inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder)) { [unowned self] card, reply in
+            if let answer = answer(card) { reply(answer) } else { held.hold(card, reply: reply) }
+        }
         // Building the controller is the first touch of the notes folder, which starts macOS's
         // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
         launch.run(
@@ -52,10 +60,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openNotes: { [unowned self] in
                 controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
                                             appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
+                held.release { self.answer($0) ?? .waitingForContinue }
                 updates.start()
-                NSApp.activate()
+                if !launch.inBackground { NSApp.activate() }
             })
     }
+
+    /// Nil while the notes are not open yet: the card waits for Continue.
+    private func answer(_ card: AddCard) -> ToolReply? {
+        guard aiTools.value.enabled else { return .turnedOff }
+        return controller?.add(card, landing: aiTools.value.landing)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) { inbox?.close() }
 
     /// The welcome card. Continue closes it first and opens the folder on the next turn of the run
     /// loop: the Documents prompt blocks the main thread until it is answered, and the card must
@@ -160,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func checkForUpdates() { updates.checkNow() }
 
     @objc private func openSettings() {
-        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates) { [weak self] in
+        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates, aiTools: aiTools) { [weak self] in
             self?.controller?.apiKeyChanged()
         }
         settingsWindow = window

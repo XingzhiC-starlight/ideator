@@ -108,7 +108,8 @@ final class AIToolsTests: XCTestCase {
 
         XCTAssertEqual(replies.all, [.waitingForContinue])
         XCTAssertTrue(ToolReply.waitingForContinue.isError)
-        XCTAssertTrue(ToolReply.waitingForContinue.text.contains("Press Continue"), ToolReply.waitingForContinue.text)
+        XCTAssertTrue(ToolReply.waitingForContinue.text.contains("press Continue in Ideator, then try again"),
+                      "it says what to do: \(ToolReply.waitingForContinue.text)")
         var saved: [String] = []
         held.release { saved.append($0.title); return .done("saved") }
         XCTAssertEqual(saved, [], "Continue after the reply does not add the card the tool was told about")

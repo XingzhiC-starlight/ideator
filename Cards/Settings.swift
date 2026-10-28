@@ -105,14 +105,20 @@ final class SettingsWindow: NSWindow {
     private let privacyNote = NSTextField(wrappingLabelWithString: "")
     private let autoCheck = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
     private let checkNowButton = NSButton(title: "Check Now", target: nil, action: nil)
+    private let aiTools: AIToolsChoice
+    private let allowAITools = NSButton(checkboxWithTitle: "Let AI tools add cards", target: nil, action: nil)
+    private let landsOnTop = NSButton(radioButtonWithTitle: "Top", target: nil, action: nil)
+    private let landsAtBottom = NSButton(radioButtonWithTitle: "Bottom", target: nil, action: nil)
     private let stack = NSStackView()
     private var rejected: String?
     private var releasedForRecording = false
 
-    init(keys: KeyStore, hotKey: HotKey, updates: Updates, onChange: @escaping () -> Void) {
+    init(keys: KeyStore, hotKey: HotKey, updates: Updates,
+         aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)), onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
         self.updates = updates
+        self.aiTools = aiTools
         self.onChange = onChange
         super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -169,11 +175,22 @@ final class SettingsWindow: NSWindow {
         updatesRow.distribution = .equalSpacing
         let updatesNote = NSTextField(wrappingLabelWithString: Self.updatesCaption(build: updates.build, plan: updates.plan))
 
+        allowAITools.target = self
+        allowAITools.action = #selector(toggleAITools)
+        for radio in [landsOnTop, landsAtBottom] {
+            radio.target = self
+            radio.action = #selector(chooseLanding)
+        }
+        let landingRow = NSStackView(views: [NSTextField(labelWithString: "Cards from AI tools go to:"), landsOnTop, landsAtBottom])
+        landingRow.spacing = 8
+
         for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("API key (Anthropic or OpenAI)"), field,
                      caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
+                     heading("AI tools"), allowAITools, landingRow,
                      heading("Privacy"), caption(privacyNote)] {
             stack.addArrangedSubview(view)
         }
+        stack.setCustomSpacing(18, after: landingRow)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -215,6 +232,11 @@ final class SettingsWindow: NSWindow {
         autoCheck.state = updates.checksAutomatically ? .on : .off
         autoCheck.isEnabled = updates.plan.checks
         checkNowButton.isEnabled = updates.canCheck
+        allowAITools.state = aiTools.value.enabled ? .on : .off
+        landsOnTop.state = aiTools.value.landing == .top ? .on : .off
+        landsAtBottom.state = aiTools.value.landing == .bottom ? .on : .off
+        landsOnTop.isEnabled = aiTools.value.enabled
+        landsAtBottom.isEnabled = aiTools.value.enabled
         contentView?.layoutSubtreeIfNeeded()
         let top = frame.maxY
         setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))
@@ -247,6 +269,16 @@ final class SettingsWindow: NSWindow {
 
     @objc private func checkNow() {
         updates.checkNow()
+        refresh()
+    }
+
+    @objc private func toggleAITools() {
+        aiTools.value.enabled = allowAITools.state == .on
+        refresh()
+    }
+
+    @objc private func chooseLanding(_ sender: NSButton) {
+        aiTools.value.landing = sender === landsAtBottom ? .bottom : .top
         refresh()
     }
 

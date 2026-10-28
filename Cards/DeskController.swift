@@ -122,6 +122,14 @@ final class DeskController {
     /// Settings saved or removed the key.
     func apiKeyChanged() { send(.forgetFailedSummaries) }
 
+    /// A card from an AI tool, answered once it is saved. The user is typing in the stacked card when
+    /// Ideator is active and the cursor is in the stack's card.
+    func add(_ card: AddCard, landing: Landing) -> ToolReply {
+        let typing = NSApp.isActive && stackWindow.editingSelection != nil
+        send(.addFromTool(card.note, at: Date(), to: landing, typing: typing))
+        return flush() ? .added(card.title, to: landing) : .notSaved(card.title, folder: library.folder)
+    }
+
     /// Save now: on deactivate, quit, and before a rescan. False when the folder doesn't match the desk.
     @discardableResult
     func flush() -> Bool {

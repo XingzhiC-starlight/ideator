@@ -5,6 +5,8 @@ struct Launch {
     /// From the environment, not an argument, so the command line verify-cards matches its pid by
     /// stays as it is.
     let forcesWelcome: Bool
+    /// The AI tools helper started this run to hand it a card: Ideator stays behind the tool.
+    let inBackground: Bool
 
     /// Only a `-CardsFolder` launch argument starts a scratch run, so `arguments` is the argument
     /// domain: `UserDefaults.string(forKey:)` also searches the preferences, and a stray `defaults
@@ -17,6 +19,7 @@ struct Launch {
             ?? (build.isUpdateTest ? defaults.string(forKey: "CardsFolder") : nil)
         folder = named.map { URL(filePath: $0, directoryHint: .isDirectory) }
         forcesWelcome = environment["CARDS_SHOW_WELCOME"] == "1"
+        inBackground = environment[HandOff.backgroundVariable] == "1"
     }
 
     var isScratch: Bool { folder != nil }
