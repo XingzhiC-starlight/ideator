@@ -174,6 +174,15 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(calls.isEmpty)
     }
 
+    func testARequestWhoseIDIsNotAnIntegerIsAnInvalidRequest() throws {
+        for id in [1.5, -0.25] as [Double] {
+            let reply = try respond(request("tools/list", id: id))
+            XCTAssertEqual(try error(reply).code, -32600, "\(id)")
+            XCTAssertTrue(reply?["id"] is NSNull, "\(id)")
+        }
+        XCTAssertEqual(try respond(request("ping", id: -3))?["id"] as? Int, -3)
+    }
+
     // MARK: Modern clients (2026-07-28)
 
     /// https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching.md: a complete
