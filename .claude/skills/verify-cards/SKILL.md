@@ -49,6 +49,7 @@ cv launch --welcome   # the first-launch card, as a stranger sees it
   Ready is then the card's Continue button, not New. It combines with `--seed`, which goes second.
   Continue writes nothing of the owner's (a scratch run has no saved preferences).
 - One run at a time: `launch` refuses while the current run's app is still up.
+- `launch` also takes the live-UI lock `/tmp/claude-<uid>/ideator-live-ui.lock` and refuses, naming the holder, while another session has it (retry every 30 s). `stop` releases only a lock this run took, and `doctor` prints the holder.
 - The app activates itself at launch and on most clicks, so it takes focus from whatever the user
   is doing.
 

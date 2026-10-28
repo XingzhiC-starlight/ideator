@@ -53,8 +53,9 @@ under a test bundle id and drives them with `cards-ax` by pid.
 ## Gotchas
 
 - The script takes `/tmp/claude-<uid>/ideator-live-ui.lock`, the lock that keeps one live Ideator
-  session at a time. A run killed with `kill -9` leaves it behind: check that no Ideator session is
-  running, then `rmdir` it.
+  session at a time, through the same helper `cv launch` uses (`verify-cards/scripts/live-lock.sh`).
+  A run killed with `kill -9` leaves it behind: check that no Ideator session is running, read the
+  `holder` file inside to see whose it was, then `rm -rf` the directory.
 - Pressing Install and Relaunch quits the app in the middle of the call, so `cards-ax press` reports
   an error for the press that worked. Look for the new process, not the exit status.
 - An error alert's button is `Cancel Update`, not `OK`.
