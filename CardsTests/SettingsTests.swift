@@ -132,5 +132,6 @@ private final class RefusableKeyStore: KeyStore {
 
     init() { super.init(inKeychain: false) }
 
+    @discardableResult
     override func set(_ key: String?) -> Bool { refuses ? false : super.set(key) }
 }
