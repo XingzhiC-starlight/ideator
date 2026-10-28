@@ -36,9 +36,9 @@ final class HandOffTests: XCTestCase {
     }
 
     /// The helper's side, off the main thread, as the helper's own process would be.
-    private func send(_ card: AddCard, to endpoint: Endpoint, startup: Duration = .seconds(2),
+    private func send(_ card: AddCard, to endpoint: Endpoint, startup: Duration = .seconds(2), answer: Duration = .seconds(50),
                       launch: @escaping @Sendable () -> String? = { "not started" }) async -> ToolReply {
-        let handOff = HandOff(endpoint: endpoint, launch: launch, startup: startup)
+        let handOff = HandOff(endpoint: endpoint, launch: launch, startup: startup, answer: answer)
         return await Task.detached { handOff.send(card) }.value
     }
 
@@ -181,6 +181,17 @@ final class HandOffTests: XCTestCase {
         }
         let reply = await send(try card("T"), to: endpoint)
         XCTAssertEqual(reply, .lost)
+    }
+
+    func testAnIdeatorThatNeverAnswersIsAnErrorThatSaysTheCardMayStillBeSaved() async throws {
+        let endpoint = endpoint()
+        open(endpoint) { _, _ in }
+        let reply = await send(try card("T"), to: endpoint, answer: .milliseconds(300))
+        XCTAssertTrue(reply.isError)
+        XCTAssertTrue(reply.text.hasPrefix("Ideator did not answer"), reply.text)
+        XCTAssertTrue(reply.text.contains("may still save the card"), reply.text)
+        XCTAssertTrue(HandOff(endpoint: endpoint, launch: { nil }).answer > HandOffRequest.longestWait,
+                      "the welcome wait answers first")
     }
 
     func testASecondInstanceDoesNotTakeAnEndpointThatAnswers() throws {
