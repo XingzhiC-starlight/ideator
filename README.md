@@ -39,6 +39,10 @@ Run the unit tests (they use the app as their host and never touch `~/Documents/
 xcodebuild test -project Cards.xcodeproj -scheme Ideator -derivedDataPath build/DerivedData -disableAutomaticPackageResolution
 ```
 
+A failing run with its derived data under `~/Desktop` can hang on a macOS privacy prompt.
+[run-ideator-tests](.claude/skills/run-ideator-tests/SKILL.md) runs the same tests from a copy
+outside `~/Desktop`, runs one class or one test, and fails on a compiler warning in `Cards/`.
+
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs on every pull request and every push to
 `main`. It runs these tests, the desk invariant check and its mutants, and `scripts/package.sh`, and
 it keeps the disk image as a downloadable artifact named `Ideator-dmg`.

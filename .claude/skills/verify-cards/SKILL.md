@@ -21,6 +21,9 @@ prints its usage. The examples below write `cv` as shorthand for that path. In e
 the path itself from the repo root. The Bash tool keeps no shell function between calls, and
 worktree isolation refuses a function or a variable as the command name.
 
+Unit tests are not this skill's job. Run them with the
+[run-ideator-tests](../run-ideator-tests/SKILL.md) skill.
+
 ## Launch
 
 ```bash
