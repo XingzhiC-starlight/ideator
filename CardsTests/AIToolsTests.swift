@@ -73,7 +73,15 @@ final class AIToolsTests: XCTestCase {
         XCTAssertTrue(reply.isError)
         XCTAssertTrue(reply.text.contains("couldn't save"), reply.text)
         XCTAssertTrue(reply.text.contains("don't add it again"), reply.text)
+        XCTAssertEqual(alerts, [], "the reply goes out before the alert, which waits for the user")
+
+        let deadline = Date().addingTimeInterval(5)
+        while alerts.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertEqual(alerts, ["Ideator can't save your notes"], "the usual alert says so on screen too")
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+        XCTAssertTrue(controller.flush())
+        XCTAssertEqual(Array(try files().values), ["# Buy milk\n"], "saved once the folder lets it, and only once")
     }
 
     func testTheRepliesSayWhatTheSpecSays() {
