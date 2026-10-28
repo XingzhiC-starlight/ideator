@@ -212,7 +212,7 @@ chosen: it stays beige over white windows and only hints at what is behind.
 
 | Token | Value | Used for |
 | --- | --- | --- |
-| `paper` | `#F4ECDE` at 78 % | the glass tint of the card body |
+| `paper` | `#F4ECDE` at 78 % | the glass tint of the card body; at 85 % under the count badge in the ribbon |
 | `ribbon` | `#E6D8BC` at 85 % | the stack's ribbon; at 55 % under the count badge on the card |
 | `glassMaterial` | `.popover` | the blur behind every card |
 | `sheen` | white, 10 % to 0 | the top half of a card, fading down |
@@ -227,7 +227,7 @@ chosen: it stays beige over white windows and only hints at what is behind.
 | `focus` | `#DDB880` | the 2 pt border of the card you are typing in |
 | `accent` | `#823F1D` | a guide that will snap, Clarity when on |
 | `danger` | `#9A2818` | "Desktop full" |
-| `highlight` | `#E8D5AE` | selected text |
+| `highlight` | `#E8D5AE` | selected text and the arranger's selected row; at 50 % the row of the card the stack shows |
 
 `CardShape.radius` is 10 points.
 
