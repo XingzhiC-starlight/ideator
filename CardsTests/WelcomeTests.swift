@@ -27,7 +27,7 @@ final class WelcomeTests: XCTestCase {
         let paragraphs = copy().paragraphs
         let text = paragraphs.map { $0.lead + " " + $0.text }.joined(separator: "\n")
 
-        XCTAssertTrue(text.contains("Only a card's text goes to Anthropic."))
+        XCTAssertTrue(text.contains("Only a card's text goes to that company."))
         XCTAssertTrue(text.contains("Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it installs one."))
         XCTAssertTrue(text.contains("You can turn the daily check off in Settings."))
         XCTAssertTrue(try XCTUnwrap(paragraphs.last).text.hasSuffix("Nothing else leaves your Mac."))
@@ -38,23 +38,25 @@ final class WelcomeTests: XCTestCase {
         let disclosed = copy().paragraphs
             .filter { ["Summaries are optional.", "Updates come from GitHub."].contains($0.lead) }.map(\.text)
 
-        XCTAssertEqual(WelcomeCopy.version, 2)
+        XCTAssertEqual(WelcomeCopy.version, 3)
         XCTAssertEqual(disclosed, [
-            "To show a short summary when you collapse a card, add your own Anthropic API key in Settings. "
-                + "Ideator then sends a card's text to Anthropic whenever the card has no summary for its text "
-                + "as it is now, such as when you save the key or change the card. Only a card's text goes to Anthropic.",
+            "To show a short summary when you collapse a card, add your own Anthropic or OpenAI API key in Settings. "
+                + "Ideator then sends a card's text to Anthropic or OpenAI, whichever your key is for, whenever the card "
+                + "has no summary for its text as it is now, such as when you save the key or change the card. "
+                + "Only a card's text goes to that company.",
             "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "
                 + "installs one. You can turn the daily check off in Settings. Nothing else leaves your Mac.",
         ], "These paragraphs are what an owner agreed to. If they now say something else, raise "
             + "WelcomeCopy.version and the number above together, so a Mac that saw the old card sees this one.")
     }
 
-    func testTheCopyAndSettingsSayWhenACardIsSentToAnthropicInTheSameWords() {
+    func testTheCopyAndSettingsSayWhenACardIsSentInTheSameWordsAndNameBothCompanies() {
         let rule = "whenever the card has no summary for its text as it is now"
         let summaries = copy().paragraphs.first { $0.lead == "Summaries are optional." }
 
         XCTAssertTrue(summaries?.text.contains(rule) == true)
-        XCTAssertTrue(SettingsWindow.privacy.contains(rule))
+        XCTAssertTrue(summaries?.text.contains("Anthropic or OpenAI API key") == true)
+        XCTAssertTrue(SettingsWindow.privacy(for: nil).contains(rule))
     }
 
     func testTheCardFitsItsCopyAtTheStackWidth() {

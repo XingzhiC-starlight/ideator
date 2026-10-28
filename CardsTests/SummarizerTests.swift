@@ -171,6 +171,184 @@ private final class Harness {
     }
 }
 
+/// Which company a key is for, decided by its start and nowhere else.
+final class ProviderTests: XCTestCase {
+    private let note = Note(markdown: "# Trip\n\nflights\nhotel\n")
+
+    override func setUp() {
+        URLProtocol.registerClass(StandInAPI.self)
+    }
+
+    override func tearDown() {
+        URLProtocol.unregisterClass(StandInAPI.self)
+        StandInAPI.replies = [:]
+        StandInAPI.hosts = []
+    }
+
+    func testAKeyThatStartsWithSkAntDashIsAnthropicsAndAnyOtherKeyIsOpenAIs() {
+        XCTAssertEqual(Provider(key: "sk-ant-api03-abc"), .anthropic)
+        XCTAssertEqual(Provider(key: "sk-proj-abc"), .openAI)
+        XCTAssertEqual(Provider(key: "sk-abc"), .openAI)
+        XCTAssertEqual(Provider(key: "sk-ant"), .openAI, "the dash after ant belongs to the prefix")
+        XCTAssertEqual(Provider(key: "pasted-from-another-service"), .openAI, "no third provider: it goes to OpenAI and fails there")
+    }
+
+    func testEachProviderIsNamedByItsCompany() {
+        XCTAssertEqual(Provider.anthropic.name, "Anthropic")
+        XCTAssertEqual(Provider.openAI.name, "OpenAI")
+    }
+
+    func testARequestGoesToTheCompanyOfTheKeyItCarries() async {
+        StandInAPI.replies["api.anthropic.com"] = (200, #"{"content":[{"type":"text","text":"from anthropic"}],"stop_reason":"end_turn"}"#)
+        StandInAPI.replies["api.openai.com"] = (200, #"{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"from openai"}]}]}"#)
+
+        let anthropic = await Provider(key: "sk-ant-key").summarize(note, apiKey: "sk-ant-key")
+        let openAI = await Provider(key: "sk-key").summarize(note, apiKey: "sk-key")
+
+        XCTAssertEqual(anthropic, .text("from anthropic"))
+        XCTAssertEqual(openAI, .text("from openai"))
+        XCTAssertEqual(StandInAPI.hosts, ["api.anthropic.com", "api.openai.com"])
+    }
+
+    func testTheSummarizerSendsAnOpenAIShapedKeyToOpenAIAndKeepsTheAnswer() async {
+        StandInAPI.replies["api.openai.com"] = (200, #"{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"Trip list: flights."}]}]}"#)
+        var delivered: [Summary] = []
+        let card = Card(id: CardID(rawValue: "a"), note: note)
+        let summarizer = Summarizer(apiKey: { "sk-proj-key" }, deliver: { delivered.append($1) })
+
+        summarizer.sync([card], typing: nil)
+        let deadline = ContinuousClock.now + .seconds(5)
+        while delivered.isEmpty, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(10)) }
+
+        XCTAssertEqual(delivered, [Summary(source: card.digest, outcome: .text("Trip list: flights."))])
+        XCTAssertEqual(StandInAPI.hosts, ["api.openai.com"])
+    }
+
+    func testWithNoKeyACardSaysSoWithoutNamingACompany() {
+        let card = Card(id: CardID(rawValue: "a"), note: note)
+
+        XCTAssertEqual(Desk.summaryFace(of: card, hasKey: false), .unavailable(reason: "No API key. Add one in Settings."))
+        XCTAssertEqual(Desk.summaryFace(of: card, hasKey: true), .loading)
+    }
+}
+
+/// The OpenAI call: the request it builds and how it reads what comes back, from canned JSON.
+final class OpenAITests: XCTestCase {
+    private let note = Note(markdown: "# Trip\n\nflights\nhotel\n")
+
+    private func outcome(_ status: Int = 200, _ body: String) -> Summary.Outcome {
+        OpenAI.outcome(status: status, data: Data(body.utf8))
+    }
+
+    private func message(_ parts: String...) -> String {
+        #"{"id":"msg_1","type":"message","status":"completed","role":"assistant","content":["# + parts.joined(separator: ",") + "]}"
+    }
+
+    private func text(_ value: String) -> String {
+        #"{"type":"output_text","text":""# + value + #"","annotations":[],"logprobs":[]}"#
+    }
+
+    private func response(status: String = "completed", output: String...) -> String {
+        #"{"id":"resp_1","object":"response","status":""# + status
+            + #"","error":null,"incomplete_details":null,"output":["# + output.joined(separator: ",") + "]}"
+    }
+
+    func testTheRequestIsAResponsesCallWithTheKeyAsABearerToken() throws {
+        let request = try OpenAI.request(for: note, apiKey: "sk-test")
+
+        XCTAssertEqual(request.url, URL(string: "https://api.openai.com/v1/responses"))
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+    }
+
+    func testTheBodyHoldsTheSharedPromptTheCardTextAndNothingElseUnvetted() throws {
+        let request = try OpenAI.request(for: note, apiKey: "sk-test")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+
+        XCTAssertEqual(body["model"] as? String, "gpt-6-luna")
+        XCTAssertEqual(body["instructions"] as? String, Summary.instructions, "one prompt for both companies")
+        XCTAssertEqual(body["input"] as? String, note.plainText)
+        XCTAssertEqual(body["store"] as? Bool, false, "OpenAI keeps a stored response for 30 days; the app never reads one back")
+        XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "low")
+        XCTAssertEqual(Set(body.keys), ["model", "instructions", "input", "max_output_tokens", "reasoning", "store"],
+                       "no temperature or top_p: a reasoning model may refuse them")
+        XCTAssertGreaterThanOrEqual(body["max_output_tokens"] as? Int ?? 0, 2048, "reasoning tokens count toward the cap")
+    }
+
+    func testTheSummaryIsTheOutputTextOfTheMessageAfterAReasoningItem() {
+        let reply = response(output: #"{"id":"rs_1","type":"reasoning","summary":[]}"#,
+                             message(text("  To-do list for the trip: hotel.\\n")))
+
+        XCTAssertEqual(outcome(reply), .text("To-do list for the trip: hotel."))
+    }
+
+    func testTheTextIsFoundByItemAndPartTypeWhereverItSits() {
+        let reply = response(output: message(#"{"type":"annotation_note","text":"not it"}"#, text("Plan for the move.")),
+                             #"{"id":"rs_1","type":"reasoning","summary":[]}"#)
+
+        XCTAssertEqual(outcome(reply), .text("Plan for the move."))
+    }
+
+    func testEveryOutputTextPartIsJoinedInOrder() {
+        let reply = response(output: message(text("Plan for "), text("the move.")), message(text(" Two boxes.")))
+
+        XCTAssertEqual(outcome(reply), .text("Plan for the move. Two boxes."))
+    }
+
+    func testARefusalPartMeansTheModelDeclined() {
+        let reply = response(output: message(#"{"type":"refusal","refusal":"I can't help with that."}"#))
+
+        XCTAssertEqual(outcome(reply), .failed(reason: "The model declined to summarize this card."))
+    }
+
+    func testAResponseCutOffByTheTokenCapIsAFailureNotAShortSummary() {
+        let reply = response(status: "incomplete", output: #"{"id":"rs_1","type":"reasoning","summary":[]}"#)
+            .replacingOccurrences(of: #""incomplete_details":null"#, with: #""incomplete_details":{"reason":"max_output_tokens"}"#)
+
+        XCTAssertEqual(outcome(reply), .failed(reason: "The response was cut off (max_output_tokens)."))
+    }
+
+    func testAFailedResponseShowsItsErrorMessage() {
+        let reply = response(status: "failed", output: "")
+            .replacingOccurrences(of: #""error":null"#, with: #""error":{"code":"server_error","message":"stand-in: model overloaded"}"#)
+
+        XCTAssertEqual(outcome(reply), .failed(reason: "stand-in: model overloaded"))
+    }
+
+    func testAnAnswerWithNoTextIsAFailure() {
+        XCTAssertEqual(outcome(response(output: #"{"id":"rs_1","type":"reasoning","summary":[]}"#)),
+                       .failed(reason: "The response had no text."))
+        XCTAssertEqual(outcome(#"{"status":"completed"}"#), .failed(reason: "The response had no text."), "a reply with no output at all")
+        XCTAssertEqual(outcome(response(output: message(text("   ")))), .failed(reason: "The response had no text."))
+    }
+
+    func testAnErrorStatusShowsTheStatusAndTheServersMessage() {
+        let refused = outcome(401, #"{"error":{"message":"Incorrect API key provided: sk-fake.","type":"invalid_request_error","param":null,"code":"invalid_api_key"}}"#)
+        XCTAssertEqual(refused, .failed(reason: "HTTP 401: Incorrect API key provided: sk-fake."))
+
+        XCTAssertEqual(outcome(502, "<html>Bad gateway</html>"), .failed(reason: "HTTP 502: request failed"), "a proxy's page has no JSON")
+    }
+
+    func testABodyThatIsNotAResponseIsAFailureWithAReason() {
+        guard case .failed(let reason) = outcome("not json") else { return XCTFail("a summary from nothing") }
+        XCTAssertFalse(reason.isEmpty)
+    }
+
+    func testAnErrorReplyReachesTheCardThroughTheWholeCall() async {
+        URLProtocol.registerClass(StandInAPI.self)
+        defer {
+            URLProtocol.unregisterClass(StandInAPI.self)
+            StandInAPI.replies = [:]
+        }
+        StandInAPI.replies["api.openai.com"] = (401, #"{"error":{"message":"stand-in: key refused","type":"invalid_request_error","param":null,"code":"invalid_api_key"}}"#)
+
+        let refused = await Provider.openAI.summarize(note, apiKey: "sk-fake")
+
+        XCTAssertEqual(refused, .failed(reason: "HTTP 401: stand-in: key refused"))
+    }
+}
+
 /// The Messages API call against a stand-in for api.anthropic.com, so a test reads the reason a
 /// card would show under "Summary unavailable".
 final class AnthropicTests: XCTestCase {
@@ -182,28 +360,58 @@ final class AnthropicTests: XCTestCase {
 
     override func tearDown() {
         URLProtocol.unregisterClass(StandInAPI.self)
-        StandInAPI.reply = nil
+        StandInAPI.replies = [:]
     }
 
     func testAnErrorReplyShowsTheServersMessageEvenWithoutAnErrorType() async {
-        StandInAPI.reply = (401, #"{"type":"error","error":{"type":"authentication_error","message":"stand-in: key refused"}}"#)
-        let refused = await Anthropic.summarize(note, apiKey: "key")
+        StandInAPI.replies["api.anthropic.com"] = (401, #"{"type":"error","error":{"type":"authentication_error","message":"stand-in: key refused"}}"#)
+        let refused = await Provider.anthropic.summarize(note, apiKey: "key")
         XCTAssertEqual(refused, .failed(reason: "HTTP 401: stand-in: key refused"))
 
-        StandInAPI.reply = (502, #"{"error":{"message":"stand-in: upstream timed out"}}"#)
-        let proxied = await Anthropic.summarize(note, apiKey: "key")
+        StandInAPI.replies["api.anthropic.com"] = (502, #"{"error":{"message":"stand-in: upstream timed out"}}"#)
+        let proxied = await Provider.anthropic.summarize(note, apiKey: "key")
         XCTAssertEqual(proxied, .failed(reason: "HTTP 502: stand-in: upstream timed out"), "a proxy's error has no type")
+    }
+
+    func testTheRequestIsAMessagesCallWithTheKeyInTheXApiKeyHeader() throws {
+        let request = try Anthropic.request(for: note, apiKey: "sk-ant-test")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+
+        XCTAssertEqual(request.url, URL(string: "https://api.anthropic.com/v1/messages"))
+        XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), "sk-ant-test")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
+        XCTAssertEqual(body["model"] as? String, "claude-haiku-5-5")
+        XCTAssertEqual(body["system"] as? String, Summary.instructions, "the same prompt as OpenAI's")
+        XCTAssertEqual((body["messages"] as? [[String: String]])?.first, ["role": "user", "content": note.plainText])
+    }
+
+    func testTheSummaryIsTheTextBlocksNotTheThinkingBlocks() {
+        let reply = #"{"content":[{"type":"thinking","thinking":"hmm"},{"type":"text","text":" Trip list: flights. "}],"stop_reason":"end_turn"}"#
+
+        XCTAssertEqual(Anthropic.outcome(status: 200, data: Data(reply.utf8)), .text("Trip list: flights."))
+    }
+
+    func testARefusalStopReasonMeansTheModelDeclined() {
+        let reply = #"{"content":[],"stop_reason":"refusal"}"#
+
+        XCTAssertEqual(Anthropic.outcome(status: 200, data: Data(reply.utf8)), .failed(reason: "The model declined to summarize this card."))
     }
 }
 
+/// api.anthropic.com and api.openai.com, answered by the test and recorded by host.
 private nonisolated final class StandInAPI: URLProtocol {
-    nonisolated(unsafe) static var reply: (status: Int, body: String)?
+    nonisolated(unsafe) static var replies: [String: (status: Int, body: String)] = [:]
+    nonisolated(unsafe) static var hosts: [String] = []
 
-    override class func canInit(with request: URLRequest) -> Bool { request.url?.host() == "api.anthropic.com" }
+    override class func canInit(with request: URLRequest) -> Bool {
+        ["api.anthropic.com", "api.openai.com"].contains(request.url?.host() ?? "")
+    }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        let (status, body) = Self.reply ?? (500, "")
+        let host = request.url?.host() ?? ""
+        Self.hosts.append(host)
+        let (status, body) = Self.replies[host] ?? (500, "")
         let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(body.utf8))
