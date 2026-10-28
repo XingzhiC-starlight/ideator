@@ -28,7 +28,7 @@ nonisolated struct HandOff: Sendable {
         guard let line = request.line, Socket.write(line: line, to: fd) else { return .lost }
         guard Socket.waitForInput(on: fd, until: called + answer) else { return .noAnswer(within: answer) }
         var reader = LineReader(fd: fd, limit: 1 << 20)
-        guard case .line(let answer)? = reader.next(), let reply = ToolReply(line: answer) else { return .lost }
+        guard case .line(let answered)? = reader.next(), let reply = ToolReply(line: answered) else { return .lost }
         return reply
     }
 
