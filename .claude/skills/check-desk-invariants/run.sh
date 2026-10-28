@@ -42,7 +42,7 @@ MUTANTS=(
   "P3 stack page|if let shown, let i = stack.firstIndex(where: { card in card.id == shown }) { selection = i }|"
   "P4 stack order|stack.insert(stack.remove(at: from), at: to)|stack.insert(stack.remove(at: from), at: min(to + 1, stack.count))"
   "P3 stack page|if let i = stack.firstIndex(where: { card in card.id == id }) { selection = i }|if let i = stack.firstIndex(where: { card in card.id == id }) { selection = min(i + 1, stack.count) }"
-  "P5 save and reload|text: text, prompt: Summary.prompt)|text: text, prompt: nil)"
+  "P5 save and reload|text: text, prompt: Summary.prompt)|text: text, prompt: summary.source)"
 )
 
 mutants() {

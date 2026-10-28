@@ -463,6 +463,8 @@ Later changes, after trying the app:
   version-1 file's slots served nobody. It also held the one trap in `Desk.init`: a version-1
   sidecar whose slot is `Int.max` overflowed the shift at every launch. `Desk.init` now reads a
   sidecar older than this build's version as none: every card in the stack, the stack at its home.
+  `SavedSummary.prompt` stopped being optional for the same reason, so a sidecar from before the
+  prompt stamp (2026-10-24) fails to decode and is read as none too.
 
 ## Tradeoffs accepted
 

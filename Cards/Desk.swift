@@ -178,8 +178,8 @@ struct Desk: Equatable {
     /// Total over any input: unknown ids, invalid or doubly-used slots and duplicates are dropped,
     /// and cards the sidecar never heard of join the bottom of the stack in id (that is, creation)
     /// order. A missing sidecar (`SavedDesk()`), or one older than this build's version, puts every
-    /// card in the stack and the stack top-right. A saved summary from another prompt (or none, in a
-    /// sidecar older than the stamp) is dropped, so `Summarizer` asks for it again.
+    /// card in the stack and the stack top-right. A saved summary from another prompt is dropped, so
+    /// `Summarizer` asks for it again.
     init(notes: [CardID: Note], saved: SavedDesk) {
         let saved = saved.version < SavedDesk().version ? SavedDesk() : saved
         let collapsed = Set(saved.collapsed)
@@ -599,9 +599,8 @@ struct SavedSummary: Codable, Equatable {
     var card: CardID
     var source: Digest
     var text: String
-    /// `Summary.prompt` when written. Optional so a sidecar from before the stamp still decodes;
-    /// nil means an older prompt wrote it.
-    var prompt: Digest?
+    /// `Summary.prompt` when written.
+    var prompt: Digest
 }
 
 extension Desk {
