@@ -2,7 +2,7 @@
 # Bounded exhaustive check of the real Desk rules. See SKILL.md.
 #
 #   run.sh [DEPTH]        build against the current Cards/*.swift and check (default depth 3, ~10 s)
-#   run.sh --mutants      break the code twenty known ways; each must be caught by its property
+#   run.sh --mutants      break the code twenty-five known ways; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
 set -euo pipefail
@@ -30,15 +30,16 @@ staleness() {
   fi
 }
 
-# Each mutant: property it must break | exact text in Cards/Desk.swift | replacement.
+# Each mutant: property it must break | exact text in Cards/Desk.swift | replacement. A "\n" in a text
+# stands for a line break.
 MUTANTS=(
   "P1 conservation|insertCard(popped.remove(at: i).card, at: 0)|_ = popped.remove(at: i)"
   "P2 places|            setPlace(of: occupant, to: from)|            _ = occupant"
   "P2 places|guard popped.count < Slot.count - 1 else { return nil }|"
   "P3 stack page|if i <= selection { selection += 1 }|"
-  "P4 stack order|insertCard(Card(id: id, note: note, collapsed: clarity), at: stack.count)|insertCard(Card(id: id, note: note, collapsed: clarity), at: 0)"
+  "P4 stack order|insertCard(Card(id: id, note: note), at: stack.count)|insertCard(Card(id: id, note: note), at: 0)"
   "P5 save and reload|stackFree: stackPlace.savedFree,|stackFree: nil,"
-  "P6 clarity|        for i in stack.indices { stack[i].collapsed = clarity }|"
+  "P6 clarity|CardFace(id: card.id, note: card.note, collapsed: clarity,|CardFace(id: card.id, note: card.note, collapsed: false,"
   "P7 summaries|update(id) { card in if summary.source == card.digest { card.summary = summary } }|update(id) { card in card.summary = summary }"
   "P3 stack page|if let shown, let i = stack.firstIndex(where: { card in card.id == shown }) { selection = i }|"
   "P4 stack order|stack.insert(stack.remove(at: from), at: to)|stack.insert(stack.remove(at: from), at: min(to + 1, stack.count))"
@@ -51,13 +52,19 @@ MUTANTS=(
   "P4 stack order|insertCard(card, at: stack.count)|insertCard(card, at: max(stack.count - 1, 0))"
   "P3 stack page|insertCard(card, at: stack.count)|insertCard(card, at: stack.count); selection = 0"
   "P4 stack order|insertCard(card, at: stack.count)|popped.append(PoppedCard(card: card, place: .free(GridPoint(x: 0.5, y: 0.5))))"
-  "P6 clarity|let card = Card(id: freshID(at: date), note: note, collapsed: clarity)|let card = Card(id: freshID(at: date), note: note, collapsed: false)"
+  "P6 clarity|clarity: clarity, desktopFull: firstFreeSlot == nil)|clarity: false, desktopFull: firstFreeSlot == nil)"
+  "P6 clarity|        clarity = false   // a new card opens expanded, so every card does|"
+  "P6 clarity|        clarity = false\n        insertCard(Card(id: freshID(at: date), note: note), at: selection)|        insertCard(Card(id: freshID(at: date), note: note), at: selection)"
+  "P6 clarity|case .setClarity(let on): clarity = on|case .setClarity: clarity.toggle()"
+  "P6 clarity|let card = Card(id: freshID(at: date), note: note)\n        switch landing|clarity = false\n        let card = Card(id: freshID(at: date), note: note)\n        switch landing"
+  "P5 save and reload|clarity: clarity,\n            stackSlot|clarity: false,\n            stackSlot"
 )
 
 mutants() {
   local caught=0 n=0
   for m in "${MUTANTS[@]}"; do
     IFS='|' read -r property from to <<< "$m"
+    from="${from//\\n/$'\n'}" to="${to//\\n/$'\n'}"
     n=$((n + 1))
     local dir="$OUT/mutant-$n"
     rm -rf "$dir"; mkdir -p "$dir"

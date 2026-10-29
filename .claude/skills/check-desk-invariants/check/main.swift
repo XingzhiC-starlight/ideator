@@ -41,7 +41,7 @@ let seeds: [(name: String, notes: [CardID: Note], saved: SavedDesk, desk: Desk)]
         clarity: true, stackFree: GridPoint(x: 0.5, y: 0.6),
         placements: [SavedPlacement(slot: 0, card: cid("a")),
                      SavedPlacement(free: GridPoint(x: 0.31, y: 0.12), card: cid("b"))],
-        stack: [cid("c")], collapsed: [cid("a")])
+        stack: [cid("c")])
     let full = SavedDesk(placements: placements, stack: [cid("a"), cid("b")])
 
     // Card a's summary was written by the current prompt, card b's by another one, and both describe
@@ -72,7 +72,7 @@ func commands(_ desk: Desk) -> [Command] {
 
     var list: [Command] = [.new(at: now), .pop, .flipStack(.next), .flipStack(.previous),
                            .writeBlank(note("W", "typed"), at: now), .writeBlank(.blank, at: now),
-                           .toggleClarity, .forgetFailedSummaries, .delete(ghost), .returnToStack(ghost)]
+                           .setClarity(true), .setClarity(false), .forgetFailedSummaries, .delete(ghost), .returnToStack(ghost)]
     for id in popped { list.append(.returnToStack(id)) }
 
     // The arranger. Move the shown card (the bottom one while the blank page shows) to the top, the
@@ -104,7 +104,7 @@ func commands(_ desk: Desk) -> [Command] {
 
     for id in cards {
         guard let card = desk.allCards.first(where: { $0.id == id }) else { continue }
-        list += [.delete(id), .edit(id, note("E", "edited", "twice")), .setCollapsed(id, !card.collapsed),
+        list += [.delete(id), .edit(id, note("E", "edited", "twice")),
                  .refreshSummary(id),
                  .storeSummary(id, Summary(source: card.digest, outcome: .text("fresh"))),
                  .storeSummary(id, Summary(source: Digest(rawValue: "stale"), outcome: .text("stale"))),
@@ -174,8 +174,8 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         expected = beforeIDs.union(added)
     case .delete(let id): expected = beforeIDs.subtracting([id])
     case .syncFiles(let files): expected = Set(files.keys)
-    case .pop, .returnToStack, .flipStack, .arrange, .showStacked, .move, .edit, .setCollapsed,
-         .toggleClarity, .refreshSummary, .forgetFailedSummaries, .storeSummary:
+    case .pop, .returnToStack, .flipStack, .arrange, .showStacked, .move, .edit, .setClarity,
+         .refreshSummary, .forgetFailedSummaries, .storeSummary:
         expected = beforeIDs
     }
     if afterIDs != expected {
@@ -268,24 +268,15 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         }
     }
 
-    // P6 Clarity: the global button sets every card; a per-card change never moves the button.
+    // P6 Clarity: it moves only when the ribbon's button sets it or New and typing on the blank page
+    // turn it off. Whether every face shows collapsed is a promise about one desk (`checkState`).
     switch command {
-    case .toggleClarity:
-        if after.clarity == before.clarity || after.allCards.contains(where: { $0.collapsed != after.clarity }) {
-            try fail("P6 clarity", "Clarity \(after.clarity ? "on" : "off") left a card the other way")
-        }
-    case .setCollapsed(let id, let collapsed):
-        if after.clarity != before.clarity { try fail("P6 clarity", "a per-card change moved the Clarity button") }
-        if beforeIDs.contains(id), after.allCards.first(where: { $0.id == id })?.collapsed != collapsed {
-            try fail("P6 clarity", "the per-card button did not change \"\(id.rawValue)\"")
-        }
-    case .addFromTool:
-        if after.clarity != before.clarity { try fail("P6 clarity", "the Clarity button changed without being pressed") }
-        if after.allCards.contains(where: { added.contains($0.id) && $0.collapsed != after.clarity }) {
-            try fail("P6 clarity", "a card from an AI tool did not take Clarity's state (\(after.clarity ? "on" : "off"))")
-        }
+    case .setClarity(let on):
+        if after.clarity != on { try fail("P6 clarity", "setClarity(\(on)) left Clarity \(after.clarity ? "on" : "off")") }
+    case .new where arrived != nil, .writeBlank where !added.isEmpty:
+        if after.clarity { try fail("P6 clarity", "a new card opened while Clarity stayed on") }
     default:
-        if after.clarity != before.clarity { try fail("P6 clarity", "the Clarity button changed without being pressed") }
+        if after.clarity != before.clarity { try fail("P6 clarity", "Clarity changed without being pressed") }
     }
 
     // P7 A summary attaches only to the version of the card it describes.
@@ -318,8 +309,8 @@ func checkState(_ after: Desk) throws {
     }
 
     // P5 Saving and relaunching restores the desk: the notes as Markdown and the sidecar as JSON,
-    // read back the way `Library.load` reads them, give the same places, stack, clarity, collapsed
-    // state and text summaries (the stack page and failed summaries are deliberately not saved).
+    // read back the way `Library.load` reads them, give the same places, stack, clarity and text
+    // summaries (the stack page and failed summaries are deliberately not saved).
     // Every summary is written under the current prompt, so each must survive the reload.
     let files = notes.mapValues { Note(markdown: $0.markdown) }
     let sidecar = try! JSONDecoder().decode(SavedDesk.self, from: try! JSONEncoder().encode(after.saved))
@@ -328,13 +319,24 @@ func checkState(_ after: Desk) throws {
     func layout(_ d: Desk) -> String {
         func card(_ c: Card) -> String {
             let summary: String = if let s = c.summary, case .text(let t) = s.outcome { "\(s.source.rawValue.prefix(8)):\(t)" } else { "-" }
-            return "\(c.id.rawValue)/\(c.collapsed)/\(summary)"
+            return "\(c.id.rawValue)/\(summary)"
         }
         return ("popped \(d.popped.map { "\(card($0.card))@\($0.place)" }) stack@\(d.stackPlace) "
             + "\(d.stack.map(card)) clarity \(d.clarity)").replacingOccurrences(of: "main.", with: "")
     }
     if layout(reloaded) != layout(after) || reloaded.saved != after.saved {
         try fail("P5 save and reload", "after saving, a relaunch shows\n      \(layout(reloaded))\n    instead of\n      \(layout(after))")
+    }
+
+    // P6 Clarity, the other half: every card's face, the desktop's and the stack's, shows collapsed
+    // exactly when Clarity is on, and the ribbon's button shows the same. A card has no collapse
+    // state of its own, so a card from an AI tool or a rescan follows Clarity by being a card.
+    let faces = after.cardFaces(hasKey: false).map(\.face) + [after.stackFace(hasKey: false).selected].compactMap { $0 }
+    if let face = faces.first(where: { $0.collapsed != after.clarity }) {
+        try fail("P6 clarity", "\"\(face.id.rawValue)\" shows \(face.collapsed ? "collapsed" : "expanded") while Clarity is \(after.clarity ? "on" : "off")")
+    }
+    if after.stackFace(hasKey: false).clarity != after.clarity {
+        try fail("P6 clarity", "the ribbon's Clarity button disagrees with Clarity (\(after.clarity ? "on" : "off"))")
     }
 }
 
@@ -371,7 +373,7 @@ func key(_ desk: Desk) -> String {
         case let s? where s.source != c.digest: "old"
         case let s?: if case .text = s.outcome { "t" } else { "f" }
         }
-        return "\(c.id.rawValue):\(c.note.header):\(c.note.body.count):\(c.collapsed ? 1 : 0):\(summary)"
+        return "\(c.id.rawValue):\(c.note.header):\(c.note.body.count):\(summary)"
     }
     func place(_ p: Place) -> String {
         switch p {
