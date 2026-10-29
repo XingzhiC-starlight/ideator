@@ -40,7 +40,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Moved like a card (see Moving cards and the stack), by pressing the ribbon's empty space and dragging. A click there that does not move still acts as the edge band under it.
 - Looks like one card: the ribbon holds the toolbar, "Desktop full" when it applies and the menu button; below it, the selected stacked card (header and body). No list or divider for the cards underneath. The count badge sits in the bottom-right corner of the card area, clear of the card's hover buttons and its formatting bar (revised 2026-10-22).
 - Toolbar (revised 2026-10-28): three icons at the ribbon's left, an even 12pt apart between their visible edges. New is a light plus (tooltip "New card"). Next comes the Hide all / Show all toggle (see Hide all), then Clarity on/off (global), a filter icon that shows the state: an outline in the ribbon's ink while off, filled with the accent color while on. Clarity keeps its tooltip and its accessibility name and value ("Clarity", on or off). To the right of the toolbar come "Desktop full" (it truncates before any button moves) and a menu button with Settings… / Quit, so the control center works even when the menu bar icon is hidden (revised 2026-10-22).
-- The selected stacked card is a full card (revised 2026-10-22): edited in place exactly like a popped card (see Card content and editing), with every per-card button a popped card has, and ↗ Pop where a popped card has ↩ Stack (Pop moved here from the ribbon, revised 2026-10-22), and collapsible to its summary (see Clarity mode).
+- The selected stacked card is a full card (revised 2026-10-22): edited in place exactly like a popped card (see Card content and editing), with every per-card button a popped card has, and ↗ Pop where a popped card has ↩ Stack (Pop moved here from the ribbon, revised 2026-10-22), and shown as its summary while Clarity is on (see Clarity mode; revised 2026-10-29).
 - Deleting the selected card shows the one underneath.
 - At launch the stack shows its top card, or the blank page when the stack is empty.
 - The count badge counts real cards only, never the blank page.
@@ -86,7 +86,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Each move is saved as the stack order in the sidecar, like any other change.
 
 ## Blank page (new 2026-10-22)
-- Typing its first character turns it into a real card in the same place in the loop (the bottom of the stack). The card stays selected with the cursor in it, and a new blank page appears right after it.
+- Typing its first character turns it into a real card in the same place in the loop (the bottom of the stack) and turns Clarity off (revised 2026-10-29). The card stays selected with the cursor in it, and a new blank page appears right after it.
 - Left untouched, it creates nothing.
 - Always expanded, even with Clarity ON. No per-card buttons until it becomes a card.
 
@@ -98,10 +98,10 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Undo gives back text exactly, bold and italic included, also after an edit that joined a body line into the header (added 2026-10-27).
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
-- Per-card buttons (clarity toggle, summary refresh, ↩ Stack, trash) fade in on hover only. Trash asks "Delete this card?". The stacked card has every one of them, with ↗ Pop where a popped card has ↩ Stack (revised 2026-10-22).
+- Per-card buttons (summary refresh, ↩ Stack, trash) fade in on hover only; a card has no Clarity button of its own (revised 2026-10-29). Trash asks "Delete this card?". The stacked card has every one of them, with ↗ Pop where a popped card has ↩ Stack (revised 2026-10-22).
 - Hover is where the pointer is, also when a card appears or moves under a pointer that rests (Show all, Pop, a snap). While the buttons are hidden a click there is a click on the card under them, never on a button. VoiceOver still lists and presses them (added 2026-10-27).
 - A long title wraps, or truncates on a collapsed card, before the buttons, whether they show or not (added 2026-10-27).
-- New: creates a blank card and pops it straight out, cursor on the header line, always expanded. Desktop full → New shows the stack's blank page instead.
+- New: creates a blank card and pops it straight out, cursor on the header line, expanded: New turns Clarity off, so every card expands with it (revised 2026-10-29). Desktop full → New shows the stack's blank page instead and leaves Clarity as it is.
 
 ## Nested lists (new 2026-10-23)
 - Bullet, numbered and checkbox items nest under one another, any kind under any kind, at most 3 levels deep. Only list items have levels: plain lines and the header always sit at the left edge.
@@ -126,12 +126,12 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Only a line break separates lines. A bare CR, U+2028, U+2029 or U+0085 inside pasted HTML, or inside a line of a file edited elsewhere, shows as a space (added 2026-10-27): the editor would otherwise split a paragraph the note does not have, and the next copy or paste crashed.
 - A multi-line paste: on an empty line, the first pasted line replaces it (kind and level); inside text, the first pasted line's text joins the current line, which keeps its kind. Later lines keep their own kinds, shifted by the current item's level, and anything past level 3 is tidied up. Pasting into the header puts the first line in the header and the rest in the body.
 
-## Clarity mode
+## Clarity mode (revised 2026-10-29)
 - Collapsed card: same size and position, header stays, body replaced by the 3-line AI summary in a lighter style, cut with "…" if longer (revised 2026-10-24). Applies on the stack too.
-- Stack's Clarity button is a global toggle: ON collapses every card, stacked ones included; OFF expands every card.
-- Clicking a collapsed card's body expands just that card and puts the cursor in it; does not flip the global button.
-- Per-card button toggles just that card.
-- A card popped keeps its state, so a card popped while global is ON comes out collapsed.
+- Clarity is one global switch, and a card has no collapse state of its own. The stack's Clarity button sets it: ON collapses every card, stacked and popped; OFF expands every card.
+- Clicking a collapsed card's body turns Clarity off, so every card expands, and puts the cursor in the clicked card. A press on a collapsed card's header only drags it.
+- New, and the first character typed on the stack's blank page, turn Clarity off, so the new card opens expanded with the cursor in it and every other card expands too. New on a full desktop makes no card and leaves Clarity as it is.
+- A card shows as Clarity says wherever it comes from: popped, returned to the stack, added by an AI tool or found by a rescan of the folder.
 
 ## AI summaries (revised 2026-10-28)
 - Provider (revised 2026-10-28): the Anthropic API (Messages API, model Claude Haiku 5.5) or the OpenAI API (Responses API, model gpt-6-luna), whichever company the one saved key is for. The key is pasted once into the app's settings and stored outside the code. A key that starts with `sk-ant-` is Anthropic's and any other key is OpenAI's. Both get the same prompt and the same rules below: there is no prompt per provider, no other provider and no base-URL field. A summary already written stays when the key changes to the other company's.
@@ -188,7 +188,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - A card waits for Continue at most 40 seconds, counted from the AI tool's call, so the time Ideator took to start is part of it (added 2026-10-28, revised 2026-10-28). Then the reply is an error that says to press Continue in Ideator and ask again, and the card is never saved, also when Continue comes later. AI tools give up on a call after about a minute, so they get this answer instead of a time-out, and a card they were told is not saved never appears.
 - If the save fails (see Storage), the card stays in the stack and saves once the folder lets it, and the reply is an error that says so and not to add it again (added 2026-10-28). The reply goes out at once, and the "Ideator can't save your notes" alert follows it (revised 2026-10-28).
 - If Ideator has the card but has not answered 50 seconds after the call, the helper stops waiting and replies with an error that says Ideator may still save the card, so look in the stack before adding it again (added 2026-10-28).
-- The card joins the stack, never the desktop, as a new card with Clarity's global state, like a file added outside the app. Where it lands is the setting "Cards from AI tools go to: Top / Bottom", Top by default. It applies to cards from AI tools only: every other new card lands where it does today.
+- The card joins the stack, never the desktop, as a new card that shows as Clarity says, like a file added outside the app. Where it lands is the setting "Cards from AI tools go to: Top / Bottom", Top by default. It applies to cards from AI tools only: every other new card lands where it does today.
   - Top: the card goes to the top of the stack and the stack switches to it, unless the user is typing in the stacked card at that moment (Ideator is the active app and the cursor is in the stacked card). Then the card still goes to the top, and the stack keeps showing the card being typed in.
   - Bottom: the card goes to the bottom of the stack, and the stack keeps showing what it showed.
 - With Hide all on, the card is saved and counted in the badge, but nothing comes back on screen. With Top, Show all then shows the new card.
@@ -213,8 +213,8 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 ## Storage
 - One Markdown (.md) file per card in ~/Documents/Ideator/.
 - A card file reads the way CommonMark reads it (added 2026-10-27): a backslash escapes only punctuation, so `C:\Users\me` keeps its backslashes, and asterisks style text only when they hug it (`*word*`), so `rm *.txt *.log` and `2 * 3 * 4` keep theirs. A file edited outside Ideator shows what it says, and saving it changes none of its text. Files Ideator wrote read back to the same bytes.
-- One hidden sidecar file for positions (each card's and the stack's slot or free spot), stack order, collapsed state, and cached summaries.
-- The sidecar carries a format version. A sidecar written by a newer Ideator is never overwritten: cards open and card files save as usual, nothing the sidecar holds is saved (places, stack order, collapsed cards, Clarity and summaries), and a notice at launch says to update (added 2026-10-24, revised 2026-10-27).
+- One hidden sidecar file for positions (each card's and the stack's slot or free spot), stack order, whether Clarity is on, and cached summaries (revised 2026-10-29). A sidecar from before 2026-10-29 may also list collapsed cards; Ideator ignores the list, and the next save leaves it out.
+- The sidecar carries a format version. A sidecar written by a newer Ideator is never overwritten: cards open and card files save as usual, nothing the sidecar holds is saved (places, stack order, Clarity and summaries), and a notice at launch says to update (added 2026-10-24, revised 2026-10-27).
 - That check runs again before every sidecar write, not only at launch (added 2026-10-27): the other Mac can arrange the folder while this one runs. The notice shows once per run, when the check first finds the newer file.
 - A folder that can't be listed at launch (macOS refused, a volume not mounted) opens empty with the notice "Ideator couldn't read your notes" (added 2026-10-27). That run never writes the sidecar, so the arrangement it never read survives. Cards written meanwhile save when the folder allows it, a rescan brings the folder's cards into the stack, and the next launch arranges everything from the sidecar.
 - A failed save is never silent (revised 2026-10-27): the first one shows "Ideator can't save your notes" (see First launch for the Documents case), and quitting while a save still fails asks "Quit without saving?" with Cancel and Quit Anyway, instead of dropping the changes that alert promised to keep.

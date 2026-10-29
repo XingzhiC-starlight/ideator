@@ -6,8 +6,8 @@ How the app in [CARDS-SPEC.md](CARDS-SPEC.md) is put together, and why.
 
 Up to 19 card windows and a stack window are all views of one tightly coupled state. Pop, "↩
 Stack", delete and the stack's swipes and edge bands all move through one stack loop, and the
-card the stack shows is editable in place. Clarity has a global
-switch plus a per-card "last state". Summaries arrive later and must attach to the right version
+card the stack shows is editable in place. Clarity is one global
+switch that no card can override. Summaries arrive later and must attach to the right version
 of the right card. All of it persists to Markdown plus one sidecar. The header is both the first
 line of editable text and the handle you drag the card by.
 
@@ -62,8 +62,9 @@ func send(_ command: Command) {
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
   `Place`) or a stack position. There is no id-to-card map to keep in step,
-  so "one card, one place" holds by construction, and a moving card carries its collapsed state
-  and summary with it.
+  so "one card, one place" holds by construction, and a moving card carries its summary with it.
+  Clarity is not on the card: `Desk.clarity` is the only collapse state, and each `CardFace` copies
+  it, so a card cannot disagree with the ribbon.
 - **A place is a slot or a free point.** `Place` is `.slot(Slot)` or `.free(GridPoint)`, the
   center as a fraction of the screen, so a display change rescales free cards with no model
   change. Cards and the stack both have one. `Place.dropped(at:)` is the whole snap rule (snap
@@ -684,6 +685,18 @@ Later changes, after trying the app:
   state. New became a light plus to match it. Prototypes compared compress/expand, summary-line
   and pressed-tile Clarity icons, dot, dot-matrix and shrink-to-ribbon toggles, and compose,
   card-plus, dot-plus and pill New buttons.
+- 2026-10-29, Clarity became global only: each card had its own collapsed flag beside the ribbon's
+  Clarity, so the button could say off while a card showed collapsed, and the ribbon's icon and the
+  cards disagreed. `Card.collapsed`, `Command.setCollapsed` and `toggleClarity` are gone. One
+  idempotent `Command.setClarity(Bool)` sets `Desk.clarity`, every `CardFace.collapsed` is that
+  value, and the sidecar keeps only `clarity`. The ribbon sends the opposite of what it shows. A
+  click on a collapsed card's body sends `setClarity(false)`, so every card expands, where it used
+  to expand one. A card created by New or by the first character on the blank page turns Clarity
+  off inside `Desk.apply`: the alternative, a collapsed list that survives for the new card alone,
+  would bring the per-card flag back. The per-card hover button went with the flag, which
+  shortens the hover row by one button, so the title has that much more room. An old sidecar
+  that still has a `collapsed` list loads, because the decoder ignores unknown keys, and the next
+  save leaves the list out.
 
 ## Tradeoffs accepted
 
@@ -720,7 +733,7 @@ Later changes, after trying the app:
 
 ## Alternatives considered
 
-- **Normalized store** (`[CardID: Card]` plus slot, stack, collapsed and summary maps): every
+- **Normalized store** (`[CardID: Card]` plus slot, stack and summary maps): every
   transition must keep several keyed structures in agreement.
 - **Literal marker characters** in the text: native-feeling copy/paste, but the user can edit a
   marker out of sync and every edit needs a renumbering pass that shifts the selection. Copy and
@@ -739,7 +752,10 @@ Later changes, after trying the app:
 - "↩ Stack" shows the returned card on the stack, so you see where it went.
 - Switching the stack to another card takes the cursor out of the editor, so typing never lands
   in a card you did not click.
-- A file added outside the app while Clarity is ON joins the stack collapsed.
+- A file added outside the app, or a card from an AI tool, shows as Clarity says: collapsed while
+  Clarity is ON, since a card has no collapse state of its own.
+- New, and the first character typed on the blank page, turn Clarity off, so the new card opens
+  expanded with the cursor in it. New on a full desktop makes no card and leaves Clarity alone.
 - While hidden, swipes and edge bands do nothing: there is no card area to switch.
 - The menu bar menu adds "Settings…" so the API key has somewhere to go.
 - With no API key, a collapsed card shows "Summary unavailable" with the reason on hover ("No API key.
