@@ -217,7 +217,8 @@ private final class StackView: NSView {
         toggleButton.setAccessibilityLabel("Hide all")
         setIcon("square.grid.2x2", "Spread", on: spreadButton)
         spreadButton.setAccessibilityLabel("Spread")
-        spreadButton.setAccessibilityCustomActions([
+        // On the cell: an NSButton's accessibility actions come from its cell, which ignores any set on the button.
+        spreadButton.cell?.setAccessibilityCustomActions([
             NSAccessibilityCustomAction(name: "New spread") { spread(true); return true },
         ])
         setIcon("line.3.horizontal.decrease.circle", "Clarity", on: clarityButton)

@@ -147,7 +147,8 @@ final class StackLayoutTests: XCTestCase {
         let ribbon = stack(width: wide)
         ribbon.spread.performClick(nil)
         XCTAssertEqual(ribbon.spreads(), [false], "a click carries no Option")
-        let fresh = try XCTUnwrap(ribbon.spread.accessibilityCustomActions()?.first { $0.name == "New spread" })
+        let fresh = try XCTUnwrap(ribbon.spread.cell?.accessibilityCustomActions()?.first { $0.name == "New spread" },
+                                  "AppKit serves a button's actions from its cell: ones set on the button never reach VoiceOver")
         XCTAssertEqual(fresh.handler?(), true)
         XCTAssertEqual(ribbon.spreads(), [false, true], "the action asks for a fresh set")
         XCTAssertEqual(ribbon.sent().count, 0, "the ribbon leaves the command to the controller")
