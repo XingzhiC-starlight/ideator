@@ -2,9 +2,10 @@ import Foundation
 
 // Sends sample cards through the app's own summary request and checks each summary against the
 // rules in CARDS-SPEC.md § AI summaries that a program can check. scripts/check-summaries.sh
-// compiles this with Cards/{Summarizer,Desk,Grid,Note}.swift, so the request it sends is the
-// request the app sends. The rules a program cannot check (is the gist right, is it worth
-// reading) are for the person reading the output.
+// reads the keys into this program's environment and compiles it with
+// Cards/{Summarizer,Desk,Grid,Note}.swift, so the request it sends is the request the app sends.
+// The rules a program cannot check (is the gist right, is it worth reading) are for the person
+// reading the output.
 
 struct Sample {
     let name: String
@@ -285,13 +286,11 @@ func checks(for sample: Sample, note: Note, summary: String) -> [Check] {
 
 let trimmingSet = CharacterSet.whitespacesAndNewlines
 
-func readKey(environment name: String, prompt: String) -> String? {
-    if let value = ProcessInfo.processInfo.environment[name]?.trimmingCharacters(in: trimmingSet), !value.isEmpty {
-        return value
+func readKey(environment name: String) -> String? {
+    guard let value = ProcessInfo.processInfo.environment[name]?.trimmingCharacters(in: trimmingSet), !value.isEmpty else {
+        return nil
     }
-    guard let entered = getpass("\(prompt) (input hidden, empty to skip): ") else { return nil }
-    let value = String(cString: entered).trimmingCharacters(in: trimmingSet)
-    return value.isEmpty ? nil : value
+    return value
 }
 
 func redact(_ text: String) -> String {
@@ -321,19 +320,12 @@ func showRequest(_ provider: Provider, note: Note, key: String) {
     print()
 }
 
-var slots: [(label: String, variable: String)] = [("OpenAI key", "OPENAI_API_KEY")]
-if CommandLine.arguments.contains("--anthropic") { slots.append(("Anthropic key, for comparison", "ANTHROPIC_API_KEY")) }
-if CommandLine.arguments.contains("--help") || CommandLine.arguments.contains("-h") {
-    print("""
-        check-summaries.sh              sample cards through the OpenAI request; key from $OPENAI_API_KEY or a hidden prompt
-        check-summaries.sh --anthropic  also through the Anthropic request; key from $ANTHROPIC_API_KEY or a hidden prompt
-        """)
-    exit(0)
-}
+var variables = ["OPENAI_API_KEY"]
+if CommandLine.arguments.contains("--anthropic") { variables.append("ANTHROPIC_API_KEY") }
 
-let keys = slots.compactMap { readKey(environment: $0.variable, prompt: $0.label) }
+let keys = variables.compactMap(readKey(environment:))
 guard !keys.isEmpty else {
-    print("No key. Set OPENAI_API_KEY, or run this in a terminal and paste a key at the hidden prompt.")
+    print("No key. Run scripts/check-summaries.sh, which reads the keys before it starts this program.")
     exit(2)
 }
 
