@@ -53,9 +53,29 @@ let seeds: [(name: String, notes: [CardID: Note], saved: SavedDesk, desk: Desk)]
         summaries: [SavedSummary(card: cid("a"), source: few["a"]!.digest, text: "kept", prompt: Summary.prompt),
                     SavedSummary(card: cid("b"), source: few["b"]!.digest, text: "dropped", prompt: otherPrompt)])
 
+    // A gathered Spread set with one card out again. Clarity is on, so putting set cards back must
+    // leave it on. Card a sits in slot 6, which s3 remembers; s4 was popped by hand to slot 12 while
+    // it still remembers slot 7, the stale home a Gather must overwrite. The load must drop a ghost
+    // id, a second entry for s1 and an out-of-range slot for c.
+    let spreadNotes = fewNotes.merging(["s1", "s2", "s3", "s4"].map { (cid($0), note($0.uppercased())) }) { $1 }
+    let spreadSaved = SavedDesk(
+        clarity: true,
+        placements: [SavedPlacement(slot: 6, card: cid("a")), SavedPlacement(slot: 12, card: cid("s4"))],
+        stack: [cid("b"), cid("s1"), cid("s2"), cid("s3"), cid("c")],
+        spread: SavedSpread(cells: [0, 1, 2, 5, 6, 7], members: [
+            SavedPlacement(slot: 2, card: cid("s1")),
+            SavedPlacement(free: GridPoint(x: 0.31, y: 0.12), card: cid("s2")),   // over cell 1
+            SavedPlacement(slot: 6, card: cid("s3")),
+            SavedPlacement(slot: 7, card: cid("s4")),
+            SavedPlacement(slot: 3, card: cid("ghost")),
+            SavedPlacement(slot: 9, card: cid("s1")),
+            SavedPlacement(slot: 25, card: cid("c")),
+        ]))
+
     let desks: [(String, [CardID: Note], SavedDesk)] = [
         ("empty", [:], SavedDesk()), ("three stacked", fewNotes, stacked), ("mixed", fewNotes, mixed),
         ("near full", pileNotes, full), ("summaries under two prompts", fewNotes, summarized),
+        ("a Spread set, one card out", spreadNotes, spreadSaved),
     ]
     return desks.map { name, notes, saved in (name, notes, saved, Desk(notes: notes, saved: saved)) }
 }()
@@ -134,6 +154,15 @@ func commands(_ desk: Desk) -> [Command] {
     list += [.addFromTool(note("Tool typing", "x"), at: now, to: .top, typing: true),
              .addFromTool(note("Tool top", "x"), at: now, to: .top, typing: false),
              .addFromTool(note("Tool bottom", "x"), at: now, to: .bottom, typing: false)]
+
+    // Spread with the factory cells, cells that include the stack's home and slot 12, no cells, and
+    // three cells at the bottom right (the near-full desk has room for one of them). Then fresh,
+    // once with cells and once with none: only a fresh click changes its copy before it learns that
+    // nothing will come out, so only it can show a refusal that is not atomic.
+    for cells in [SpreadCells.standard, SpreadCells(indices: [0, 4, 12]), .empty, SpreadCells(indices: [11, 18, 19])] {
+        list.append(.spread(cells, fresh: false, at: now))
+    }
+    list += [.spread(.standard, fresh: true, at: now), .spread(.empty, fresh: true, at: now)]
     return list
 }
 
@@ -172,6 +201,9 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     case .addFromTool:
         if added.count != 1 { try fail("P1 conservation", "a card from an AI tool added \(added.count) cards") }
         expected = beforeIDs.union(added)
+    case .spread(let cells, _, _):
+        if added.count > cells.count { try fail("P1 conservation", "a Spread made \(added.count) cards for \(cells.count) cells") }
+        expected = beforeIDs.union(added)
     case .delete(let id): expected = beforeIDs.subtracting([id])
     case .syncFiles(let files): expected = Set(files.keys)
     case .pop, .returnToStack, .flipStack, .arrange, .showStacked, .move, .edit, .setClarity,
@@ -186,7 +218,7 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         let want: Note? = switch command {
         case .edit(let edited, let new) where edited == id: new
         case .syncFiles(let files): files[id]
-        case .new where added.contains(id): .blank
+        case .new where added.contains(id), .spread where added.contains(id): .blank
         case .writeBlank(let typed, _) where added.contains(id): typed
         case .addFromTool(let given, _, _, _) where added.contains(id): given
         default: beforeNotes[id]
@@ -268,12 +300,13 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         }
     }
 
-    // P6 Clarity: it moves only when the ribbon's button sets it or New and typing on the blank page
-    // turn it off. Whether every face shows collapsed is a promise about one desk (`checkState`).
+    // P6 Clarity: it moves only when the ribbon's button sets it or New, typing on the blank page
+    // and a Spread that makes cards turn it off. Whether every face shows collapsed is a promise
+    // about one desk (`checkState`).
     switch command {
     case .setClarity(let on):
         if after.clarity != on { try fail("P6 clarity", "setClarity(\(on)) left Clarity \(after.clarity ? "on" : "off")") }
-    case .new where arrived != nil, .writeBlank where !added.isEmpty:
+    case .new where arrived != nil, .writeBlank where !added.isEmpty, .spread where !added.isEmpty:
         if after.clarity { try fail("P6 clarity", "a new card opened while Clarity stayed on") }
     default:
         if after.clarity != before.clarity { try fail("P6 clarity", "Clarity changed without being pressed") }
@@ -285,6 +318,157 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         let should = summary.source == card.digest ? summary : old.summary
         if card.summary != should { try fail("P7 summaries", "a summary for another version of \"\(id.rawValue)\" was attached") }
     }
+
+    // P8 Spread. The set is the Spread button's batch: a card stays in it until it is deleted, a
+    // fresh set replaces the set, or a layout onto fewer cells lets it go.
+    let homes = before.spreadSet?.homes ?? [:], homesAfter = after.spreadSet?.homes ?? [:]
+    func setIs(_ want: [CardID: Place], cells: SpreadCells?, after what: String) throws {
+        if homesAfter != want || (!want.isEmpty && after.spreadSet?.cells != cells) {
+            try fail("P8 spread", "after \(what) the set is \(describe(after.spreadSet)) where it should be "
+                     + describe(cells.map { ($0, want) }))
+        }
+    }
+    switch command {
+    case .spread(let cells, let fresh, _):
+        let out = before.popped.filter { homes[$0.card.id] != nil }.map { (id: $0.card.id, place: $0.place) }
+        if !fresh && !out.isEmpty {
+            // Gather: exactly the set's desktop cards, to the bottom in reading order of their places,
+            // each remembering that place. Nothing else moves and no card is made.
+            let order = out.sorted(by: readsBefore).map(\.id)
+            if after.stack.map(\.id) != before.stack.map(\.id) + order {
+                try fail("P8 spread", "Gather left the stack \(after.stack.map(\.id.rawValue)) where it should be "
+                         + "\((before.stack.map(\.id) + order).map(\.rawValue))")
+            }
+            if after.popped != before.popped.filter({ homes[$0.card.id] == nil }) || after.stackPlace != before.stackPlace {
+                try fail("P8 spread", "Gather moved the stack or a card that is not the set's")
+            }
+            try setIs(homes.merging(out.map { ($0.id, $0.place) }) { $1 }, cells: before.spreadSet?.cells, after: "Gather")
+        } else {
+            try checkLayout(before, after, arrived: arrived, cells: cells, plan: spreadPlan(before, cells, fresh: fresh))
+        }
+    case .returnToStack(let id) where homes[id] != nil && before.place(of: .card(id)) != nil:
+        try setIs(homes.merging([(id, before.place(of: .card(id))!)]) { $1 }, cells: before.spreadSet?.cells,
+                  after: "↩ Stack on \"\(id.rawValue)\"")
+    case .delete(let id):
+        try setIs(homes.filter { $0.key != id }, cells: before.spreadSet?.cells, after: "deleting \"\(id.rawValue)\"")
+    case .syncFiles(let files):
+        try setIs(homes.filter { files[$0.key] != nil }, cells: before.spreadSet?.cells, after: "a rescan")
+    default:
+        if after.spreadSet != before.spreadSet {
+            try fail("P8 spread", "the set changed without Spread, ↩ Stack or a delete: \(describe(before.spreadSet)) "
+                     + "became \(describe(after.spreadSet))")
+        }
+    }
+}
+
+// MARK: - Spread, in the spec's words
+
+/// Spread's reading order: the cell a place covers most, then its point top to bottom and left to
+/// right (`Place.readingKey`), then the id.
+func readsBefore(_ a: (id: CardID, place: Place), _ b: (id: CardID, place: Place)) -> Bool {
+    a.place.readingKey != b.place.readingKey ? a.place.readingKey < b.place.readingKey : a.id < b.id
+}
+
+/// What a Spread click that does not gather should do, from `before` alone: which set cards go
+/// where, which leave the set, which ticked cells get new blank cards, and (fresh) which desktop
+/// cards are swept to the stack first.
+struct SpreadPlan {
+    /// Set cards that stay in the set, and where each goes. Old cards past the last cell are not
+    /// here: they leave the set and stay stacked as ordinary cards.
+    var kept: [(id: CardID, target: Place)] = []
+    var extras: [Slot] = []
+    var swept: [CardID] = []
+}
+
+func spreadPlan(_ before: Desk, _ cells: SpreadCells, fresh: Bool) -> SpreadPlan {
+    var plan = SpreadPlan()
+    let set = before.spreadSet
+    if fresh {
+        // The old set is dropped first: its desktop cards go to the stack, and every cell is new.
+        plan.swept = before.popped.filter { set?.contains($0.card.id) ?? false }
+            .map { (id: $0.card.id, place: $0.place) }.sorted(by: readsBefore).map(\.id)
+        plan.extras = cells.inReadingOrder
+        return plan
+    }
+    let old = (set?.homes ?? [:]).map { (id: $0.key, place: $0.value) }.sorted(by: readsBefore)
+    if let set, set.cells == cells {
+        plan.kept = old.map { (id: $0.id, target: $0.place) }
+    } else {
+        // The card in the first old home gets the first cell, and so on.
+        let order = cells.inReadingOrder
+        plan.kept = zip(old, order).map { (id: $0.id, target: .slot($1)) }
+        plan.extras = Array(order.dropFirst(old.count))
+    }
+    return plan
+}
+
+/// A layout, in Pop's terms. It starts from `before` less the fresh sweep. Walking the plan (kept
+/// cards in reading order, then the extra cells), each item comes out exactly when its cell is not
+/// taken by the starting desk or by an item that came out before it; one that stays had its cell
+/// taken, or the desktop was at the ceiling. The ceiling itself is P2's: this never says too many
+/// came out. A click that puts nothing out changes nothing, the fresh sweep included.
+func checkLayout(_ before: Desk, _ after: Desk, arrived: CardID?, cells: SpreadCells, plan: SpreadPlan) throws {
+    func fail(_ detail: String) throws -> Never { throw Violation(property: "P8 spread", detail: detail) }
+    let swept = Set(plan.swept)
+    let start = before.popped.filter { !swept.contains($0.card.id) }
+    var taken = Set(start.map(\.place.slot) + [before.stackPlace.slot])
+    let items = plan.kept.map { (id: Optional($0.id), place: $0.target) } + plan.extras.map { (id: CardID?.none, place: Place.slot($0)) }
+    func name(_ item: (id: CardID?, place: Place)) -> String {
+        item.id.map { "\"\($0.rawValue)\"" } ?? "a new card for cell \(item.place.slot.index)"
+    }
+    if after == before {
+        if let free = items.first(where: { !taken.contains($0.place.slot) }), start.count < Slot.count - 1 {
+            try fail("a Spread changed nothing though \(name(free)) had cell \(free.place.slot.index) free")
+        }
+        return
+    }
+
+    let startStack = before.stack.map(\.id) + plan.swept
+    let beforeIDs = Set(before.allCards.map(\.id))
+    if Array(after.popped.prefix(start.count)) != start || after.stackPlace != before.stackPlace {
+        try fail("a Spread moved the stack or a card that was on the desktop")
+    }
+    let came = Array(after.popped.dropFirst(start.count))
+    if came.isEmpty { try fail("a Spread that put no card out changed the desk") }
+    var next = 0
+    var made: [(id: CardID, cell: Slot)] = []
+    for item in items {
+        let what = name(item)
+        let arrival = next < came.count ? came[next] : nil
+        // A set card is known by its id, a new card by the cell it came out on.
+        let isIt = arrival.map { a in item.id.map { a.card.id == $0 } ?? (!beforeIDs.contains(a.card.id) && a.place == item.place) } ?? false
+        if isIt, let arrival {
+            if taken.contains(item.place.slot) { try fail("\(what) came out on cell \(item.place.slot.index), which was taken") }
+            if arrival.place != item.place { try fail("\(what) came out at \(arrival.place) where it should be at \(item.place)") }
+            if item.id == nil { made.append((arrival.card.id, item.place.slot)) }
+            taken.insert(item.place.slot)
+            next += 1
+        } else if let id = item.id, came.contains(where: { $0.card.id == id }) {
+            try fail("\(what) came out out of reading order")
+        } else if !taken.contains(item.place.slot) && start.count + next < Slot.count - 1 {
+            try fail("\(what) stayed in the stack though cell \(item.place.slot.index) was free")
+        }
+    }
+    if next < came.count { try fail("\"\(came[next].card.id.rawValue)\" came out, which the layout does not put out") }
+    let cameOut = Set(came.map(\.card.id))
+    if after.stack.map(\.id) != startStack.filter({ !cameOut.contains($0) }) {
+        try fail("the stack is \(after.stack.map(\.id.rawValue)) where it should be \(startStack.filter { !cameOut.contains($0) }.map(\.rawValue))")
+    }
+    let want = Dictionary(uniqueKeysWithValues: plan.kept.map { ($0.id, $0.target) } + made.map { ($0.id, Place.slot($0.cell)) })
+    if after.spreadSet?.homes != want || after.spreadSet?.cells != cells {
+        try fail("the set is \(describe(after.spreadSet)) where it should be \(describe((cells, want)))")
+    }
+    if arrived != made.first?.id {
+        try fail("the Spread returned \(arrived.map { "\"\($0.rawValue)\"" } ?? "no card") to focus, not its first new card")
+    }
+}
+
+func describe(_ set: SpreadSet?) -> String { set.map { describe(($0.cells, $0.homes)) } ?? "none" }
+
+func describe(_ set: (cells: SpreadCells, homes: [CardID: Place])?) -> String {
+    guard let set, !set.homes.isEmpty else { return "none" }
+    return ("\(set.cells.indices) " + set.homes.sorted { $0.key < $1.key }.map { "\($0.key.rawValue)@\($0.value)" }.joined(separator: " "))
+        .replacingOccurrences(of: "main.", with: "")
 }
 
 /// The promises about a single desk. Checked once per desk the search reaches, the starting desks
@@ -322,7 +506,7 @@ func checkState(_ after: Desk) throws {
             return "\(c.id.rawValue)/\(summary)"
         }
         return ("popped \(d.popped.map { "\(card($0.card))@\($0.place)" }) stack@\(d.stackPlace) "
-            + "\(d.stack.map(card)) clarity \(d.clarity)").replacingOccurrences(of: "main.", with: "")
+            + "\(d.stack.map(card)) clarity \(d.clarity) spread \(describe(d.spreadSet))").replacingOccurrences(of: "main.", with: "")
     }
     if layout(reloaded) != layout(after) || reloaded.saved != after.saved {
         try fail("P5 save and reload", "after saving, a relaunch shows\n      \(layout(reloaded))\n    instead of\n      \(layout(after))")
@@ -337,6 +521,17 @@ func checkState(_ after: Desk) throws {
     }
     if after.stackFace(hasKey: false).clarity != after.clarity {
         try fail("P6 clarity", "the ribbon's Clarity button disagrees with Clarity (\(after.clarity ? "on" : "off"))")
+    }
+
+    // P8 Spread, the other half: every card of the set is a card on the desk, and the ribbon's Spread
+    // button says Gather exactly when a card of the set is on the desktop.
+    if let ghost = after.spreadSet?.homes.keys.first(where: { notes[$0] == nil }) {
+        try fail("P8 spread", "\"\(ghost.rawValue)\" is in the set but not on the desk")
+    }
+    let out = after.popped.contains { after.spreadSet?.contains($0.card.id) ?? false }
+    if after.stackFace(hasKey: false).spreadButton != (out ? .gather : .spread) {
+        try fail("P8 spread", "the Spread button says \(after.stackFace(hasKey: false).spreadButton) while "
+                 + "\(out ? "a card" : "no card") of the set is on the desktop")
     }
 }
 
@@ -354,6 +549,19 @@ func checkLoad(notes: [CardID: Note], saved: SavedDesk, desk: Desk) throws {
         let got = card.summary == nil ? "no summary" : "a summary"
         throw Violation(property: "P5 save and reload",
                         detail: "the sidecar held \(held) for \"\(card.id.rawValue)\", and a load gave it \(got)")
+    }
+
+    // The set: the entries that name a card and a valid place, the first such entry per card, with
+    // the sidecar's cells less junk; none when no entry is left. A home is never dropped for being
+    // occupied.
+    var homes: [CardID: Place] = [:]
+    for m in saved.spread?.members ?? [] where homes[m.card] == nil && notes[m.card] != nil {
+        if let free = m.free { homes[m.card] = .free(free) } else if let slot = m.slot.flatMap(Slot.init(index:)) { homes[m.card] = .slot(slot) }
+    }
+    let cells = SpreadCells(indices: saved.spread?.cells ?? [])
+    if (desk.spreadSet?.homes ?? [:]) != homes || (!homes.isEmpty && desk.spreadSet?.cells != cells) {
+        throw Violation(property: "P5 save and reload",
+                        detail: "the sidecar's set loaded as \(describe(desk.spreadSet)) where it should be \(describe((cells, homes)))")
     }
 }
 
@@ -381,9 +589,12 @@ func key(_ desk: Desk) -> String {
         case .free(let g): "f\(g.x),\(g.y)"
         }
     }
+    let spread = desk.spreadSet.map { set in
+        "\(set.cells.indices) " + set.homes.sorted { $0.key < $1.key }.map { "\($0.key.rawValue)@\(place($0.value))" }.joined(separator: " ")
+    }
     return desk.popped.map { card($0.card) + "@" + place($0.place) }.joined(separator: " ")
         + " | " + place(desk.stackPlace) + " " + desk.stack.map(card).joined(separator: " ")
-        + " | \(desk.selection) \(desk.clarity)"
+        + " | \(desk.selection) \(desk.clarity) | " + (spread ?? "-")
 }
 
 let depth = CommandLine.arguments.count > 1 ? Int(CommandLine.arguments[1]) ?? 5 : 5
@@ -399,6 +610,7 @@ func label(_ command: Command) -> String {
     case .edit(let id, _): ".edit(\"\(id.rawValue)\")"
     case .storeSummary(let id, let s): ".storeSummary(\"\(id.rawValue)\", \(s.outcome), source \(s.source.rawValue.prefix(8)))"
     case .addFromTool(_, _, let landing, let typing): ".addFromTool(\(landing)\(typing ? ", typing in the stacked card" : ""))"
+    case .spread(let cells, let fresh, _): ".spread(\(cells.indices)\(fresh ? ", fresh" : ""))"
     default: "\(command)".replacingOccurrences(of: "main.", with: "")
     }
 }
@@ -471,4 +683,4 @@ for (name, notes, saved, seed) in seeds {
         + "\(seed.allCards.filter { $0.summary != nil }.count))"
     print("ok  \(name): \(seen.count) desks\(loaded)")
 }
-print(String(format: "PASS P1–P7, depth %d, %d desks, %d steps checked, %.1fs", depth, explored, transitions, Date().timeIntervalSince(started)))
+print(String(format: "PASS P1–P8, depth %d, %d desks, %d steps checked, %.1fs", depth, explored, transitions, Date().timeIntervalSince(started)))

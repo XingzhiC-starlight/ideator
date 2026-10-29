@@ -141,6 +141,56 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(collapsedFaces(on), [true, true], "and Clarity on shows card b collapsed, though the list never named it")
     }
 
+    func testASidecarFromBeforeSpreadStillLoadsItsPlaces() async throws {
+        try Data("# A\n".utf8).write(to: folder.appending(path: "a.md"))
+        try Data("# B\n".utf8).write(to: folder.appending(path: "b.md"))
+        let json = #"{"version":2,"clarity":true,"stackSlot":7,"placements":[{"slot":3,"card":"b"}],"stack":["a"],"summaries":[]}"#
+        try Data(json.utf8).write(to: folder.appending(path: ".cards.json"))
+
+        let desk = Library(folder: folder).load()
+
+        XCTAssertEqual(desk.place(of: .card(CardID(rawValue: "b"))), .slot(Slot(index: 3)!), "the places load")
+        XCTAssertEqual(desk.stackPlace, .slot(Slot(index: 7)!), "so does the stack's")
+        XCTAssertTrue(desk.clarity, "and Clarity")
+        XCTAssertNil(desk.spreadSet, "with no Spread set")
+    }
+
+    func testASpreadSetSurvivesARelaunchInTheSameFormatVersion() async throws {
+        try Data("# Groceries\n".utf8).write(to: cardFile)   // shown on top, as a relaunch shows it
+        let library = Library(folder: folder)
+        var desk = library.load()
+        let cells = SpreadCells(indices: [0, 1])
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        desk.apply(.spread(cells, fresh: false, at: now))
+        desk.apply(.move(.card(desk.popped[0].card.id), to: .free(GridPoint(x: 0.47, y: 0.71))))
+        desk.apply(.spread(cells, fresh: false, at: now))
+        XCTAssertTrue(library.save(desk))
+
+        let reopened = Library(folder: folder).load()
+        XCTAssertEqual(reopened, desk, "the gathered set and where each card was come back")
+        XCTAssertEqual(reopened.spreadSet?.cells, cells)
+        let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appending(path: ".cards.json"))) as? [String: Any]
+        XCTAssertEqual(saved?["version"] as? Int, 2, "in the same format version")
+    }
+
+    func testASidecarsSetDropsJunkButKeepsAHomeAnotherCardNowTakes() async throws {
+        for name in ["a", "s1", "s2"] { try Data("# \(name)\n".utf8).write(to: folder.appending(path: "\(name).md")) }
+        let json = #"""
+            {"version":2,"clarity":false,"placements":[{"slot":0,"card":"a"}],"stack":["s1","s2"],"summaries":[],
+             "spread":{"cells":[1,0,99,1],"members":[{"slot":0,"card":"s1"},{"slot":3,"card":"ghost"},{"slot":5,"card":"s1"},
+                                                     {"slot":25,"card":"s2"},{"free":{"x":0.31,"y":0.12},"card":"s2"}]}}
+            """#
+        try Data(json.utf8).write(to: folder.appending(path: ".cards.json"))
+
+        let desk = Library(folder: folder).load()
+
+        XCTAssertEqual(desk.place(of: .card(CardID(rawValue: "a"))), .slot(Slot(index: 0)!), "the places load")
+        XCTAssertEqual(desk.spreadSet?.cells, SpreadCells(indices: [0, 1]), "a cell past the grid and a repeat are dropped")
+        XCTAssertEqual(desk.spreadSet?.homes, [CardID(rawValue: "s1"): .slot(Slot(index: 0)!),
+                                               CardID(rawValue: "s2"): .free(GridPoint(x: 0.31, y: 0.12))],
+                       "so are a card that isn't there, a second entry and a slot past the grid, but s1 keeps the cell a holds")
+    }
+
     func testClarityIsWhatTheSidecarSavesAndTheListIsGone() async throws {
         try Data("# Groceries\n".utf8).write(to: cardFile)
         let library = Library(folder: folder)

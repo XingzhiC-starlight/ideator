@@ -40,6 +40,34 @@ struct Slot: Hashable {
     }
 }
 
+/// The cells ticked in Settings › Spread. A set: order and repeats mean nothing, and Spread walks it
+/// in reading order. It may hold the stack's cell (the stack moved onto a ticked cell, and nothing
+/// unticks in storage); that cell is then simply taken when Spread runs.
+struct SpreadCells: Hashable {
+    private let slots: Set<Slot>
+
+    init(_ slots: some Sequence<Slot>) { self.slots = Set(slots) }
+
+    /// Boundary initializer for stored data (Preferences, the sidecar): indices outside 0..<20 and
+    /// repeats are dropped.
+    init(indices: [Int]) { self.init(indices.compactMap { Slot(index: $0) }) }
+
+    /// The factory cells: the left three of the top two rows.
+    static let standard = SpreadCells(indices: [0, 1, 2, 5, 6, 7])
+    static let empty = SpreadCells([Slot]())
+
+    var isEmpty: Bool { slots.isEmpty }
+    var count: Int { slots.count }
+    func contains(_ slot: Slot) -> Bool { slots.contains(slot) }
+    var inReadingOrder: [Slot] { Slot.all.filter(slots.contains) }
+    /// What Preferences and the sidecar store, in reading order.
+    var indices: [Int] { inReadingOrder.map(\.index) }
+
+    func toggling(_ slot: Slot) -> SpreadCells {
+        SpreadCells(slots.contains(slot) ? slots.subtracting([slot]) : slots.union([slot]))
+    }
+}
+
 /// The center of a card-sized item as a fraction of the grid area, from the top-left (x right,
 /// y down), so a display change rescales it with no model change. It may be off the screen, since
 /// a free item can hang over the left, right and bottom edges; how far is up to `Grid.clamped`,
@@ -82,6 +110,17 @@ enum Place: Hashable {
         case .slot(let slot): slot
         case .free(let point): Slot(containing: point)
         }
+    }
+
+    /// Spread's reading order of places, compared with `<`: by the cell each covers most, in pop
+    /// order, then top to bottom and left to right by its point within that cell, where a snapped
+    /// place counts as its cell's center. Equal keys are the very same point.
+    var readingKey: (Int, Double, Double) {
+        let point = switch self {
+        case .slot(let slot): slot.center
+        case .free(let point): point
+        }
+        return (slot.index, point.y, point.x)
     }
 
     /// What the drag guide shows for an item centered at `point`: the slot a drop there would
