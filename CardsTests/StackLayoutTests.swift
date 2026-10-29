@@ -71,15 +71,12 @@ final class StackLayoutTests: XCTestCase {
 
     func testTheToolbarIconsAreEvenlySpacedByWhatTheyDraw() throws {
         for (visibility, clarity) in [(Visibility.all, false), (.hideAll, false), (.all, true), (.hideAll, true)] {
-            let buttons = stack(width: wide, visibility, clarity: clarity).ribbonButtons
-            let inked = try buttons.map { button -> (minX: CGFloat, maxX: CGFloat) in
-                let image = try XCTUnwrap(button.image)
-                let columns = try inkColumns(of: image)
-                let imageMinX = button.frame.midX - image.size.width / 2
-                return (imageMinX + columns.lowerBound, imageMinX + columns.upperBound)
-            }
+            let ribbon = stack(width: wide, visibility, clarity: clarity)
+            let buttons = ribbon.ribbonButtons
+            let inked = try drawnSpans(of: buttons, in: ribbon.view)
             for (left, right) in zip(inked, inked.dropFirst()) {
-                XCTAssertEqual(right.minX - left.maxX, 12, accuracy: 0.5, "\(visibility), clarity \(clarity)")
+                XCTAssertEqual(right.lowerBound - left.upperBound, 12, accuracy: 0.5,
+                               "\(visibility), clarity \(clarity), ink \(inked)")
             }
             for (left, right) in zip(buttons, buttons.dropFirst()) {
                 XCTAssertLessThanOrEqual(left.frame.maxX, right.frame.minX, "hit areas never overlap")
@@ -90,23 +87,47 @@ final class StackLayoutTests: XCTestCase {
         }
     }
 
-    /// The point span across `image`'s width where it draws anything, rendered at 4x through Core
-    /// Graphics: at 2x one pixel of anti-aliasing is the whole tolerance, and CI's macOS crossed it.
-    private func inkColumns(of image: NSImage) throws -> ClosedRange<CGFloat> {
+    /// Where each of `buttons` draws, as a span of `view`'s x coordinates in points. The ribbon is
+    /// rendered with the buttons hidden and then with one shown at a time, and the columns that
+    /// changed are that button's ink. This measures what AppKit draws in place, not an image rendered
+    /// on its own: a symbol drawn into a rect other than its own size gets other side bearings, and
+    /// by how much depends on the macOS version. 4x because at 2x one pixel of anti-aliasing is
+    /// the whole tolerance.
+    private func drawnSpans(of buttons: [NSButton], in view: NSView) throws -> [ClosedRange<CGFloat>] {
         let scale = 4
-        let width = Int(image.size.width.rounded(.up)) * scale
-        let height = Int(image.size.height.rounded(.up)) * scale
-        let space = CGColorSpaceCreateDeviceRGB()
-        let context = try XCTUnwrap(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
-                                              space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-        var rect = CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height))
-        let cgImage = try XCTUnwrap(image.cgImage(forProposedRect: &rect, context: nil, hints: nil))
-        context.draw(cgImage, in: rect)
-        let pixels = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
-        let inked = (0..<width).filter { x in (0..<height).contains { y in pixels[(y * width + x) * 4 + 3] > 26 } }
-        let first = try XCTUnwrap(inked.first)
-        let last = try XCTUnwrap(inked.last)
-        return (CGFloat(first) / CGFloat(scale))...(CGFloat(last + 1) / CGFloat(scale))
+        let strip = buttons.map(\.frame).reduce(CGRect.null) { $0.union($1) }.insetBy(dx: -4, dy: -2).integral
+        let rep = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(strip.width) * scale,
+                                                 pixelsHigh: Int(strip.height) * scale, bitsPerSample: 8,
+                                                 samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                 colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        rep.size = strip.size
+        func render() throws -> [UInt8] {
+            let bytes = try XCTUnwrap(rep.bitmapData)
+            memset(bytes, 0, rep.bytesPerRow * rep.pixelsHigh)
+            view.cacheDisplay(in: strip, to: rep)
+            return Array(UnsafeBufferPointer(start: bytes, count: rep.bytesPerRow * rep.pixelsHigh))
+        }
+        buttons.forEach { $0.isHidden = true }
+        defer { buttons.forEach { $0.isHidden = false } }
+        let blank = try render()
+        return try buttons.map { button in
+            button.isHidden = false
+            defer { button.isHidden = true }
+            let shown = try render()
+            var change = [Int](repeating: 0, count: rep.pixelsWide)
+            for row in 0..<rep.pixelsHigh {
+                for column in 0..<rep.pixelsWide {
+                    for channel in 0..<4 {
+                        let index = row * rep.bytesPerRow + column * 4 + channel
+                        change[column] = max(change[column], abs(Int(shown[index]) - Int(blank[index])))
+                    }
+                }
+            }
+            let strongest = try XCTUnwrap(change.max().flatMap { $0 > 0 ? $0 : nil },
+                                          "\(button.accessibilityLabel() ?? "a button") draws nothing")
+            let inked = change.indices.filter { change[$0] * 10 >= strongest }
+            return (strip.minX + CGFloat(inked.first!) / CGFloat(scale))...(strip.minX + CGFloat(inked.last! + 1) / CGFloat(scale))
+        }
     }
 
     func testClaritySaysItsStateByFillColorAndValue() throws {
