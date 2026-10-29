@@ -106,8 +106,8 @@ func send(_ command: Command) {
   hidden, New reveals just the card it brings out, and the stack window shrinks to its
   ribbon instead of ordering out. Pop goes with the stacked card, so it is unavailable then.
   The stack window gets the `Visibility` value itself: its ribbon-only shape, the count badge's
-  place and the toggle button's icon all derive from it. The icon shows the current state (an
-  eye while cards show, a slashed eye while hidden); the tooltip names what a click does.
+  place and the toggle button's icon all derive from it. The icon shows what a click does (a
+  chevron up to fold the stack into its ribbon, down to unfold it), and so does the tooltip.
   The toggle calls `DeskController.toggleHidden`, the path the global shortcut takes, not a `Command`.
 - **The notes folder opens last.** `DeskController` creates `~/Documents/Ideator` when it is built, and
   that first access is what makes macOS ask for the Documents folder. `Launch.run` is the only caller
@@ -233,14 +233,14 @@ chosen: it stays beige over white windows and only hints at what is behind.
 | `sheen` | white, 10 % to 0 | the top half of a card, fading down |
 | `rim` | white, 55 % / 5 % / 22 % | a 1.2 pt edge inside the outline, brightest top-left |
 | `ink` | `#2B2520` | card text, the caret |
-| `inkSoft` | `#716453` | list markers, summaries, card buttons, edge-band chevrons, Clarity when off |
+| `inkSoft` | `#716453` | list markers, summaries, card buttons, edge-band chevrons |
 | `inkFaint` | `#B3A68F` | the empty card's "Title" placeholder |
-| `ribbonInk` | `#46361F` | New, the ribbon's icon buttons and the count badge |
+| `ribbonInk` | `#46361F` | the ribbon's icon buttons (Clarity while off) and the count badge |
 | `line` | `#5A4630` at 18 % | card and stack outline |
 | `shade` | `#5A4630` at 7 % | a hovered edge band |
 | `guide` | `#5A4630` at 45 % | the dashed slot guide |
 | `focus` | `#DDB880` | the 2 pt border of the card you are typing in |
-| `accent` | `#823F1D` | a guide that will snap, Clarity when on |
+| `accent` | `#823F1D` | a guide that will snap, the filled Clarity icon while on |
 | `danger` | `#9A2818` | "Desktop full" |
 | `highlight` | `#E8D5AE` | selected text and the arranger's selected row; at 50 % the row of the card the stack shows |
 
@@ -253,9 +253,8 @@ Rules the values keep:
 - Contrast is measured on the rendered glass, since the tint is translucent. Over a white window
   the body renders `#F0ECE4` and the ribbon `#EAE2CF` (sampled from screenshots). On those:
   `ink` 12.8:1, `inkSoft` 4.9:1, `ribbonInk` 9.0:1, `accent` 6.1:1, `danger` 6.0:1. Body text and
-  every ribbon label stay at 4.5:1 or more, bar one: Clarity when off is `inkSoft` on the ribbon
-  at 4.46:1, so the quiet state reads as quiet next to New. Only the placeholder (2.0:1) is meant
-  to be faint.
+  every ribbon label and icon stay at 4.5:1 or more. Only the placeholder (2.0:1) is meant to be
+  faint.
   Over a dark or saturated window the glass darkens a little, and the material's frost keeps the
   text readable; check a new token over both.
 - The editing border is light on purpose (1.6:1 against the body). It marks the card you type in
@@ -675,6 +674,16 @@ Later changes, after trying the app:
   types and both writes from it. Three sketches (Opus, Fable, Sonnet) agreed on this shape. A
   marker in the HTML lost: a web page can keep the marker and pair it with another app's text. A
   lossless HTML reader lost too: it would change the rules for every app.
+- 2026-10-28, ribbon icons: the ribbon became three icons at the left, New, the Hide all toggle and
+  Clarity, an even 12pt apart between their visible edges, with only the menu button at the right.
+  Clarity's word read its state only by a brown-to-brown color change, which an icon that small
+  cannot carry, so it became a filter icon (outline off, filled accent on), the Mail and Finder
+  sign for showing less. It shows the state, while each card's own Clarity button still shows the
+  action. The eye was wide and stared back, so the toggle became a light chevron that shows the
+  action, folding the stack into its ribbon or unfolding it, reversing the 2026-10-22 flip to the
+  state. New became a light plus to match it. Prototypes compared compress/expand, summary-line
+  and pressed-tile Clarity icons, dot, dot-matrix and shrink-to-ribbon toggles, and compose,
+  card-plus, dot-plus and pill New buttons.
 
 ## Tradeoffs accepted
 
