@@ -95,37 +95,42 @@ final class StackWindow: NSWindow {
     }
 }
 
-/// The blank points an image leaves before and after what it draws, across its width. Symbol images
-/// carry side bearings, so `size.width` is wider than the ink.
-private struct InkSpan {
+/// A toolbar symbol drawn once into a bitmap at its window's pixel density, and the blank points it
+/// leaves before and after its ink (symbols carry side bearings). The button shows this bitmap, not
+/// the symbol, so the ink measured here is the ink on screen: a symbol redraws for every context, and
+/// on a 1x screen macOS 26 drew some up to a point narrower in the window than on their own.
+private struct RibbonIcon {
+    let image: NSImage
+    let scale: CGFloat
     let lead: CGFloat
     let trail: CGFloat
 
-    static let blank = InkSpan(lead: 0, trail: 0)
-
-    /// Scans the image drawn at 4x for its first and last column with visible alpha. The bitmap is
-    /// sized in points, so the image draws at its own size: a symbol stretched into a bigger rect
-    /// draws with other side bearings (square.grid.2x2 by 0.75 points).
-    static func of(_ image: NSImage) -> InkSpan {
-        let scale: CGFloat = 4
-        let size = image.size
-        let columns = Int((size.width * scale).rounded(.up))
-        let rows = Int((size.height * scale).rounded(.up))
+    init?(_ symbol: NSImage, scale: CGFloat) {
+        let size = NSSize(width: (symbol.size.width * scale).rounded(.up) / scale,
+                          height: (symbol.size.height * scale).rounded(.up) / scale)
+        let columns = Int((size.width * scale).rounded())
+        let rows = Int((size.height * scale).rounded())
         guard columns > 0, rows > 0,
               let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return .blank }
-        rep.size = NSSize(width: CGFloat(columns) / scale, height: CGFloat(rows) / scale)
-        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return .blank }
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = size
+        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
-        image.draw(in: NSRect(origin: .zero, size: rep.size))
+        symbol.draw(in: NSRect(origin: .zero, size: symbol.size))
         NSGraphicsContext.restoreGraphicsState()
         let inked = (0..<columns).filter { x in
             (0..<rows).contains { y in (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 }
         }
-        guard let first = inked.first, let last = inked.last else { return .blank }
-        return InkSpan(lead: CGFloat(first) / scale, trail: CGFloat(columns - 1 - last) / scale)
+        guard let first = inked.first, let last = inked.last else { return nil }
+        image = NSImage(size: size)
+        image.addRepresentation(rep)
+        image.isTemplate = true
+        image.accessibilityDescription = symbol.accessibilityDescription
+        self.scale = scale
+        lead = CGFloat(first) / scale
+        trail = CGFloat(columns - 1 - last) / scale
     }
 }
 
@@ -146,8 +151,9 @@ private final class StackView: NSView {
     private let clarityButton: ActionButton
     /// Left to right at the ribbon's left edge.
     private var toolbar: [ActionButton] { [newButton, toggleButton, spreadButton, clarityButton] }
-    /// What each toolbar button's current image leaves blank at its sides, measured when it is set.
-    private var inkSpans: [ObjectIdentifier: InkSpan] = [:]
+    /// Each toolbar button's symbol, and the bitmap of it that the button shows.
+    private var symbols: [ObjectIdentifier: NSImage] = [:]
+    private var icons: [ObjectIdentifier: RibbonIcon] = [:]
     private let menuButton = ActionButton(symbol: "ellipsis.circle", help: "Settings and quit")
     private let cardView: CardView
     /// False under Hide all: the window is only the ribbon, and the edge bands do nothing.
@@ -190,9 +196,21 @@ private final class StackView: NSView {
     }
 
     private func setIcon(_ symbol: String, _ help: String, on button: ActionButton, weight: NSFont.Weight = .regular) {
-        let image = Self.icon(symbol, help, weight: weight)
-        button.image = image
-        inkSpans[ObjectIdentifier(button)] = image.map { InkSpan.of($0) } ?? InkSpan.blank
+        symbols[ObjectIdentifier(button)] = Self.icon(symbol, help, weight: weight)
+        showIcon(on: button, scale: backingScale)
+        needsLayout = true
+    }
+
+    private func showIcon(on button: ActionButton, scale: CGFloat) {
+        let id = ObjectIdentifier(button)
+        icons[id] = symbols[id].flatMap { RibbonIcon($0, scale: scale) }
+        button.image = icons[id]?.image ?? symbols[id]
+    }
+
+    private var backingScale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
         needsLayout = true
     }
 
@@ -306,7 +324,8 @@ private final class StackView: NSView {
     }
 
     /// The toolbar's icons sit at the left, `toolbarGap` apart between the ink they draw, not between
-    /// their images, whose side bearings differ. Right to left, the ribbon holds the menu button, the
+    /// their images, whose side bearings differ. They sit on whole pixels, so each bitmap shows one to
+    /// one and every gap is the same count of pixels. Right to left, the ribbon holds the menu button, the
     /// badge (only under Hide all, since the card area that normally has it is gone) and "Desktop
     /// full". The toolbar and the buttons never move:
     /// "Desktop full" takes what room is left and truncates, and the badge hides once there is no
@@ -322,14 +341,20 @@ private final class StackView: NSView {
         let card = NSRect(x: left, y: bottom, width: right - left, height: ribbonRect.minY - bottom)
         if showsCard { cardView.frame = card }
 
-        var edge = inner.minX   // where the next icon's ink starts
+        let scale = backingScale
+        for button in toolbar where icons[ObjectIdentifier(button)]?.scale != scale {
+            showIcon(on: button, scale: scale)
+        }
+        var edge = (inner.minX * scale).rounded() / scale   // where the next icon's ink starts
         for button in toolbar {
-            let imageWidth = button.image?.size.width ?? 18
-            let span = inkSpans[ObjectIdentifier(button)] ?? InkSpan.blank
-            let width = max(imageWidth + 6, 18)   // the hit area, centered on the image the button draws
-            let imageMinX = edge - span.lead
-            button.frame = NSRect(x: imageMinX + imageWidth / 2 - width / 2, y: ribbonMid - 10, width: width, height: 18)
-            edge = imageMinX + imageWidth - span.trail + Self.toolbarGap
+            let icon = icons[ObjectIdentifier(button)]
+            let imageWidth = button.image?.size.width ?? 0
+            // The hit area, at least 18 wide, centered on the image by whole pixels: AppKit shifts an
+            // image that would sit on a half pixel by a pixel.
+            let inset = max(3, ((18 - imageWidth) / 2 * scale).rounded(.up) / scale)
+            let imageMinX = edge - (icon?.lead ?? 0)
+            button.frame = NSRect(x: imageMinX - inset, y: ribbonMid - 10, width: imageWidth + 2 * inset, height: 18)
+            edge = imageMinX + imageWidth - (icon?.trail ?? 0) + Self.toolbarGap
         }
         let toolbarEnd = clarityButton.frame.maxX
         menuButton.frame = NSRect(x: inner.maxX - 18, y: ribbonMid - 10, width: 18, height: 18)
