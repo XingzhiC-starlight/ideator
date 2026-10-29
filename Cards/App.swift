@@ -134,12 +134,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private enum MenuSurface { case menuBar, ribbon }
 
-    /// The app's menu. The ribbon's is Settings… and Quit: Hide all is a ribbon button, and Open
-    /// stack means nothing on the stack. The menu bar icon's adds Show all / Hide all / Open
-    /// stack above them and Check for Updates… after Settings…, so the ribbon's stays what its
-    /// tooltip and the welcome card say. Settings has Check Now for a Mac whose notch hides the icon.
+    /// The app's menu. The ribbon's is New Spread, then Settings… and Quit: Hide all and Spread are
+    /// ribbon buttons, New Spread is Spread's Option-click in words, and Open stack means nothing on
+    /// the stack. The menu bar icon's adds Show all / Hide all / Open stack above Settings… and
+    /// Check for Updates… after it. Settings has Check Now for a Mac whose notch hides the icon.
     private func makeAppMenu(for surface: MenuSurface) -> NSMenu {
         let menu = NSMenu()
+        if surface == .ribbon {
+            menu.addItem(withTitle: "New Spread", action: #selector(newSpread), keyEquivalent: "").target = self
+            menu.addItem(.separator())
+        }
         if surface == .menuBar {
             menu.addItem(withTitle: "Show All", action: #selector(showAll), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Hide All", action: #selector(hideAll), keyEquivalent: "").target = self
@@ -190,6 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showAll() { withDesk { $0.setHidden(false) } }
     @objc private func hideAll() { withDesk { $0.setHidden(true) } }
     @objc private func openStack() { withDesk { $0.openStack() } }
+    @objc private func newSpread() { withDesk { $0.spread(fresh: true) } }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func checkForUpdates() { updates.checkNow() }
 

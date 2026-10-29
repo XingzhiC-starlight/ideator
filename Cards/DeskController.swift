@@ -13,10 +13,14 @@ final class DeskController {
     /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk,
     /// not persisted.
     private var visibility = Visibility.all
+    /// Why the last Spread click changed nothing, for the button's tooltip. Presentation only, like
+    /// `visibility`.
+    private var spreadRefusal: SpreadRefusal?
     /// One window per popped card, created on pop and closed when the card leaves the desktop.
     private var cardWindows: [CardID: CardWindow] = [:]
     private lazy var stackWindow = StackWindow(send: { [unowned self] in self.send($0) }, menu: appMenu,
                                                toggleHidden: { [unowned self] in self.toggleHidden() },
+                                               spread: { [unowned self] in self.spread(fresh: $0) },
                                                drag: windowDrag(.stack))
     /// The outline of the slot a drag would snap to; visible only while something is dragged.
     private let guide = SlotGuide()
@@ -25,25 +29,33 @@ final class DeskController {
         deliver: { [unowned self] id, summary in self.send(.storeSummary(id, summary)) })
     private let library: Library
     private let keys: KeyStore
-    /// The app's menu (Settings…, Quit) for the stack's ribbon button.
+    /// The app's menu (New Spread, Settings…, Quit) for the stack's ribbon button.
     private let appMenu: () -> NSMenu
+    /// The cells ticked in Settings › Spread, read when the button is pressed.
+    private let spreadCells: () -> SpreadCells
     /// Shows an alert and returns the button pressed. The default runs it modally; tests answer it.
     private let present: (NSAlert) -> NSApplication.ModalResponse
     /// Where the pointer is on screen. The default reads the real one; tests place it.
     private let pointer: () -> NSPoint
+    /// The default plays the system sound; tests count it.
+    private let beep: () -> Void
     private var pendingSave: Task<Void, Never>?
     private var saveFailing = false
     private var warnedAboutLayout = false
     private var pointerMonitors: [Any] = []
 
     init(library: Library, keys: KeyStore, appMenu: @escaping () -> NSMenu,
+         spreadCells: @escaping () -> SpreadCells = { .standard },
          present: @escaping (NSAlert) -> NSApplication.ModalResponse = { NSApp.activate(); return $0.runModal() },
-         pointer: @escaping () -> NSPoint = { NSEvent.mouseLocation }) {
+         pointer: @escaping () -> NSPoint = { NSEvent.mouseLocation },
+         beep: @escaping () -> Void = { NSSound.beep() }) {
         self.library = library
         self.keys = keys
         self.appMenu = appMenu
+        self.spreadCells = spreadCells
         self.present = present
         self.pointer = pointer
+        self.beep = beep
         desk = library.load()
         grid = Self.currentGrid() ?? Grid(area: CGRect(x: 0, y: 0, width: 1512, height: 949))
         summarizer.sync(desk.allCards, typing: nil)
@@ -58,7 +70,12 @@ final class DeskController {
     func send(_ command: Command) {
         // Popping the card being edited on the stack moves the cursor with it.
         let carriedSelection: NSRange? = if case .pop = command { stackWindow.editingSelection } else { nil }
+        // Only for Spread: holding a copy across every keystroke's apply would copy the stack each time.
+        let before: Desk? = if case .spread = command { desk } else { nil }
         let arrived = desk.apply(command)
+        if case .spread(let cells, _, _) = command, let before {
+            spreadRefusal = SpreadRefusal(cells: cells, changedDesk: desk != before)
+        }
         let desktopFull = arrived == nil && desk.firstFreeSlot == nil
         visibility.reveal(after: command, arrived: arrived, in: desk)
         let typing: CardID? = if case .writeBlank = command { desk.selectedCard?.id } else { command.typedCard }
@@ -70,14 +87,20 @@ final class DeskController {
             if let arrived {
                 cardWindows[arrived]?.focusEditor()
             } else if desktopFull {
-                NSSound.beep()   // "Desktop full"
+                beep()   // "Desktop full"
                 stackWindow.focusEditor()
             }
         case .pop:
             if let arrived, let carriedSelection {
                 cardWindows[arrived]?.focusEditor(range: carriedSelection)
             } else if desktopFull {
-                NSSound.beep()
+                beep()
+            }
+        case .spread:
+            if spreadRefusal != nil {
+                beep()   // AppKit won't show a changed tooltip under a pointer that rests
+            } else if let arrived {
+                cardWindows[arrived]?.focusEditor()
             }
         default:
             break
@@ -97,6 +120,14 @@ final class DeskController {
 
     /// The global shortcut, and the stack ribbon's Hide all / Show all button.
     func toggleHidden() { setHidden(!visibility.isHidden) }
+
+    /// The ribbon's Spread button (`fresh`: Option-click) and the ribbon menu's New Spread. Hide all
+    /// goes off first, even when the click then changes nothing: under Hide all, `render` would show
+    /// only the one card `reveal` admits.
+    func spread(fresh: Bool) {
+        if visibility.isHidden { setHidden(false) }
+        send(.spread(spreadCells(), fresh: fresh, at: Date()))
+    }
 
     func openStack() {
         setHidden(false)
@@ -173,7 +204,7 @@ final class DeskController {
             setVisible(window, visibility.shows(face.id))
         }
         stackWindow.apply(desk.stackFace(hasKey: keys.apiKey != nil), cell: grid.frame(of: desk.stackPlace),
-                          visibility: visibility)
+                          visibility: visibility, spreadRefusal: spreadRefusal)
         setVisible(stackWindow, true)   // Hide all keeps the ribbon
         updateHover()   // a card can appear or move under a pointer that rests
     }

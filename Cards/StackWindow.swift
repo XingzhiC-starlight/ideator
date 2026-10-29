@@ -12,10 +12,11 @@ final class StackWindow: NSWindow {
     /// The window's frame from the last `apply`. A snap slides there, and hover goes by where it is going.
     private var placed = CGRect.zero
 
+    /// `spread` gets true for a fresh set: Option-click, or the button's "New spread" action.
     init(send: @escaping (Command) -> Void, menu: @escaping () -> NSMenu, toggleHidden: @escaping () -> Void,
-         drag: WindowDrag) {
+         spread: @escaping (_ fresh: Bool) -> Void = { _ in }, drag: WindowDrag) {
         self.send = send
-        stackView = StackView(send: send, menu: menu, toggleHidden: toggleHidden)
+        stackView = StackView(send: send, menu: menu, toggleHidden: toggleHidden, spread: spread)
         super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
         configureAsCard(self, content: stackView)
         // A drag always reports the whole card, whose top edge is the ribbon's.
@@ -57,10 +58,11 @@ final class StackWindow: NSWindow {
     }
 
     /// Under Hide all (`visibility`) the window shrinks to the top of `cell` and the card area
-    /// goes; the ribbon's button then offers Show all.
-    func apply(_ face: StackFace, cell: CGRect, visibility: Visibility) {
+    /// goes; the ribbon's button then offers Show all. `spreadRefusal` is why the last Spread click
+    /// changed nothing, for the Spread button's tooltip.
+    func apply(_ face: StackFace, cell: CGRect, visibility: Visibility, spreadRefusal: SpreadRefusal? = nil) {
         cardFrame = cell
-        stackView.apply(face, visibility: visibility)
+        stackView.apply(face, visibility: visibility, spreadRefusal: spreadRefusal)
         let frame = visibility.showsStackCard ? cell : Self.ribbonOnlyFrame(in: cell)
         placed = frame
         guard self.frame != frame else { return }
@@ -127,8 +129,8 @@ private struct InkSpan {
     }
 }
 
-/// Looks like one card: a tan ribbon with the toolbar (New, Hide all / Show all, Clarity), "Desktop
-/// full" and the app menu button, above the selected stacked card, which is a full `CardView`. The
+/// Looks like one card: a tan ribbon with the toolbar (New, Hide all / Show all, Spread, Clarity),
+/// "Desktop full" and the app menu button, above the selected stacked card, which is a full `CardView`. The
 /// count badge sits in that card's bottom-right corner, and in the ribbon beside the menu button
 /// while Hide all has removed the card. The window's margin is
 /// four invisible edge bands that select another stacked card: left/top the previous,
@@ -140,9 +142,10 @@ private final class StackView: NSView {
     private let send: (Command) -> Void
     private let newButton: ActionButton
     private let toggleButton: ActionButton
+    private let spreadButton: ActionButton
     private let clarityButton: ActionButton
     /// Left to right at the ribbon's left edge.
-    private var toolbar: [ActionButton] { [newButton, toggleButton, clarityButton] }
+    private var toolbar: [ActionButton] { [newButton, toggleButton, spreadButton, clarityButton] }
     /// What each toolbar button's current image leaves blank at its sides, measured when it is set.
     private var inkSpans: [ObjectIdentifier: InkSpan] = [:]
     private let menuButton = ActionButton(symbol: "ellipsis.circle", help: "Settings and quit")
@@ -193,12 +196,18 @@ private final class StackView: NSView {
         needsLayout = true
     }
 
-    init(send: @escaping (Command) -> Void, menu: @escaping () -> NSMenu, toggleHidden: @escaping () -> Void) {
+    init(send: @escaping (Command) -> Void, menu: @escaping () -> NSMenu, toggleHidden: @escaping () -> Void,
+         spread: @escaping (_ fresh: Bool) -> Void) {
         self.send = send
         arranger = StackArranger(send: send)
         cardView = CardView(home: .stack, send: send)
         newButton = ActionButton(symbol: "plus", help: "New card") { send(.new(at: Date())) }
         toggleButton = ActionButton(symbol: "chevron.up", help: "Hide all") { toggleHidden() }
+        // The one place Option is read: the click's own mouse-up. A test press or VoiceOver carries
+        // no modifier, so it spreads; "New spread" below is their way to a fresh set.
+        spreadButton = ActionButton(symbol: "square.grid.2x2", help: "Spread cards") {
+            spread(NSApp.currentEvent?.modifierFlags.contains(.option) ?? false)
+        }
         clarityButton = ActionButton(symbol: "line.3.horizontal.decrease.circle", help: "")
         super.init(frame: .zero)
 
@@ -206,6 +215,11 @@ private final class StackView: NSView {
         newButton.setAccessibilityLabel("New")
         setIcon("chevron.up", "Hide all", on: toggleButton, weight: .light)
         toggleButton.setAccessibilityLabel("Hide all")
+        setIcon("square.grid.2x2", "Spread", on: spreadButton)
+        spreadButton.setAccessibilityLabel("Spread")
+        spreadButton.setAccessibilityCustomActions([
+            NSAccessibilityCustomAction(name: "New spread") { spread(true); return true },
+        ])
         setIcon("line.3.horizontal.decrease.circle", "Clarity", on: clarityButton)
         clarityButton.setAccessibilityLabel("Clarity")
         clarityButton.handler = { [unowned self] in send(.setClarity(!self.clarity)) }
@@ -237,7 +251,7 @@ private final class StackView: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    func apply(_ face: StackFace, visibility: Visibility) {
+    func apply(_ face: StackFace, visibility: Visibility, spreadRefusal: SpreadRefusal?) {
         let showsCard = visibility.showsStackCard
         if self.showsCard != showsCard {
             self.showsCard = showsCard
@@ -257,6 +271,10 @@ private final class StackView: NSView {
         clarityButton.toolTip = face.clarity ? "Clarity is on: click to expand every card"
                                              : "Clarity is off: click to collapse every card"
         clarityButton.setAccessibilityValue(face.clarity ? "on" : "off")
+        let out = face.spreadButton == .gather
+        spreadButton.contentTintColor = out ? Palette.accent : Palette.ribbonInk
+        spreadButton.toolTip = face.spreadButton.help(after: spreadRefusal)
+        spreadButton.setAccessibilityValue(out ? "out" : "in")
         needsLayout = true
         needsDisplay = true
     }

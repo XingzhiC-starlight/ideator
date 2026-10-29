@@ -15,6 +15,7 @@ final class DeskControllerTests: XCTestCase {
     private var shown: [String] = []
     /// The answer to each coming alert, in order; the first button when the queue runs dry.
     private var answers: [NSApplication.ModalResponse] = []
+    private var beeps = 0
     private var windowsBefore: [NSWindow] = []
     /// Kept until `tearDown` has closed their windows, which hold them `unowned`.
     private var controllers: [DeskController] = []
@@ -39,13 +40,16 @@ final class DeskControllerTests: XCTestCase {
         try? FileManager.default.removeItem(at: folder)
     }
 
-    private func makeController(pointer: @escaping () -> NSPoint = { offScreen }) -> DeskController {
+    private func makeController(pointer: @escaping () -> NSPoint = { offScreen },
+                                spreadCells: @escaping () -> SpreadCells = { .standard }) -> DeskController {
         let controller = DeskController(library: Library(folder: folder), keys: KeyStore(inKeychain: false), appMenu: { NSMenu() },
+                                        spreadCells: spreadCells,
                                         present: { [self] alert in
                                             shown.append(alert.messageText)
                                             return answers.isEmpty ? .alertFirstButtonReturn : answers.removeFirst()
                                         },
-                                        pointer: pointer)
+                                        pointer: pointer,
+                                        beep: { [self] in beeps += 1 })
         controllers.append(controller)
         return controller
     }
@@ -183,6 +187,50 @@ final class DeskControllerTests: XCTestCase {
         pointer = insideSlot
         controller.send(.setClarity(false))
         try expectHoverButtons(shown: true, in: window, "the pointer rests on the card again")
+    }
+
+    func testSpreadTurnsHideAllOffSoEveryNewCardShowsAndTheFirstHasTheCursor() async throws {
+        let controller = makeController(spreadCells: { SpreadCells(indices: [2, 0, 1]) })
+        controller.setHidden(true)
+
+        controller.spread(fresh: false)
+
+        let windows = NSApp.windows.compactMap { $0 as? CardWindow }.filter(\.isVisible)
+        XCTAssertEqual(windows.count, 3, "Hide all went off, so every card Spread made shows")
+        let first = try XCTUnwrap(windows.first { $0.frame == controller.grid.frame(of: .slot(Slot(index: 0)!)) })
+        XCTAssertTrue(first.firstResponder is NSTextView, "the card in the first cell has the cursor, as New's card does")
+        XCTAssertEqual(beeps, 0)
+    }
+
+    func testARefusedSpreadBeepsAndSaysWhyUntilAClickChangesSomething() async throws {
+        var cells = SpreadCells.empty
+        let controller = makeController(spreadCells: { cells })
+
+        controller.spread(fresh: false)
+        XCTAssertEqual(beeps, 1, "no cell ticked: a beep")
+        XCTAssertEqual(try spreadButton().toolTip, "Pick Spread cells in Settings")
+
+        cells = SpreadCells(indices: [Slot.stackHome.index])
+        controller.spread(fresh: false)
+        XCTAssertEqual(beeps, 2, "the only ticked cell is the stack's: a beep")
+        XCTAssertEqual(try spreadButton().toolTip, "Your Spread cells are taken")
+        XCTAssertEqual(controller.desk.popped, [], "and nothing came out")
+
+        cells = SpreadCells(indices: [0])
+        controller.spread(fresh: false)
+        XCTAssertEqual(beeps, 2, "a click that spreads makes no sound")
+        XCTAssertEqual(try spreadButton().toolTip, "Gather cards")
+        controller.spread(fresh: false)
+        XCTAssertEqual(try spreadButton().toolTip, "Spread cards", "the reason went with the click that changed the desk")
+    }
+
+    private func spreadButton() throws -> NSButton {
+        let stack = try XCTUnwrap(NSApp.windows.first { $0 is StackWindow && !windowsBefore.contains($0) })
+        return try XCTUnwrap(buttons(under: stack.contentView!).first { $0.accessibilityLabel() == "Spread" })
+    }
+
+    private func buttons(under view: NSView) -> [NSButton] {
+        view.subviews.flatMap { [$0 as? NSButton].compactMap { $0 } + buttons(under: $0) }
     }
 
     /// What the user can tell about the card's buttons: a press at Delete's point reaches the button

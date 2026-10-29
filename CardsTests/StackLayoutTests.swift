@@ -14,6 +14,8 @@ final class StackLayoutTests: XCTestCase {
         let window: StackWindow
         let toggled: () -> Int
         let sent: () -> [Command]
+        /// Each Spread press, true for a fresh set.
+        let spreads: () -> [Bool]
 
         var view: NSView { window.contentView!.subviews[0] }   // the glass holds the stack view
         func control(_ tooltip: String) -> NSView {
@@ -23,12 +25,13 @@ final class StackLayoutTests: XCTestCase {
         var menu: NSView { control("Settings and quit") }
         var badge: NSView { control("Arrange the stack") }
         var desktopFull: NSView { view.subviews.first { ($0 as? NSTextField)?.stringValue == "Desktop full" }! }
-        /// New, the toggle and Clarity, left to right.
+        /// New, the toggle, Spread and Clarity, left to right.
         var ribbonButtons: [NSButton] {
             view.subviews.compactMap { $0 as? NSButton }
-                .filter { ["New", "Hide all", "Show all", "Clarity"].contains($0.accessibilityLabel()) }
+                .filter { ["New", "Hide all", "Show all", "Spread", "Clarity"].contains($0.accessibilityLabel()) }
                 .sorted { $0.frame.minX < $1.frame.minX }
         }
+        var spread: NSButton { ribbonButtons.first { $0.accessibilityLabel() == "Spread" }! }
         var clarity: NSButton { ribbonButtons.last! }
         var toolbarEnd: CGFloat { ribbonButtons.map(\.frame.maxX).max()! }
         var card: CardView { view.subviews.compactMap { $0 as? CardView }.first! }
@@ -41,26 +44,29 @@ final class StackLayoutTests: XCTestCase {
     }
 
     private func stack(width: CGFloat, _ visibility: Visibility = .all, full: Bool = false,
-                       clarity: Bool = false, count: Int = 12) -> Stack {
+                       clarity: Bool = false, count: Int = 12, spread: SpreadButton = .spread,
+                       refusal: SpreadRefusal? = nil) -> Stack {
         var toggles = 0
         var commands: [Command] = []
+        var spreads: [Bool] = []
         let window = StackWindow(send: { commands.append($0) }, menu: { NSMenu() }, toggleHidden: { toggles += 1 },
-                                 drag: WindowDrag(moved: { _ in }, dropped: { _ in }))
+                                 spread: { spreads.append($0) }, drag: WindowDrag(moved: { _ in }, dropped: { _ in }))
         let card = CardFace(id: CardID(rawValue: "a"), note: Note(header: "Title", body: []), collapsed: false,
                             summary: .body(""))
         let rows = (0..<count).map { StackRow(id: CardID(rawValue: "row\($0)"), title: "Card \($0)") }
-        let face = StackFace(stacked: rows, selected: card, clarity: clarity, desktopFull: full)
-        window.apply(face, cell: CGRect(x: 0, y: 0, width: width, height: (width * 0.78).rounded()), visibility: visibility)
+        let face = StackFace(stacked: rows, selected: card, clarity: clarity, desktopFull: full, spreadButton: spread)
+        window.apply(face, cell: CGRect(x: 0, y: 0, width: width, height: (width * 0.78).rounded()), visibility: visibility,
+                     spreadRefusal: refusal)
         window.contentView!.layoutSubtreeIfNeeded()
-        return Stack(window: window, toggled: { toggles }, sent: { commands })
+        return Stack(window: window, toggled: { toggles }, sent: { commands }, spreads: { spreads })
     }
 
-    func testTheRibbonIsNewTheToggleAndClarityButNoPop() {
+    func testTheRibbonIsNewTheToggleSpreadAndClarityButNoPop() {
         let shown = stack(width: wide)
-        XCTAssertEqual(shown.ribbonButtons.map { $0.accessibilityLabel() }, ["New", "Hide all", "Clarity"])
+        XCTAssertEqual(shown.ribbonButtons.map { $0.accessibilityLabel() }, ["New", "Hide all", "Spread", "Clarity"])
         XCTAssertTrue(shown.ribbonButtons.allSatisfy { $0.image != nil && $0.imagePosition == .imageOnly }, "icons, no words")
         XCTAssertEqual(shown.ribbonButtons.first?.toolTip, "New card")
-        XCTAssertLessThan(shown.ribbonButtons.last!.frame.maxX, shown.view.bounds.midX, "all three at the left")
+        XCTAssertLessThan(shown.ribbonButtons.last!.frame.maxX, shown.view.bounds.midX, "all four at the left")
     }
 
     func testTheToolbarIconsAreEvenlySpacedByWhatTheyDraw() throws {
@@ -115,6 +121,36 @@ final class StackLayoutTests: XCTestCase {
         XCTAssertEqual(on.accessibilityValue() as? String, "on")
         XCTAssertEqual(off.toolTip, "Clarity is off: click to collapse every card")
         XCTAssertEqual(on.toolTip, "Clarity is on: click to expand every card")
+    }
+
+    func testSpreadSaysWhatAClickDoesByTintTooltipAndValue() {
+        let spreads = stack(width: wide)
+        let gathers = stack(width: wide, spread: .gather)
+        XCTAssertEqual([spreads.spread.accessibilityLabel(), gathers.spread.accessibilityLabel()], ["Spread", "Spread"],
+                       "one name in both states")
+        XCTAssertEqual(spreads.spread.toolTip, "Spread cards")
+        XCTAssertEqual(gathers.spread.toolTip, "Gather cards")
+        XCTAssertEqual(spreads.spread.contentTintColor, Palette.ribbonInk)
+        XCTAssertEqual(gathers.spread.contentTintColor, Palette.accent, "tinted while its cards are out, like Clarity on")
+        XCTAssertEqual(spreads.spread.accessibilityValue() as? String, "in")
+        XCTAssertEqual(gathers.spread.accessibilityValue() as? String, "out")
+        XCTAssertEqual(spreads.spread.frame, gathers.spread.frame, "and it does not move")
+    }
+
+    func testARefusedSpreadSaysWhyUntilAClickWouldGather() {
+        XCTAssertEqual(stack(width: wide, refusal: .taken).spread.toolTip, "Your Spread cells are taken")
+        XCTAssertEqual(stack(width: wide, refusal: .noCells).spread.toolTip, "Pick Spread cells in Settings")
+        XCTAssertEqual(stack(width: wide, spread: .gather, refusal: .taken).spread.toolTip, "Gather cards")
+    }
+
+    func testAClickSpreadsAndTheNewSpreadActionStartsAFreshSet() throws {
+        let ribbon = stack(width: wide)
+        ribbon.spread.performClick(nil)
+        XCTAssertEqual(ribbon.spreads(), [false], "a click carries no Option")
+        let fresh = try XCTUnwrap(ribbon.spread.accessibilityCustomActions()?.first { $0.name == "New spread" })
+        XCTAssertEqual(fresh.handler?(), true)
+        XCTAssertEqual(ribbon.spreads(), [false, true], "the action asks for a fresh set")
+        XCTAssertEqual(ribbon.sent().count, 0, "the ribbon leaves the command to the controller")
     }
 
     func testTheClarityButtonSetsTheOppositeOfWhatTheRibbonShows() {
