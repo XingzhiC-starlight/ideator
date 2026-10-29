@@ -84,9 +84,10 @@ final class StackLayoutTests: XCTestCase {
         }
     }
 
-    /// The point span across `image`'s width where it draws anything, rendered at 2x through Core Graphics.
+    /// The point span across `image`'s width where it draws anything, rendered at 4x through Core
+    /// Graphics: at 2x one pixel of anti-aliasing is the whole tolerance, and CI's macOS crossed it.
     private func inkColumns(of image: NSImage) throws -> ClosedRange<CGFloat> {
-        let scale = 2
+        let scale = 4
         let width = Int(image.size.width.rounded(.up)) * scale
         let height = Int(image.size.height.rounded(.up)) * scale
         let space = CGColorSpaceCreateDeviceRGB()
@@ -96,7 +97,7 @@ final class StackLayoutTests: XCTestCase {
         let cgImage = try XCTUnwrap(image.cgImage(forProposedRect: &rect, context: nil, hints: nil))
         context.draw(cgImage, in: rect)
         let pixels = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
-        let inked = (0..<width).filter { x in (0..<height).contains { y in pixels[(y * width + x) * 4 + 3] > 64 } }
+        let inked = (0..<width).filter { x in (0..<height).contains { y in pixels[(y * width + x) * 4 + 3] > 26 } }
         let first = try XCTUnwrap(inked.first)
         let last = try XCTUnwrap(inked.last)
         return (CGFloat(first) / CGFloat(scale))...(CGFloat(last + 1) / CGFloat(scale))
