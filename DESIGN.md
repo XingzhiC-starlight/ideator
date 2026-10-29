@@ -725,10 +725,14 @@ Later changes, after trying the app:
     for VoiceOver and for a click with no Option key, and the button also has a "New spread"
     accessibility action. Its tooltip stays "Settings and quit", which still says what the menu
     is for.
-  - Measuring the new icon found that `InkSpan` drew each symbol stretched into a rect four times
-    its size, which renders a symbol with other side bearings: 0.75 points for the grid. It now
-    draws the image at its own size into a bitmap of four pixels per point, which matches a 2x and
-    an 8x render to an eighth of a point.
+  - The four icons are spaced by ink, and the ink is measured on the very pixels the button shows.
+    A symbol redraws for every context it is drawn in. On CI's macOS 26, whose screen is 1x, the
+    window drew the plus, the chevron and the grid 0.6 to 1 point narrower than the same symbols
+    drawn on their own, so ink measured on its own left gaps of 12.5 to 13 points. Each icon is
+    now drawn once into a bitmap at the window's pixel density, the button shows that bitmap, and
+    the icons sit on whole pixels, so every gap is 12 points of pixels at 1x and 2x. Whole pixels
+    also keep AppKit from shifting an image that would land on a half pixel. The spacing test reads
+    the ink from the window's own layer contents, not from a drawing made offscreen.
   - Three sketches (Opus, Sonnet, Fable) agreed on the command, the derived face and the Optional
     sidecar field. Membership on each `Card` lost: it splits the batch between cards and desk, and
     "no set" gets two spellings once the last card goes. An array of members lost to the
