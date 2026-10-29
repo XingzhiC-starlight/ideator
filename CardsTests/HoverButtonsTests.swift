@@ -167,6 +167,24 @@ final class HoverButtonsTests: XCTestCase {
         }
     }
 
+    func testHoverButtonsKeepTheirSizeWhenTheSummarysRefreshAppears() {
+        for home in homes() {
+            var firstHeight: [String: CGFloat] = [:]
+            for (step, collapsed) in [("expanded", false), ("collapsed", true), ("expanded again", false)] {
+                let card = show(face(longTitle, collapsed: collapsed), in: home)
+                for case let button as NSButton in row(of: card).arrangedSubviews where !button.isHidden {
+                    let name = button.toolTip ?? "a button"
+                    let oneLine = firstHeight[name, default: button.frame.height]
+                    firstHeight[name] = oneLine
+                    XCTAssertGreaterThanOrEqual(button.frame.width, button.intrinsicContentSize.width,
+                                                "\(home.name), \(step): \(name) is squeezed to \(button.frame.size)")
+                    XCTAssertLessThanOrEqual(button.frame.height, oneLine,
+                                             "\(home.name), \(step): \(name) wraps to \(button.frame.size), it was \(oneLine) high")
+                }
+            }
+        }
+    }
+
     func testACardThatMovesUnderAStillPointerShowsItsButtons() {
         for home in homes() {
             let card = show(face(), in: home)
