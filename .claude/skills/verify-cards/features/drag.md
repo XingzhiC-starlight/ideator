@@ -105,8 +105,8 @@ first.
 
 - `cv ax windows` taken right after `drag` can show the frame mid-animation, for example
   `@344,38` while the card is still sliding into `@342,34`. Wait 1 s.
-- Pick the press point with care. On a popped card the top-right corner holds the Collapse,
-  ↩ Stack and Delete buttons, at about 0.68 to 0.95 of the width. A drag that starts on a
+- Pick the press point with care. On a popped card the top-right corner holds the ↩ Stack
+  and Delete buttons, at about 0.74 to 0.95 of the width. A drag that starts on a
   button moves nothing (and a release back on Delete would ask to delete). Press `0.5 0.07` for
   the header line, or `0.97`–`0.98` for the right margin. On the stack, `0.5 0.07` is the
   ribbon gap; Pop and the card's buttons sit lower, at about 0.2 of the height.

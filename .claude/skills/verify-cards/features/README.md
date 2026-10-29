@@ -58,8 +58,8 @@ commands and observable proof.
   New while hidden.
 - [Arrange the stack](./arrange-stack.md): the count badge's popover that lists the stacked cards,
   reorders them by grip drag, ⌥↑ and ⌥↓ or VoiceOver actions, and shows one on the stack.
-- [Clarity](./clarity.md): the global Clarity button, per-card collapse and expand, and what a
-  collapsed card shows.
+- [Clarity](./clarity.md): the one global Clarity switch, what turns it off (a click on a collapsed
+  card, New, typing on the blank page), and what a collapsed card shows.
 - [API key](./api-key.md): the Settings field for an Anthropic or an OpenAI key, the lines that name
   its company, and the HTTP 401 a refused key leaves on a collapsed card.
 - [First launch](./first-launch.md): the welcome card and the folder it keeps closed until Continue,

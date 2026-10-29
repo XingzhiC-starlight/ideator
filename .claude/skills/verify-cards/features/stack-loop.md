@@ -36,7 +36,7 @@ Preconditions:
 - **Next by band.** Click the right band. Run `cv ax click stack 0.985 0.6`. `cv ax text stack`
   prints `"Beta card\nbeta line one\nbeta line two"`.
 - **Blank page.** Click the right band again. Run `cv ax click stack 0.985 0.6`. `cv ax text
-  stack` prints `""`, `cv ax tree` has no `↗ Pop`, `Collapse this card` or `Delete this card`, and
+  stack` prints `""`, `cv ax tree` has no `↗ Pop` or `Delete this card`, and
   the badge still reads 2. The tree does list the formatting bar's five buttons, `Bold (⌘B)`, `Italic (⌘I)`, `Bulleted
   list`, `Numbered list` and `Checklist`, which are not card buttons.
 - **Wrap.** Swipe to the next page. Run `cv ax scroll stack -40 0`. `cv ax text stack` prints

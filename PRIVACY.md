@@ -8,7 +8,7 @@ Nothing. It has no analytics, no crash reporting, no account and no tracking. Id
 
 ## Where your data lives
 
-- **Notes.** One Markdown file per card in `~/Documents/Ideator/`. The hidden file `.cards.json` in the same folder holds each card's place, the stack order, which cards are collapsed, and the cached summaries.
+- **Notes.** One Markdown file per card in `~/Documents/Ideator/`. The hidden file `.cards.json` in the same folder holds each card's place, the stack order, whether Clarity is on, and the cached summaries.
 - **Shortcut.** Ideator's macOS preferences (`defaults read com.systemlabs.Ideator Shortcut`).
 - **Welcome card.** `WelcomeSeen`, in the same preferences, holds the number of the last welcome card you pressed Continue on. The number rises when the card's description of what leaves your Mac changes, and the new card then shows once.
 - **AI tools settings.** `AIToolsEnabled` (whether AI tools may add cards) and `AIToolsLanding` (`top` or `bottom`), in the same preferences. Ideator writes both the first time you change any AI tools setting in Settings, the instruction included. `AIToolsInstruction`, in the same preferences, is the text you edited in Settings' instruction box, from the first edit until you press Reset to Default or type the default text back. The helper an AI tool runs reads that key, so it can give the AI tool your text at the start of a session while Ideator is closed.

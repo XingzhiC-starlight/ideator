@@ -177,11 +177,11 @@ final class DeskControllerTests: XCTestCase {
         try expectHoverButtons(shown: true, in: window, "Pop put the card under a pointer that rests")
 
         pointer = offScreen
-        controller.send(.toggleClarity)
+        controller.send(.setClarity(true))
         try expectHoverButtons(shown: false, in: window, "the pointer rests away from the card")
 
         pointer = insideSlot
-        controller.send(.toggleClarity)
+        controller.send(.setClarity(false))
         try expectHoverButtons(shown: true, in: window, "the pointer rests on the card again")
     }
 

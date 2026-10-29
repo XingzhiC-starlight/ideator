@@ -7,7 +7,7 @@ import XCTest
 /// them. Windows stay off screen unless a test needs the pointer rule.
 final class HoverButtonsTests: XCTestCase {
     private let cell = CGRect(x: 0, y: 0, width: 342, height: 267)
-    /// 40 characters whose first line, on a popped card, used to end under the Collapse button.
+    /// 40 characters whose first line, on a popped card, used to end under the buttons.
     private let longTitle = "Everything to finish before the holidays"
     private let noDrag = WindowDrag(moved: { _ in }, dropped: { _ in })
 
@@ -88,7 +88,7 @@ final class HoverButtonsTests: XCTestCase {
             for home in homes() {
                 let card = show(face(collapsed: collapsed), in: home)
                 let move = home.name == "popped" ? "Return this card to the top of the stack" : "Bring this card out"
-                let tooltips = [collapsed ? "Expand this card" : "Collapse this card", move, "Delete this card"]
+                let tooltips = (collapsed ? ["Refresh summary"] : []) + [move, "Delete this card"]
                 for tooltip in tooltips {
                     let hit = pressed(at: button(tooltip, in: card), in: home.window)
                     if collapsed {
@@ -110,11 +110,41 @@ final class HoverButtonsTests: XCTestCase {
         var sent: [Command] = []
         let card = show(face(), in: homes(send: { sent.append($0) })[0])
         let listed = names(under: card)
-        for name in ["Collapse this card", "↩ Stack", "Delete this card"] {
+        for name in ["↩ Stack", "Delete this card"] {
             XCTAssertTrue(listed.contains(name), "VoiceOver finds \(name) without hovering, got \(listed)")
         }
         _ = button("Return this card to the top of the stack", in: card).accessibilityPerformPress()
         guard case .returnToStack(_)? = sent.last else { return XCTFail("AXPress on ↩ Stack sends .returnToStack, got \(sent)") }
+    }
+
+    func testACardHasNoClarityButtonOfItsOwn() {
+        for collapsed in [false, true] {
+            for home in homes() {
+                let card = show(face(collapsed: collapsed), in: home)
+                let move = home.name == "popped" ? "Return this card to the top of the stack" : "Bring this card out"
+                let tooltips = row(of: card).arrangedSubviews.filter { !$0.isHidden }.compactMap(\.toolTip)
+                XCTAssertEqual(tooltips, (collapsed ? ["Refresh summary"] : []) + [move, "Delete this card"],
+                               "\(home.name), collapsed \(collapsed): Clarity is the ribbon's button alone")
+            }
+        }
+    }
+
+    func testAPressOnACollapsedBodyTurnsClarityOff() throws {
+        var sent: [Command] = []
+        for home in homes(send: { sent.append($0) }) {
+            sent = []
+            let card = show(face(collapsed: true), in: home)
+            let content = card.bounds.insetBy(dx: CardView.margin.width, dy: CardView.margin.height)
+            let body = card.convert(NSPoint(x: content.midX, y: content.minY + 10), to: nil)
+            let press = try XCTUnwrap(NSEvent.mouseEvent(
+                with: .leftMouseDown, location: body, modifierFlags: [], timestamp: 0,
+                windowNumber: home.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+
+            card.mouseDown(with: press)
+
+            guard case .setClarity(false)? = sent.last else { return XCTFail("\(home.name): got \(sent)") }
+            XCTAssertEqual(sent.count, 1, "\(home.name): that is all the press sends")
+        }
     }
 
     func testALongTitleNeverRunsUnderTheButtons() {

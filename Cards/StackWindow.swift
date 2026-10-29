@@ -196,7 +196,7 @@ private final class StackView: NSView {
         cardView = CardView(home: .stack, send: send)
         newButton = ActionButton(symbol: "plus", help: "New card") { send(.new(at: Date())) }
         toggleButton = ActionButton(symbol: "chevron.up", help: "Hide all") { toggleHidden() }
-        clarityButton = ActionButton(symbol: "line.3.horizontal.decrease.circle", help: "") { send(.toggleClarity) }
+        clarityButton = ActionButton(symbol: "line.3.horizontal.decrease.circle", help: "")
         super.init(frame: .zero)
 
         setIcon("plus", "New", on: newButton, weight: .light)
@@ -205,6 +205,7 @@ private final class StackView: NSView {
         toggleButton.setAccessibilityLabel("Hide all")
         setIcon("line.3.horizontal.decrease.circle", "Clarity", on: clarityButton)
         clarityButton.setAccessibilityLabel("Clarity")
+        clarityButton.handler = { [unowned self] in send(.setClarity(!self.clarity)) }
         for button in toolbar {
             button.contentTintColor = Palette.ribbonInk
             addSubview(button)

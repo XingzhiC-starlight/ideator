@@ -117,6 +117,18 @@ final class StackLayoutTests: XCTestCase {
         XCTAssertEqual(on.toolTip, "Clarity is on: click to expand every card")
     }
 
+    func testTheClarityButtonSetsTheOppositeOfWhatTheRibbonShows() {
+        for shown in [false, true] {
+            let ribbon = stack(width: wide, clarity: shown)
+
+            _ = ribbon.clarity.accessibilityPerformPress()
+
+            guard case .setClarity(let on)? = ribbon.sent().last else { return XCTFail("got \(ribbon.sent())") }
+            XCTAssertEqual(on, !shown, "Clarity \(shown ? "on" : "off") is pressed to \(shown ? "off" : "on")")
+            XCTAssertEqual(ribbon.sent().count, 1)
+        }
+    }
+
     func testTheStackedCardPopsItselfAndADesktopCardReturnsToTheStack() throws {
         let shown = stack(width: wide)
         let pop = try XCTUnwrap(hoverButton("↗ Pop", in: shown.card))

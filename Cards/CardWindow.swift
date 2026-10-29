@@ -146,7 +146,7 @@ enum CardShape {
 ///    press on the header that doesn't is a normal text click (`trackWindowDrag`, called from
 ///    `CardTextView.mouseDown` and from here); on the stack every such press is a text click or
 ///    belongs to the stack's edge bands;
-/// 3. the body: text editing, or "expand this card" when collapsed.
+/// 3. the body: text editing, or "turn Clarity off" when collapsed.
 ///
 /// On the stack the view shows one card at a time: `apply` re-points it at the selected card, or
 /// at nil for the blank page, whose first typed character becomes a card (`Command.writeBlank`).
@@ -176,7 +176,6 @@ final class CardView: NSView {
     private let summaryView = SummaryView()
     private let formatBar: FormatBar
     private let hoverButtons = HoverButtons()
-    private let clarityButton = ActionButton(symbol: "rectangle.compress.vertical", help: "Collapse this card")
     private let refreshButton = ActionButton(symbol: "arrow.clockwise", help: "Refresh summary")
     private let moveButton: ActionButton
     /// Nil is the stack's blank page.
@@ -234,10 +233,6 @@ final class CardView: NSView {
         formatBar.isHidden = true
         addSubview(formatBar)
 
-        clarityButton.handler = { [unowned self] in
-            guard let face = self.face else { return }
-            self.send(.setCollapsed(face.id, !face.collapsed))
-        }
         refreshButton.handler = { [unowned self] in
             if let id = self.face?.id { self.send(.refreshSummary(id)) }
         }
@@ -247,7 +242,7 @@ final class CardView: NSView {
         let trashButton = ActionButton(symbol: "trash", help: "Delete this card") { [unowned self] in
             self.confirmDelete()
         }
-        for button in [refreshButton, clarityButton, moveButton, trashButton] {
+        for button in [refreshButton, moveButton, trashButton] {
             hoverButtons.addArrangedSubview(button)
         }
         hoverButtons.spacing = 6
@@ -286,11 +281,6 @@ final class CardView: NSView {
             collapsedHeader.isHidden = !collapsed
             summaryView.isHidden = !collapsed
             if collapsed { dropFocus() }
-            let help = collapsed ? "Expand this card" : "Collapse this card"
-            clarityButton.image = NSImage(systemSymbolName: collapsed ? "rectangle.expand.vertical"
-                                                                      : "rectangle.compress.vertical",
-                                          accessibilityDescription: help)
-            clarityButton.toolTip = help
         }
         let canRefresh: Bool = switch face?.summary {
         case .body, nil: false
@@ -385,7 +375,7 @@ final class CardView: NSView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         if let face, face.collapsed, content.contains(point), point.y < collapsedHeader.frame.minY {
-            send(.setCollapsed(face.id, false))     // collapsed body: expand just this card
+            send(.setClarity(false))                // collapsed body: Clarity off, every card expands
             focusEditor(range: NSRange(location: (editor.string as NSString).length, length: 0))
             return
         }

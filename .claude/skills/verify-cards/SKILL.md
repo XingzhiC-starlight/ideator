@@ -105,11 +105,11 @@ Stable handles in this app, all from the code:
   is off: click to collapse every card` or `Clarity is on: click to expand every card`, says it
   too), and its icon, a dark brown outline when off and a filled reddish brown circle when on,
   which only `shot` shows.
-- Card buttons (popped card, or the stack's selected card): `Collapse this card` / `Expand this
-  card`, `Refresh summary` (collapsed, with two or more body lines), `↩ Stack` (popped only), `↗ Pop`
-  (stacked card only; `[disabled]` with the tooltip `Desktop full` while the desktop is full),
-  `Delete this card`. They fade in on hover, but they are in the tree at alpha 0 too, so `press`
-  works without hovering. The stack's blank page has none of them.
+- Card buttons (popped card, or the stack's selected card): `Refresh summary` (collapsed, with two or
+  more body lines), `↩ Stack` (popped only), `↗ Pop` (stacked card only; `[disabled]` with the
+  tooltip `Desktop full` while the desktop is full), `Delete this card`. A card has no collapse
+  button: Clarity is the ribbon's alone. They fade in on hover, but they are in the tree at alpha 0
+  too, so `press` works without hovering. The stack's blank page has none of them.
 - `press` matches a button's whole title, description or tooltip, so `press "↗ Pop"` and `press
   Clarity` work, and `press Pop` does not.
 - Delete confirmation: a sheet "Delete this card?" with buttons `Delete` and `Cancel`.
@@ -177,7 +177,7 @@ the text; and `app.log` the app's stdout/stderr). That folder survives `stop`. P
 - Capture the action and the resulting state: a `shot` or `tree` before and after, not only the
   last screen.
 - Check side effects as well as what shows. Every change that should persist needs `cv files`
-  showing the `.md` text and the sidecar (`placements`, `stack`, `collapsed`, `clarity`, and
+  showing the `.md` text and the sidecar (`placements`, `stack`, `clarity`, and
   `stackSlot` or `stackFree` after a stack drag). Popping or returning a card changes only the
   sidecar; typing changes the `.md`.
 - Read the UI through `cv ax tree` / `cv ax text`, then look at the PNG to confirm the look

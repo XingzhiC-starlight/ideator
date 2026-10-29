@@ -62,15 +62,17 @@ final class AIToolCardTests: XCTestCase {
         XCTAssertEqual(desk.stack.count, 4)
     }
 
-    func testTheCardTakesClaritysGlobalState() {
+    func testTheCardShowsAsClaritySays() {
         var on = deskWithStack("a", clarity: true)
         add(&on, to: .top)
-        XCTAssertEqual(on.stack.first?.collapsed, true)
+        XCTAssertEqual(on.stackFace(hasKey: false).selected?.collapsed, true, "the card on top shows collapsed")
         XCTAssertTrue(on.clarity, "the card does not move the Clarity button")
 
         var off = deskWithStack("a")
         add(&off, to: .bottom)
-        XCTAssertEqual(off.stack.last?.collapsed, false)
+        off.apply(.showStacked(off.stack.last!.id))
+        XCTAssertEqual(off.stackFace(hasKey: false).selected?.collapsed, false, "the card at the bottom shows expanded")
+        XCTAssertFalse(off.clarity)
     }
 
     func testEachCardGetsItsTextAndAFileOfItsOwn() {

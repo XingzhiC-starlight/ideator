@@ -302,8 +302,8 @@ and never checks for updates, except in the test copies `scripts/verify-update.s
 
 ## Where notes live
 
-Each card is a Markdown file in `~/Documents/Ideator/`. Slot positions, stack order, collapsed
-state and cached summaries live in the hidden file `~/Documents/Ideator/.cards.json`. To try the app
+Each card is a Markdown file in `~/Documents/Ideator/`. Slot positions, stack order, whether Clarity
+is on and cached summaries live in the hidden file `~/Documents/Ideator/.cards.json`. To try the app
 against another folder, pass `-CardsFolder /path/to/folder` as a launch argument (in Xcode: Product
 › Scheme › Edit Scheme › Run › Arguments). Only the argument counts: a `CardsFolder` key in
 Ideator's preferences changes nothing.
@@ -312,8 +312,8 @@ Builds from before the rename were called Cards and used `~/Documents/Cards` and
 service "Cards". Ideator does not read either: quit Cards, move the files (including the hidden
 `.cards.json`) into `~/Documents/Ideator`, and paste the API key into Settings again. A
 `.cards.json` from a build before 2026-10-22 (version 1), or from a build before 2026-10-24 with any
-summary in it, opens as if there were none: every card in the stack, with no places, Clarity or
-collapsed cards, and the first save replaces it. The notes themselves are kept.
+summary in it, opens as if there were none: every card in the stack, with no places and Clarity
+off, and the first save replaces it. The notes themselves are kept.
 
 ## Using it
 
@@ -326,7 +326,7 @@ collapsed cards, and the first save replaces it. The notes themselves are kept.
 | Move a card | Drag it by its title or by the margin around its text. Let go close to a cell's center (within 15 % of a cell) and it snaps into that cell, and a card or the stack snapped there trades places with it; let go anywhere else and it stays exactly there, over other cards, even partly off the left, right or bottom edge |
 | Put a card back | Hover it and click **↩ Stack** |
 | Reorder the stack | Click the count badge in the stack's corner, then drag a card's row by its grip (≡), or select a row and press ⌥↑ or ⌥↓ |
-| Collapse to a summary | Hover a card and click the collapse button, or use **Clarity** on the stack for every card (its text turns reddish brown while on) |
+| Collapse to a summary | Click **Clarity** on the stack's ribbon: every card, stacked and popped, shows its summary (the icon is filled while on). Clarity turns off when you click a collapsed card or make a new card |
 | Hide every card | Click the eye on the stack's ribbon, press ⌃⌥I, or choose **Hide All** from the menu bar icon; the stack shrinks to its ribbon, and the same again shows everything |
 | Format | ⌘B, ⌘I, or start a line with `- `, `* `, `1. `, `[] ` or `[ ] `; the bar at the bottom of the card has the same five actions |
 | Nest a list item | **Tab** moves it one level deeper, up to three levels, and **Shift-Tab** one level up |

@@ -34,10 +34,10 @@ struct WelcomeCopy: Equatable {
                       text: "Each card is a Markdown file in \(path). After you continue, macOS asks whether Ideator may "
                           + "use your Documents folder. Choose Allow."),
             Paragraph(lead: "Summaries are optional.",
-                      text: "To show a short summary when you collapse a card, add your own Anthropic or OpenAI API key "
-                          + "in Settings. Ideator then sends a card's text to Anthropic or OpenAI, whichever your key is "
-                          + "for, whenever the card has no summary for its text as it is now, such as when you save the "
-                          + "key or change the card. Only a card's text goes to that company."),
+                      text: "To show a short summary on each card when you turn on Clarity, add your own Anthropic or "
+                          + "OpenAI API key in Settings. Ideator then sends a card's text to Anthropic or OpenAI, "
+                          + "whichever your key is for, whenever the card has no summary for its text as it is now, such "
+                          + "as when you save the key or change the card. Only a card's text goes to that company."),
             Paragraph(lead: "Updates come from GitHub.",
                       text: "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "
                           + "installs one. You can turn the daily check off in Settings. Nothing else leaves your Mac."),
