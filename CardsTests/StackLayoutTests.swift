@@ -130,6 +130,172 @@ final class StackLayoutTests: XCTestCase {
         }
     }
 
+    // DIAGNOSTIC, temporary: prints how this macOS places and draws each ribbon icon.
+    func testRibbonDiagnostics() throws {
+        func say(_ line: String) { print("RIBBON-DIAG " + line) }
+        say("os \(ProcessInfo.processInfo.operatingSystemVersionString) screens \(NSScreen.screens.map { "\($0.frame) x\($0.backingScaleFactor)" }) main x\(NSScreen.main?.backingScaleFactor ?? -1)")
+        func standalone(_ image: NSImage, scale: CGFloat, stretched: Bool = false) -> String {
+            let columns = Int((image.size.width * scale).rounded(.up)), rows = Int((image.size.height * scale).rounded(.up))
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8,
+                                             samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                             bytesPerRow: 0, bitsPerPixel: 0) else { return "no rep" }
+            if !stretched { rep.size = NSSize(width: CGFloat(columns) / scale, height: CGFloat(rows) / scale) }
+            guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return "no context" }
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = context
+            image.draw(in: NSRect(origin: .zero, size: stretched ? NSSize(width: columns, height: rows) : rep.size))
+            NSGraphicsContext.restoreGraphicsState()
+            let inked = (0..<columns).filter { x in (0..<rows).contains { y in (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 } }
+            guard let first = inked.first, let last = inked.last else { return "blank" }
+            return "\(CGFloat(first) / scale)/\(CGFloat(columns - 1 - last) / scale)"
+        }
+        func spans(_ buttons: [NSButton], in view: NSView, scale: Int) -> [String] {
+            let strip = buttons.map(\.frame).reduce(CGRect.null) { $0.union($1) }.insetBy(dx: -4, dy: -2).integral
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(strip.width) * scale, pixelsHigh: Int(strip.height) * scale,
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return [] }
+            rep.size = strip.size
+            func render() -> [UInt8] {
+                memset(rep.bitmapData!, 0, rep.bytesPerRow * rep.pixelsHigh)
+                view.cacheDisplay(in: strip, to: rep)
+                return Array(UnsafeBufferPointer(start: rep.bitmapData!, count: rep.bytesPerRow * rep.pixelsHigh))
+            }
+            buttons.forEach { $0.isHidden = true }
+            defer { buttons.forEach { $0.isHidden = false } }
+            let blank = render()
+            return buttons.map { button in
+                button.isHidden = false
+                defer { button.isHidden = true }
+                let shown = render()
+                var change = [Int](repeating: 0, count: rep.pixelsWide)
+                for row in 0..<rep.pixelsHigh { for column in 0..<rep.pixelsWide { for channel in 0..<4 {
+                    let index = row * rep.bytesPerRow + column * 4 + channel
+                    change[column] = max(change[column], abs(Int(shown[index]) - Int(blank[index])))
+                } } }
+                let strongest = change.max() ?? 0
+                let inked = change.indices.filter { strongest > 0 && change[$0] * 10 >= strongest }
+                guard let first = inked.first, let last = inked.last else { return "none" }
+                return "\(strip.minX + CGFloat(first) / CGFloat(scale))...\(strip.minX + CGFloat(last + 1) / CGFloat(scale))"
+            }
+        }
+        func layerSpans(_ buttons: [NSButton], window: NSWindow, view: NSView) -> [String] {
+            guard let root = window.contentView?.layer else { return ["no layer"] }
+            let scale = window.backingScaleFactor
+            let width = Int((view.bounds.width * scale).rounded(.up)), height = Int((view.bounds.height * scale).rounded(.up))
+            func render() -> [UInt8] {
+                window.displayIfNeeded()
+                CATransaction.flush()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+                let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                context.scaleBy(x: scale, y: scale)
+                root.render(in: context)
+                return Array(UnsafeBufferPointer(start: context.data!.assumingMemoryBound(to: UInt8.self), count: width * height * 4))
+            }
+            buttons.forEach { $0.isHidden = true }
+            defer { buttons.forEach { $0.isHidden = false } }
+            let blank = render()
+            return buttons.map { button in
+                button.isHidden = false
+                defer { button.isHidden = true }
+                let shown = render()
+                var change = [Int](repeating: 0, count: width)
+                for row in 0..<height { for column in 0..<width { for channel in 0..<4 {
+                    let index = (row * width + column) * 4 + channel
+                    change[column] = max(change[column], abs(Int(shown[index]) - Int(blank[index])))
+                } } }
+                let strongest = change.max() ?? 0
+                let inked = change.indices.filter { strongest > 0 && change[$0] * 10 >= strongest }
+                guard let first = inked.first, let last = inked.last else { return "none" }
+                return "\(CGFloat(first) / scale)...\(CGFloat(last + 1) / scale)"
+            }
+        }
+        for (visibility, clarity) in [(Visibility.all, false), (.hideAll, true)] {
+            let ribbon = stack(width: wide, visibility, clarity: clarity)
+            let buttons = ribbon.ribbonButtons
+            say("state \(visibility) clarity \(clarity) window x\(ribbon.window.backingScaleFactor) screen \(String(describing: ribbon.window.screen?.frame)) view \(ribbon.view.frame) layer \(ribbon.view.layer != nil)")
+            for button in buttons {
+                let image = try XCTUnwrap(button.image)
+                let cell = try XCTUnwrap(button.cell as? NSButtonCell)
+                say("\(button.accessibilityLabel() ?? "?") size \(image.size) align \(image.alignmentRect) template \(image.isTemplate) reps \(image.representations.map { "\(type(of: $0)) \($0.size) \($0.pixelsWide)x\($0.pixelsHigh)" }) symbolConfig \(String(describing: image.symbolConfiguration)) buttonSymbolConfig \(String(describing: button.symbolConfiguration))")
+                say("   frame \(button.frame) cellImageRect \(cell.imageRect(forBounds: button.bounds)) cellSize \(cell.cellSize) scaling \(cell.imageScaling.rawValue) bezel \(button.bezelStyle.rawValue) type \(button.wantsUpdateLayer) subviews \(button.subviews.map { "\(type(of: $0)) \($0.frame)" })")
+                say("   standalone lead/trail own1 \(standalone(image, scale: 1)) own2 \(standalone(image, scale: 2)) own4 \(standalone(image, scale: 4)) own8 \(standalone(image, scale: 8)) stretched4 \(standalone(image, scale: 4, stretched: true))")
+            }
+            for scale in [1, 2, 4, 8] {
+                say("cacheDisplay x\(scale) \(spans(buttons, in: ribbon.view, scale: scale))")
+            }
+            ribbon.window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
+            ribbon.window.orderFrontRegardless()
+            say("on screen x\(ribbon.window.backingScaleFactor) visible \(ribbon.window.isVisible) subviews \(buttons.map { $0.subviews.map { "\($0.frame) layer \(String(describing: $0.layer?.frame)) contents \($0.layer?.contents.map { CFCopyTypeIDDescription(CFGetTypeID($0 as CFTypeRef)) as String } ?? "nil")" } })")
+            say("layer render \(layerSpans(buttons, window: ribbon.window, view: ribbon.view))")
+            say("on screen cacheDisplay x4 \(spans(buttons, in: ribbon.view, scale: 4))")
+            ribbon.window.orderOut(nil)
+
+            // Candidate: each icon cropped to its measured ink, as a drawing-handler image.
+            let window = NSWindow(contentRect: NSRect(x: -4000, y: -3000, width: 303, height: 46), styleMask: [.borderless],
+                                  backing: .buffered, defer: false)
+            let content = NSView(frame: NSRect(x: 0, y: 0, width: 303, height: 46))
+            configureAsCard(window, content: content)
+            window.setFrame(NSRect(x: -4000, y: -3000, width: 303, height: 46), display: false)
+            var edge: CGFloat = 15.15
+            var centeredEdge: CGFloat = 15.15
+            var centeredButtons: [NSButton] = []
+            let croppedButtons: [NSButton] = try buttons.map { original in
+                let symbol = try XCTUnwrap(original.image)
+                let columns = Int((symbol.size.width * 4).rounded(.up)), rows = Int((symbol.size.height * 4).rounded(.up))
+                let rep = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8,
+                                                         samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                                         bytesPerRow: 0, bitsPerPixel: 0))
+                rep.size = NSSize(width: CGFloat(columns) / 4, height: CGFloat(rows) / 4)
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+                symbol.draw(in: NSRect(origin: .zero, size: rep.size))
+                NSGraphicsContext.restoreGraphicsState()
+                let inked = (0..<columns).filter { x in (0..<rows).contains { y in (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 } }
+                let lead = CGFloat(inked.first!) / 4, inkWidth = CGFloat(inked.last! + 1 - inked.first!) / 4
+                let image = NSImage(size: NSSize(width: inkWidth, height: symbol.size.height), flipped: false) { _ in
+                    symbol.draw(in: NSRect(x: -lead, y: 0, width: symbol.size.width, height: symbol.size.height))
+                    return true
+                }
+                image.isTemplate = true
+                let button = ActionButton(symbol: "plus", help: "")
+                button.image = image
+                button.contentTintColor = original.contentTintColor
+                button.frame = NSRect(x: edge - 4, y: 14, width: inkWidth + 8, height: 18)
+                content.addSubview(button)
+                say("candidate \(original.accessibilityLabel() ?? "?") lead \(lead) ink \(inkWidth) frame \(button.frame) planned \(edge)...\(edge + inkWidth)")
+                edge += inkWidth + 12
+
+                let trail = symbol.size.width - lead - inkWidth
+                let centeredImage = NSImage(size: symbol.size, flipped: false) { _ in
+                    symbol.draw(in: NSRect(x: (trail - lead) / 2, y: 0, width: symbol.size.width, height: symbol.size.height))
+                    return true
+                }
+                centeredImage.isTemplate = true
+                let centered = ActionButton(symbol: "plus", help: "")
+                centered.image = centeredImage
+                centered.contentTintColor = original.contentTintColor
+                let width = max(symbol.size.width + 6, 18)
+                centered.frame = NSRect(x: centeredEdge + inkWidth / 2 - width / 2, y: 14, width: width, height: 18)
+                centeredButtons.append(centered)
+                centeredEdge += inkWidth + 12
+                return button
+            }
+            content.layoutSubtreeIfNeeded()
+            say("candidate subviews \(croppedButtons.map { $0.subviews.map { "\($0.frame)" } })")
+            say("candidate cacheDisplay x4 \(spans(croppedButtons, in: content, scale: 4)) x2 \(spans(croppedButtons, in: content, scale: 2))")
+            window.orderFrontRegardless()
+            say("candidate layer render x\(window.backingScaleFactor) \(layerSpans(croppedButtons, window: window, view: content))")
+            croppedButtons.forEach { $0.removeFromSuperview() }
+            centeredButtons.forEach { content.addSubview($0) }
+            content.layoutSubtreeIfNeeded()
+            say("centered frames \(centeredButtons.map { "\($0.frame) \($0.subviews.map { "\($0.frame)" })" })")
+            say("centered cacheDisplay x4 \(spans(centeredButtons, in: content, scale: 4)) x2 \(spans(centeredButtons, in: content, scale: 2))")
+            say("centered layer render x\(window.backingScaleFactor) \(layerSpans(centeredButtons, window: window, view: content))")
+            window.orderOut(nil)
+        }
+    }
+
     func testClaritySaysItsStateByFillColorAndValue() throws {
         let off = stack(width: wide).clarity
         let on = stack(width: wide, clarity: true).clarity
