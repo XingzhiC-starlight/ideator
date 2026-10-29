@@ -7,6 +7,8 @@ final class StackLayoutTests: XCTestCase {
     private let wide: CGFloat = 302.4
     private let narrow: CGFloat = 273
     private let belowAnyCell: CGFloat = 180
+    /// Less than the icon toolbar, the menu button and the badge need side by side.
+    private let tooNarrowForBadge: CGFloat = 110
 
     private struct Stack {
         let window: StackWindow
@@ -20,9 +22,15 @@ final class StackLayoutTests: XCTestCase {
         var toggle: NSView { view.subviews.first { $0.toolTip == "Hide all" || $0.toolTip == "Show all" }! }
         var menu: NSView { control("Settings and quit") }
         var badge: NSView { control("Arrange the stack") }
-        var toolbar: NSView { view.subviews.first { $0 is NSStackView }! }
         var desktopFull: NSView { view.subviews.first { ($0 as? NSTextField)?.stringValue == "Desktop full" }! }
-        var ribbonButtons: [NSButton] { (toolbar as! NSStackView).arrangedSubviews.compactMap { $0 as? NSButton } }
+        /// New, the toggle and Clarity, left to right.
+        var ribbonButtons: [NSButton] {
+            view.subviews.compactMap { $0 as? NSButton }
+                .filter { ["New", "Hide all", "Show all", "Clarity"].contains($0.accessibilityLabel()) }
+                .sorted { $0.frame.minX < $1.frame.minX }
+        }
+        var clarity: NSButton { ribbonButtons.last! }
+        var toolbarEnd: CGFloat { ribbonButtons.map(\.frame.maxX).max()! }
         var card: CardView { view.subviews.compactMap { $0 as? CardView }.first! }
     }
 
@@ -47,16 +55,60 @@ final class StackLayoutTests: XCTestCase {
         return Stack(window: window, toggled: { toggles }, sent: { commands })
     }
 
-    func testTheRibbonHasNewAndClarityButNoPop() {
-        XCTAssertEqual(stack(width: wide).ribbonButtons.map(\.title), ["New", "Clarity"])
+    func testTheRibbonIsNewTheToggleAndClarityButNoPop() {
+        let shown = stack(width: wide)
+        XCTAssertEqual(shown.ribbonButtons.map { $0.accessibilityLabel() }, ["New", "Hide all", "Clarity"])
+        XCTAssertTrue(shown.ribbonButtons.allSatisfy { $0.image != nil && $0.imagePosition == .imageOnly }, "icons, no words")
+        XCTAssertEqual(shown.ribbonButtons.first?.toolTip, "New card")
+        XCTAssertLessThan(shown.ribbonButtons.last!.frame.maxX, shown.view.bounds.midX, "all three at the left")
     }
 
-    func testClaritySaysItsStateByColorAndValueWhileTheLabelStaysPut() throws {
-        let off = try XCTUnwrap(stack(width: wide).ribbonButtons.last)
-        let on = try XCTUnwrap(stack(width: wide, clarity: true).ribbonButtons.last)
-        XCTAssertEqual([off.title, on.title], ["Clarity", "Clarity"])
-        XCTAssertEqual(off.font, on.font, "same weight both ways")
-        XCTAssertEqual(off.contentTintColor, Palette.inkSoft)
+    func testTheToolbarIconsAreEvenlySpacedByWhatTheyDraw() throws {
+        for (visibility, clarity) in [(Visibility.all, false), (.hideAll, false), (.all, true), (.hideAll, true)] {
+            let buttons = stack(width: wide, visibility, clarity: clarity).ribbonButtons
+            let inked = try buttons.map { button -> (minX: CGFloat, maxX: CGFloat) in
+                let image = try XCTUnwrap(button.image)
+                let columns = try inkColumns(of: image)
+                let imageMinX = button.frame.midX - image.size.width / 2
+                return (imageMinX + columns.lowerBound, imageMinX + columns.upperBound)
+            }
+            for (left, right) in zip(inked, inked.dropFirst()) {
+                XCTAssertEqual(right.minX - left.maxX, 12, accuracy: 0.5, "\(visibility), clarity \(clarity)")
+            }
+            for (left, right) in zip(buttons, buttons.dropFirst()) {
+                XCTAssertLessThanOrEqual(left.frame.maxX, right.frame.minX, "hit areas never overlap")
+            }
+            for button in buttons {
+                XCTAssertGreaterThanOrEqual(button.frame.width, 18)
+            }
+        }
+    }
+
+    /// The point span across `image`'s width where it draws anything, rendered at 2x through Core Graphics.
+    private func inkColumns(of image: NSImage) throws -> ClosedRange<CGFloat> {
+        let scale = 2
+        let width = Int(image.size.width.rounded(.up)) * scale
+        let height = Int(image.size.height.rounded(.up)) * scale
+        let space = CGColorSpaceCreateDeviceRGB()
+        let context = try XCTUnwrap(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                              space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        var rect = CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height))
+        let cgImage = try XCTUnwrap(image.cgImage(forProposedRect: &rect, context: nil, hints: nil))
+        context.draw(cgImage, in: rect)
+        let pixels = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
+        let inked = (0..<width).filter { x in (0..<height).contains { y in pixels[(y * width + x) * 4 + 3] > 64 } }
+        let first = try XCTUnwrap(inked.first)
+        let last = try XCTUnwrap(inked.last)
+        return (CGFloat(first) / CGFloat(scale))...(CGFloat(last + 1) / CGFloat(scale))
+    }
+
+    func testClaritySaysItsStateByFillColorAndValue() throws {
+        let off = stack(width: wide).clarity
+        let on = stack(width: wide, clarity: true).clarity
+        XCTAssertEqual([off.accessibilityLabel(), on.accessibilityLabel()], ["Clarity", "Clarity"])
+        XCTAssertNotEqual(off.image?.tiffRepresentation, on.image?.tiffRepresentation, "an outline off, filled on")
+        XCTAssertEqual(off.frame, on.frame, "and it does not move")
+        XCTAssertEqual(off.contentTintColor, Palette.ribbonInk)
         XCTAssertEqual(on.contentTintColor, Palette.accent)
         XCTAssertEqual(off.accessibilityValue() as? String, "off")
         XCTAssertEqual(on.accessibilityValue() as? String, "on")
@@ -97,8 +149,14 @@ final class StackLayoutTests: XCTestCase {
     func testTheToggleOffersHideAllWhileCardsShowAndShowAllWhileHidden() throws {
         let shown = stack(width: wide)
         XCTAssertEqual(shown.toggle.toolTip, "Hide all", "with cards showing it hides them")
+        XCTAssertEqual(shown.toggle.accessibilityLabel(), "Hide all")
         let hidden = stack(width: wide, .hideAll)
         XCTAssertEqual(hidden.toggle.toolTip, "Show all", "under Hide all it shows them again")
+        XCTAssertEqual(hidden.toggle.accessibilityLabel(), "Show all")
+        XCTAssertEqual(hidden.toggle.frame.minX, shown.toggle.frame.minX, "the chevron keeps its x")
+        XCTAssertEqual(hidden.toggle.frame.size, shown.toggle.frame.size, "and its size")
+        XCTAssertEqual(hidden.view.bounds.maxY - hidden.toggle.frame.maxY, shown.view.bounds.maxY - shown.toggle.frame.maxY,
+                       "and its distance from the top, so it flips in place within the ribbon")
         try XCTUnwrap(hidden.toggle as? NSButton).performClick(nil)
         XCTAssertEqual(hidden.toggled(), 1, "one click toggles")
     }
@@ -106,11 +164,12 @@ final class StackLayoutTests: XCTestCase {
     func testTheBadgeIsInTheCardsBottomRightUnlessHideAllRemovedTheCard() {
         let shown = stack(width: wide)
         XCTAssertGreaterThan(shown.badge.frame.midX, shown.view.bounds.midX, "on the right")
-        XCTAssertLessThan(shown.badge.frame.maxY, shown.toggle.frame.minY, "below the ribbon, in the card area")
+        XCTAssertLessThan(shown.badge.frame.maxY, shown.menu.frame.minY, "below the ribbon, in the card area")
         XCTAssertLessThan(shown.badge.frame.minY, shown.view.bounds.height * 0.2, "near the bottom")
         let hidden = stack(width: wide, .hideAll)
-        XCTAssertEqual(hidden.badge.frame.midY, hidden.toggle.frame.midY, accuracy: 2, "in the ribbon")
-        XCTAssertLessThanOrEqual(hidden.badge.frame.maxX, hidden.toggle.frame.minX, "left of the toggle")
+        XCTAssertEqual(hidden.badge.frame.midY, hidden.menu.frame.midY, accuracy: 2, "in the ribbon")
+        XCTAssertLessThanOrEqual(hidden.badge.frame.maxX, hidden.menu.frame.minX, "left of the menu button")
+        XCTAssertGreaterThan(hidden.badge.frame.minX, hidden.toolbarEnd, "right of the toolbar")
     }
 
     private func center(of badge: NSView, in stack: Stack) -> CGPoint {
@@ -166,21 +225,23 @@ final class StackLayoutTests: XCTestCase {
         for visibility in [Visibility.all, .hideAll] {
             let without = stack(width: wide, visibility)
             let with = stack(width: wide, visibility, full: true)
-            XCTAssertEqual(with.toggle.frame, without.toggle.frame, "the toggle stays put")
+            XCTAssertEqual(with.ribbonButtons.map(\.frame), without.ribbonButtons.map(\.frame), "the toolbar stays put")
             XCTAssertEqual(with.menu.frame, without.menu.frame, "and so does the menu button")
-            XCTAssertEqual(with.toolbar.frame, without.toolbar.frame, "and the toolbar")
             let label = with.desktopFull.frame
-            let rightEdge = visibility == .all ? with.toggle.frame.minX : with.badge.frame.minX
-            XCTAssertGreaterThanOrEqual(label.minX, with.toolbar.frame.maxX, "the label stays right of the toolbar")
+            let rightEdge = visibility == .all ? with.menu.frame.minX : with.badge.frame.minX
+            XCTAssertGreaterThanOrEqual(label.minX, with.toolbarEnd, "the label stays right of the toolbar")
             XCTAssertLessThanOrEqual(label.maxX, rightEdge, "and left of what is at its right")
         }
     }
 
     func testTheRibbonOnlyBadgeGivesWayRatherThanCoverTheToolbar() {
         let wideRibbon = stack(width: wide, .hideAll)
-        XCTAssertFalse(wideRibbon.badge.isHidden, "with room the count shows beside the toggle")
+        XCTAssertFalse(wideRibbon.badge.isHidden, "with room the count shows beside the menu button")
         let narrowRibbon = stack(width: belowAnyCell, .hideAll)
-        XCTAssertTrue(narrowRibbon.badge.isHidden, "without room it goes instead of covering the Clarity button")
-        XCTAssertGreaterThan(narrowRibbon.toggle.frame.minX, narrowRibbon.toolbar.frame.maxX, "and the buttons stay apart")
+        XCTAssertTrue(narrowRibbon.badge.isHidden || narrowRibbon.badge.frame.minX >= narrowRibbon.toolbarEnd + 8,
+                      "it shows only clear of the toolbar")
+        XCTAssertGreaterThan(narrowRibbon.menu.frame.minX, narrowRibbon.toolbarEnd, "and the buttons stay apart")
+        let cramped = stack(width: tooNarrowForBadge, .hideAll)
+        XCTAssertTrue(cramped.badge.isHidden, "without room it goes instead of covering the Clarity button")
     }
 }
