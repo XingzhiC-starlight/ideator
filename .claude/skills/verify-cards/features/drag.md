@@ -27,8 +27,8 @@ always be grabbed back.
 
 - Press a popped card's header line (or the margin around its text) and drag. A press that
   doesn't move is an ordinary text click.
-- Press the stack's ribbon anywhere that isn't a button, such as the gap between Clarity and
-  the Hide all eye, and drag. A press that doesn't move acts as the edge band under it.
+- Press the stack's ribbon anywhere that isn't a button, such as the gap between the Clarity
+  icon and the ⋯ menu, and drag. A press that doesn't move acts as the edge band under it.
 - While dragging, a guide outlines the slot nearest the dragged item's center. It is dashed
   while a drop would stay free and solid once a drop would snap.
 
@@ -40,7 +40,8 @@ Preconditions:
 - `cv ax windows` lists one window, the stack, at `@1368,34 342x268`.
 
 Frames are `cv ax windows` output on the owner's 1710 × 1107 display (menu bar 34, Dock
-auto-hidden). There one cell is 342 × 268.25, windows list as 342x268, and slot `n` is at
+auto-hidden). There one cell is 342 × 268.25, windows list as 342x268 (342x269 in the third
+row, whose edges round 269 points apart), and slot `n` is at
 `@342*(n%5),34+268*(n/5)` in the top three rows, the only ones used below (the fourth row starts
 at 839, because cell edges round to whole points). The stack's `y` in the precondition's
 `cv ax windows` is the menu bar's height. If it is not 34, or the display is another size,
@@ -94,7 +95,7 @@ first.
 - **Guide (`drag-guide`).** Hold a drag partway with raw mouse events. Alpha is at `@684,302`, so
   (855, 325) is on its header line. Run `cv ax mouse move 855 325` and `cv ax mouse down 855
   325`, then `cv ax mouse drag 855 <y>` for y = 330, 345, 405, 485, 565 and 592 (about one row
-  down), then `cv shot drag-guide-snap`. `cv ax windows` lists one more 342x268 window at `@684,570`,
+  down), then `cv shot drag-guide-snap`. `cv ax windows` lists one more window, `@684,570 342x269`,
   and its PNG is a solid, filled outline. Run `cv ax mouse drag 1026 458` (half a cell right and
   down) and `cv shot drag-guide-free`: the guide moves to the cell holding the center, `@1026,302`,
   and its PNG is dashed. Drag back in steps to (855, 325) and `cv ax mouse up 855 325`: Alpha

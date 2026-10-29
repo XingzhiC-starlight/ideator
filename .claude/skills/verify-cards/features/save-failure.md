@@ -34,7 +34,9 @@ launch opens empty, says so once, and never has its sidecar overwritten.
 Preconditions:
 
 - `cv build` ran after the last source change, and `cv launch --seed` started the run.
-- `source build/verify-runs/current.env` gives `$FOLDER`, the run's card folder.
+- `source build/verify-runs/current.env` gives `$FOLDER`, the run's card folder. Each launch has a
+  new folder and the Bash tool keeps no variable between calls, so source it again in every call
+  that uses `$FOLDER`.
 
 - **save-alert.** `cv ax press New`, `cv ax type 'Quit test'`, wait 1.5 s, `cv files typed` shows the
   new card's file. `chmod 555 "$FOLDER"`, then `cv ax type ' more'` and wait 2 s. `cv ax tree` shows
@@ -48,7 +50,8 @@ Preconditions:
 - **quit-saves.** A new `cv launch --seed`. `cv ax press New`, type, wait 1.5 s, `chmod 555
   "$FOLDER"`, type more, wait 2 s, `cv ax press OK`, `chmod 755 "$FOLDER"`, `cv ax key cmd+q`. The
   pid is gone with no alert, and the card's file holds the whole text.
-- **newer-sidecar-later.** `cv ax press "↗ Pop"`, wait 1.5 s, `cv files popped` shows a
+- **newer-sidecar-later.** quit-saves ended its run, so `cv stop` and a new `cv launch --seed` first.
+  `cv ax press "↗ Pop"`, wait 1.5 s, `cv files popped` shows a
   `"version" : 2` sidecar with Alpha's placement. Write
   `{"version":3,"layout":{"kind":"from a newer Ideator"}}` over `$FOLDER/.cards.json` (here the
   edit is the scenario itself, another Mac's write, not a shortcut). `cv ax press "↗ Pop"` again and

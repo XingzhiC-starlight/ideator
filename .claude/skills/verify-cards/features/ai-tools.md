@@ -44,8 +44,8 @@ Preconditions: `cv build` ran after the last change (it also compiles `cards-mcp
 client). `cv mcp` and `cv mcp-launch` start the helper of the build `cv build` made, always with `-CardsFolder`
 naming the run's temp folder, so it can only reach or start that run. `cv mcp-launch` takes the live-UI lock as
 `cv launch` does, and `cv stop` releases it. Requests and replies are appended to `mcp.log` in the run's evidence
-folder, with each card's title and body shown as lengths, as `log.txt` shows typed text. Write card bodies to files
-under the run's evidence folder.
+folder. A request shows each card's title and body as lengths, as `log.txt` shows typed text, but the `Added "…"`
+reply quotes the title in full. Write card bodies to files under the run's evidence folder.
 
 - **mcp-session.** Run `build/verify-tools/cards-mcp build/VerifyDerivedData/Build/Products/Debug/Ideator.app/Contents/Helpers/ideator-mcp -CardsFolder <a new temp folder> initialize discover list ping`.
   Each request has a reply, `serverInfo.name` is `ideator`, `instructions` is the spec's default text, and
@@ -56,8 +56,8 @@ under the run's evidence folder.
   for the adopted run; `cv shot` and `cv files` work on it as on a `cv launch` run.
 - **mcp-formats.** `cv mcp add 'Formats' <body file>` with a body that has `- `, `* `, `1. `, `- [ ] `, `- [x] `,
   4- and 8-space nesting, `**bold**`, `*italic*`, a `# Heading` line and a code fence. Wait 1.5 s, then `cv files
-  mcp-formats`: the card's `.md` has each list line, the nesting as 4 spaces per level, the styles, and the heading
-  as `\# Heading`, a plain line.
+  mcp-formats`: the card's `.md` has each list line (the `* ` bullet written as `- `), the nesting as 4 spaces per
+  level, the styles, and the heading as `\# Heading`, a plain line.
 - **mcp-top.** Flip the stack with `cv ax click stack 0.985 0.6` so it shows another card, `cv shot`, then `cv mcp add
   'Top switches'`. `cv ax tree` shows the new title in the stack's text area and the badge one higher.
 - **mcp-top-typing.** `cv ax focus stack`, `cv ax type ' typed'`, then `cv mcp add 'Arrives while typing'` and `cv ax
@@ -138,7 +138,10 @@ under the run's evidence folder.
   window holds at the moment of the call (key, with its format bar showing), so a Settings press that has not
   landed yet changes where a Top card goes.
 - Find a run the helper started by the app binary and the folder (`^<binary> -CardsFolder <folder>$`): the helper's
-  own command line also ends in `-CardsFolder <folder>`.
+  own command line also ends in `-CardsFolder <folder>`. The app's command line names the folder without a leading
+  `/private`: a folder made with `mktemp -d /private/tmp/…` shows as `/tmp/…` (seen 2026-10-29), so a pattern with
+  `/private` matches nothing, and a "prints nothing" check such as mcp-session's passes even when an app is running.
+  Make the temp folder under `/tmp` or `$TMPDIR`, or match the path with its `/private` removed.
 - `cv mcp-launch` has no `--seed`, and the app it starts has no `app.log`: Launch Services starts it, not `open
   --stdout`.
 - The welcome card of a background start comes to the front with `orderFrontRegardless` and does not activate

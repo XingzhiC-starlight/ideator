@@ -8,8 +8,9 @@ button collapses or expands just that card, and the card keeps its state when it
 
 - `clarity-global-on` Clarity off → on collapses every card, the stacked one included.
 - `clarity-global-off` Clarity on → off expands every card.
-- `clarity-state` The ribbon button always reads `Clarity`. Its value is `off` or `on`, its tooltip
-  says what a click does, and its text color is soft brown when off and reddish brown when on.
+- `clarity-state` The ribbon button, the filter icon third from the left, is always named
+  `Clarity`. Its value is `off` or `on`, its tooltip says what a click does, and its icon is a
+  dark brown outline when off and a filled reddish brown circle when on.
 - `clarity-card` A card's collapse/expand button changes only that card, not the global button.
 - `clarity-short-body` A card with an empty or one-line body shows that line instead of a summary.
 - `clarity-no-key` Without an API key, a longer card shows `Summary unavailable`, with the reason
@@ -21,7 +22,7 @@ button collapses or expands just that card, and the card keeps its state when it
 
 ## How to get to it (user POV)
 
-- `Clarity` in the stack's ribbon.
+- The Clarity icon (three lines in a circle) in the stack's ribbon.
 - The collapse button on a card (fades in on hover), and on the stack's shown card.
 - Clicking a collapsed card's body expands it (not driven: use the button).
 
@@ -36,8 +37,8 @@ Preconditions:
   `cv ax tree` shows the button still named `Clarity`, now with `value="on"` and the tooltip
   `Clarity is on: click to expand every card`. The stack has no `AXTextArea`, and two static
   texts: `Alpha card` and `alpha body` (a one-line body shows itself). The card button reads
-  `Expand this card`. `cv shot clarity-on` shows the same word in reddish brown instead of soft
-  brown; crop and enlarge the ribbon to compare the two PNGs.
+  `Expand this card`. `cv shot clarity-on` shows the icon filled in reddish brown, where
+  `clarity-off` shows a dark brown outline.
 - **Longer body.** Flip to Beta. Run `cv ax click stack 0.985 0.6`. `cv ax tree` shows
   `Beta card`, a `Refresh summary` button, and one of three summary lines. With no key stored it
   is `AXStaticText "No API key. Add one in Settings." value="Summary unavailable"`: the

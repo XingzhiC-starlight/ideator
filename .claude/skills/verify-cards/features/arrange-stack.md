@@ -25,7 +25,7 @@ card. The order is saved in the sidecar on every move.
 ## How to get to it (user POV)
 
 - Click the count badge in the stack card's bottom-right corner.
-- Click the count badge in the ribbon, beside the eye button, while Hide all is on.
+- Click the count badge in the ribbon, left of the ⋯ menu, while Hide all is on.
 - Tab to the badge and press Space, with keyboard navigation on (not driven).
 - VoiceOver on the badge, then on a row's actions menu (not driven).
 

@@ -1,8 +1,8 @@
 # Card buttons on hover
 
-Each card's buttons (collapse or expand, refresh summary on a collapsed card, ↩ Stack or ↗ Pop,
-delete) sit in its top-right corner and fade in while the pointer is over the card, on a popped
-card and on the stack's card. While they are hidden, a click there is a click on the card: it puts
+Each card's buttons (refresh summary on a collapsed card with two or more body lines, collapse or
+expand, ↩ Stack or ↗ Pop, delete) sit in its top-right corner and fade in while the pointer is over
+the card, on a popped card and on the stack's card. While they are hidden, a click there is a click on the card: it puts
 the caret at the end of the title, and on a collapsed card it is a header press. A card that
 appears or moves under a pointer that rests (Show all, Pop, a snap) shows or hides them without a
 mouse move. VoiceOver still lists and presses them while they are hidden. A long title wraps, or

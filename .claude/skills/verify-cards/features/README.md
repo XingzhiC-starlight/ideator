@@ -1,8 +1,8 @@
 # Ideator verification map
 
 This folder is where the recipes for verifying what Ideator users see are kept up to date. Read this
-index before driving the app, then use the matching feature file as the recipe. `cv` is the
-function defined in [../SKILL.md](../SKILL.md).
+index before driving the app, then use the matching feature file as the recipe. `cv` is shorthand
+for the script path in [../SKILL.md](../SKILL.md); type the path itself in every command.
 
 ## Baseline preconditions
 

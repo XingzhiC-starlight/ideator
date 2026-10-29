@@ -18,7 +18,8 @@ Shift-Tab or the tidying a deleted parent causes.
 - `nested-backspace` Backspace at the start of a nested item moves it up a level.
 - `nested-numbers` A nested numbered run restarts at 1 and the parent's count continues.
 - `nested-kind` A list button of another kind, or a checkbox click, changes only that line, never
-  its children. The button of the line's own kind makes it plain, and its children move up a level.
+  its children. The button of the line's own kind makes it plain, and its first child moves up a
+  level, with the other children nested under it.
 - `nested-undo` One ⌘Z undoes one Tab; after deleting a parent the child moves up, and one ⌘Z
   brings back both.
 - `nested-old-file` A file with 2-space or tab indents loads nested, and is saved with 4 spaces
@@ -72,8 +73,8 @@ Preconditions:
 - **The bar.** `cv ax key cmd+up`, `cv ax key down`, `cv ax key cmd+right` (the caret on Day one,
   nothing selected), then `cv ax press "Bulleted list"`. Only that line changes: `- Day one` over
   `    1. flight`, `    2. hotel`, and `Day two` renumbers to `1.`. `cv ax key cmd+z`. Pressing
-  `"Numbered list"` there instead, the line's own kind, makes `Day one` plain and lifts flight and
-  hotel a level (`1. flight`, `    1. hotel`).
+  `"Numbered list"` there instead, the line's own kind, makes `Day one` plain and lifts flight a
+  level, with hotel nested under it (`1. flight`, `    1. hotel`).
 - **Checkbox.** `cv ax press New`, `cv ax type 'Boxes\n[] parent\nchild'` (a list never starts
   in the header, so the title comes first) and `cv ax key tab`. Click the parent's box with
   `cv ax click card=Boxes FX FY`, reading FX and FY off a `cv shot` (on the owner's display
