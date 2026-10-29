@@ -1,6 +1,6 @@
-# Ideator — prototype spec (agreed 2026-10-21, revised 2026-10-26)
+# Ideator — spec (agreed 2026-10-21, revised 2026-10-28)
 
-Personal-use macOS prototype. Native Swift app built with Xcode.
+macOS app, to be released publicly as a notarized direct download. Native Swift app built with Xcode.
 
 ## Windows and layering
 - Each card is a real macOS window on the normal window layer (not always-on-top, not desktop-pinned).
@@ -223,5 +223,5 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 ## Look
 - Warm beige frosted-glass cards (revised 2026-10-22, see DESIGN.md), thin border, soft shadow, system font. Per-card colors later.
 
-## Explicitly out of scope for the prototype
+## Out of scope for now
 - Always-on-top mode, drag-to-stack, fonts/colors/sizes/tables/images/links, multiple stacks, sync, sharing.

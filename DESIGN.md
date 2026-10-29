@@ -1,6 +1,6 @@
 # Ideator: design notes
 
-How the prototype in [CARDS-SPEC.md](CARDS-SPEC.md) is put together, and why.
+How the app in [CARDS-SPEC.md](CARDS-SPEC.md) is put together, and why.
 
 ## Problem
 

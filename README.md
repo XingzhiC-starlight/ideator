@@ -1,6 +1,6 @@
 # Ideator
 
-A macOS prototype where every note is its own small window, laid out on an invisible 5 × 4 grid,
+A macOS app where every note is its own small window, laid out on an invisible 5 × 4 grid,
 with a stack of the rest in the top-right corner. Native Swift and AppKit, with one dependency,
 [Sparkle](https://sparkle-project.org/), for updates. The behaviour is specified in
 [CARDS-SPEC.md](CARDS-SPEC.md); how the code is put together is in [DESIGN.md](DESIGN.md).
