@@ -234,6 +234,20 @@ final class PlacementTests: XCTestCase {
         XCTAssertEqual(Desk(notes: notes, saved: saved), desk, "every place comes back exactly")
     }
 
+    func testASpreadSetSurvivesSavingAndLoadingOutAndGathered() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var desk = desk([:], stack: ["c"])
+        desk.apply(.spread(SpreadCells(indices: [0, 1]), fresh: false, at: now))
+        desk.apply(.move(.card(desk.popped[0].card.id), to: .free(GridPoint(x: 0.31, y: 0.62))))
+        func reloaded() throws -> Desk {
+            let saved = try JSONDecoder().decode(SavedDesk.self, from: JSONEncoder().encode(desk.saved))
+            return Desk(notes: Dictionary(uniqueKeysWithValues: desk.allCards.map { ($0.id, $0.note) }), saved: saved)
+        }
+        XCTAssertEqual(try reloaded(), desk, "the set comes back while its cards are out")
+        desk.apply(.spread(SpreadCells(indices: [0, 1]), fresh: false, at: now))
+        XCTAssertEqual(try reloaded(), desk, "and once gathered, with each card's place")
+    }
+
     func testTheStackStartsTopRightAndPopFillsFromTheTopLeft() {
         var desk = Desk(notes: [id("a"): Note(header: "a", body: [])], saved: SavedDesk(stack: [id("a")]))
         XCTAssertEqual(desk.stackPlace, slot(4), "with no sidecar the stack is in the top-right slot")

@@ -2,7 +2,7 @@
 # Bounded exhaustive check of the real Desk rules. See SKILL.md.
 #
 #   run.sh [DEPTH]        build against the current Cards/*.swift and check (default depth 3, ~10 s)
-#   run.sh --mutants      break the code twenty-five known ways; each must be caught by its property
+#   run.sh --mutants      break the code forty known ways; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
 set -euo pipefail
@@ -33,9 +33,9 @@ staleness() {
 # Each mutant: property it must break | exact text in Cards/Desk.swift | replacement. A "\n" in a text
 # stands for a line break.
 MUTANTS=(
-  "P1 conservation|insertCard(popped.remove(at: i).card, at: 0)|_ = popped.remove(at: i)"
+  "P1 conservation|insertCard(removePopped(at: i), at: 0)|_ = removePopped(at: i)"
   "P2 places|            setPlace(of: occupant, to: from)|            _ = occupant"
-  "P2 places|guard popped.count < Slot.count - 1 else { return nil }|"
+  "P2 places|count < Slot.count - 1 && !taken.contains(cell)|!taken.contains(cell)"
   "P3 stack page|if i <= selection { selection += 1 }|"
   "P4 stack order|insertCard(Card(id: id, note: note), at: stack.count)|insertCard(Card(id: id, note: note), at: 0)"
   "P5 save and reload|stackFree: stackPlace.savedFree,|stackFree: nil,"
@@ -52,12 +52,27 @@ MUTANTS=(
   "P4 stack order|insertCard(card, at: stack.count)|insertCard(card, at: max(stack.count - 1, 0))"
   "P3 stack page|insertCard(card, at: stack.count)|insertCard(card, at: stack.count); selection = 0"
   "P4 stack order|insertCard(card, at: stack.count)|popped.append(PoppedCard(card: card, place: .free(GridPoint(x: 0.5, y: 0.5))))"
-  "P6 clarity|clarity: clarity, desktopFull: firstFreeSlot == nil)|clarity: false, desktopFull: firstFreeSlot == nil)"
+  "P6 clarity|clarity: clarity, desktopFull: firstFreeSlot == nil,|clarity: false, desktopFull: firstFreeSlot == nil,"
   "P6 clarity|        clarity = false   // a new card opens expanded, so every card does|"
   "P6 clarity|        clarity = false\n        insertCard(Card(id: freshID(at: date), note: note), at: selection)|        insertCard(Card(id: freshID(at: date), note: note), at: selection)"
   "P6 clarity|case .setClarity(let on): clarity = on|case .setClarity: clarity.toggle()"
   "P6 clarity|let card = Card(id: freshID(at: date), note: note)\n        switch landing|clarity = false\n        let card = Card(id: freshID(at: date), note: note)\n        switch landing"
   "P5 save and reload|clarity: clarity,\n            stackSlot|clarity: false,\n            stackSlot"
+  "P8 spread|insertCard(removePopped(at: i), at: stack.count)|insertCard(removePopped(at: i), at: 0)"
+  "P8 spread|ka != kb ? ka < kb :|ka != kb ? ka > kb :"
+  "P8 spread|guard room.admits(home.slot),|guard"
+  "P8 spread|place: home)|place: .slot(home.slot))"
+  "P8 spread|spreadSet = spreadSet?.removing(id)|"
+  "P5 save and reload|spread: spreadSet.map { SavedSpread(\$0) }|spread: nil"
+  "P6 clarity|            clarity = false   // Spread's new blank cards open expanded, as New's do|"
+  "P6 clarity|popped.append(PoppedCard(card: removeCard(at: i), place: home))|clarity = false; popped.append(PoppedCard(card: removeCard(at: i), place: home))"
+  "P8 spread|spreadSet?.remember(leaving.card.id, at: leaving.place)|"
+  "P8 spread|guard let laid = next.layOut(cells, at: date) else { return nil }|guard let laid = next.layOut(cells, at: date) else { self = next; return nil }"
+  "P8 spread|if let set = spreadSet, set.cells == cells {|if spreadSet != nil {"
+  "P2 places|room.take(cell)|"
+  "P8 spread|spreadButton: spreadIsOut ? .gather : .spread)|spreadButton: .spread)"
+  "P5 save and reload|where homes[m.card] == nil && notes[m.card] != nil {|where homes[m.card] == nil {"
+  "P5 save and reload|where homes[m.card] == nil && notes[m.card] != nil {|where notes[m.card] != nil {"
 )
 
 mutants() {

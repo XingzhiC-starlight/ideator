@@ -24,6 +24,17 @@ struct Preferences {
 
     func markWelcomeSeen() { defaults?.set(WelcomeCopy.version, forKey: "WelcomeSeen") }
 
+    /// Settings › Spread's ticked cells, as slot indices. A missing key reads as the factory cells.
+    /// Junk is dropped, since defaults can be edited by hand, and an empty list stays empty, since
+    /// no cells is a choice.
+    var spreadCells: SpreadCells {
+        get {
+            guard let stored = defaults?.object(forKey: "SpreadCells") as? [Any] else { return .standard }
+            return SpreadCells(indices: stored.compactMap { $0 as? Int })
+        }
+        nonmutating set { defaults?.set(newValue.indices, forKey: "SpreadCells") }
+    }
+
     var aiTools: AIToolSettings {
         get {
             AIToolSettings(enabled: defaults?.object(forKey: "AIToolsEnabled") as? Bool ?? true,

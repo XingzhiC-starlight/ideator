@@ -20,7 +20,7 @@ source "$SKILL_DIR/scripts/live-lock.sh"
 usage() {
   cat <<'EOF'
 cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax, cards-clip and cards-mcp
-cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from)
+cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from, with the .md files beside it when it is named .cards.json, as `files` saves it)
 cards-verify doctor                 read-only health check of the current run, and who holds the live-UI lock
 cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, where, mouse, dragat, listen)
 cards-verify shot NAME              screenshot every window + accessibility tree into the evidence folder
@@ -101,7 +101,11 @@ launch() {
   if [[ "${1:-}" == "--seed" ]]; then
     printf '# Alpha card\n\nalpha body\n' > "$folder/seed-a.md"
     printf '# Beta card\n\nbeta line one\nbeta line two\n' > "$folder/seed-b.md"
-    if [[ -n "${2:-}" ]]; then cp "$2" "$folder/.cards.json"; fi
+    if [[ -n "${2:-}" ]]; then
+      # A sidecar `files` saved comes with its cards: without their .md files the app drops what it names.
+      if [[ "$(basename "$2")" == ".cards.json" ]]; then cp "$(dirname "$2")"/*.md "$folder/" 2>/dev/null || true; fi
+      cp "$2" "$folder/.cards.json"
+    fi
   fi
   # `open -n` detaches the app from this shell (a child of the shell dies with it) and starts a new
   # instance even while the owner's Cards runs. Every later step targets the pid, never the name.

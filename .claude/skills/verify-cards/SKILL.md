@@ -6,7 +6,7 @@ description: Drive the real Ideator macOS app (menu bar app, card windows, the s
 # Verify Ideator
 
 Ideator is a native AppKit menu bar app: each card is a borderless window, the stack is one more
-window with a tan ribbon (the New, Hide all and Clarity icons on the left, ⋯ on the right), and
+window with a tan ribbon (the New, Hide all, Spread and Clarity icons on the left, ⋯ on the right), and
 every card is a Markdown file in a
 folder plus a hidden sidecar `.cards.json`. This skill starts an isolated copy of the app on an
 empty temp folder and drives it through macOS Accessibility, by pid, so it never touches the
@@ -44,7 +44,9 @@ cv launch --welcome   # the first-launch card, as a stranger sees it
   `seed-b.md` ("Beta card", two body lines). With no sidecar both start in the stack, Alpha on
   top. Without `--seed` the stack starts on its blank page with a count of 0.
 - `--seed SIDECAR` also copies SIDECAR in as `.cards.json` before launch, to start from saved
-  places, Clarity or summaries.
+  places, Clarity or summaries. A SIDECAR named `.cards.json`, as `cv files` saves it, brings the
+  `.md` files beside it too: the app drops what the sidecar names without its card file, so a
+  saved Spread set needs them.
 - `--welcome` forces the first-launch card even though a scratch run never shows it: it adds
   `--env CARDS_SHOW_WELCOME=1` to `open`, and the command line stays `… --args -CardsFolder <folder>`.
   Ready is then the card's Continue button, not New. It combines with `--seed`, which goes second.
@@ -99,8 +101,10 @@ the z-order and change after any click, so use the names.
 Stable handles in this app, all from the code:
 
 - Stack ribbon buttons, left to right: `New` (a plus, tooltip `New card`), `Hide all` / `Show all`
-  (a chevron, up or down), `Clarity` (a filter icon), then `Settings and quit` (the ⋯ menu) at the
-  right. They are icons; these are their accessibility names. Clarity always has that name. Its
+  (a chevron, up or down), `Spread` (a 2 × 2 grid; `value="in"` and tooltip `Spread cards`, or
+  `value="out"` and `Gather cards` while a card of its set is out; its `New spread` action is the
+  fresh path, see [features/spread.md](features/spread.md)), `Clarity` (a filter icon), then
+  `Settings and quit` (the ⋯ menu) at the right. They are icons; these are their accessibility names. Clarity always has that name. Its
   state is the `value="off"` or `value="on"` that `tree` prints on its line (its tooltip, `Clarity
   is off: click to collapse every card` or `Clarity is on: click to expand every card`, says it
   too), and its icon, a dark brown outline when off and a filled reddish brown circle when on,
@@ -209,8 +213,8 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   default) and never reads or writes the owner's saved shortcut, so it cannot take the shortcut from
   the owner's Ideator. The harness also cannot press it. Prove Hide all with the ribbon button, not
   the hotkey.
-- The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has the same Settings… and
-  Quit. Check for Updates… is only in the menu bar icon's menu; Settings' Check Now does the same.
+- The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has New Spread, then the
+  same Settings… and Quit. Check for Updates… is only in the menu bar icon's menu; Settings' Check Now does the same.
 - A `cv` run never starts Sparkle: no build `cv build` makes is stamped by `scripts/package.sh`,
   and a scratch run of a stamped build does not start it either (only `verify-update.sh`'s test
   copy, marked `IdeatorUpdateTest`, does). No Sparkle object exists, so nothing goes to GitHub and no

@@ -121,6 +121,61 @@ struct PoppedCard: Equatable {
     var place: Place
 }
 
+/// What a click on the stack ribbon's Spread button does now. Derived from the desk on every render
+/// (`Desk.spreadIsOut`), never stored, so it can't drift from where the set's cards are.
+enum SpreadButton: Equatable {
+    /// Lay the set out, or make one ("Spread cards").
+    case spread
+    /// A card of the set is on the desktop, so a click gathers ("Gather cards").
+    case gather
+}
+
+/// The Spread button's batch of cards: which cards are in it, where each goes back to, and the
+/// cells it was last laid out for. A card stays in it wherever it goes (moved, ↩ Stack, popped by
+/// hand, rearranged) until it is deleted, a fresh set replaces the set, or a layout onto fewer cells
+/// lets it go. Never empty: the desk holds nil instead, so "no set" has one spelling, and "every
+/// card in the set was deleted" and "never spread" are the same state.
+///
+/// Only this file can build or change one; tests build one through `Desk(notes:saved:)` with a
+/// `SavedSpread`, as the desk check's seeds do.
+struct SpreadSet: Equatable {
+    /// The ticked cells the last layout carried, all of them, not only those that got a card, so an
+    /// unchanged Settings never moves the set. A click carrying other cells moves the set onto them.
+    let cells: SpreadCells
+    /// Every card of the set and where Spread puts it back. For a stacked card it is where the card
+    /// last was on the desktop (or the cell a layout gave it, if it has not been out since). For a
+    /// card on the desktop it is never read: every way off the desktop goes through
+    /// `Desk.removePopped`, which writes it first, and a click with a set card out gathers instead
+    /// of laying out.
+    private(set) var homes: [CardID: Place]
+
+    fileprivate init?(cells: SpreadCells, homes: [CardID: Place]) {
+        guard !homes.isEmpty else { return nil }
+        self.cells = cells
+        self.homes = homes
+    }
+
+    func contains(_ id: CardID) -> Bool { homes[id] != nil }
+
+    /// The set's cards in Spread's reading order of their homes.
+    var inReadingOrder: [(id: CardID, home: Place)] {
+        Desk.inReadingOrder(homes.map { (id: $0.key, home: $0.value) }, place: \.home, id: \.id)
+    }
+
+    /// A card of the set leaving the desktop from `place`. Nothing for a card not in the set, so
+    /// `removePopped` can call it for every card.
+    fileprivate mutating func remember(_ id: CardID, at place: Place) {
+        if homes[id] != nil { homes[id] = place }
+    }
+
+    /// The set without `id`; nil when that was its last card.
+    fileprivate func removing(_ id: CardID) -> SpreadSet? {
+        var rest = homes
+        rest[id] = nil
+        return SpreadSet(cells: cells, homes: rest)
+    }
+}
+
 // MARK: - Commands
 
 /// Every way the state can change. Views, the summarizer and the folder rescan all send these to
@@ -167,6 +222,22 @@ enum Command {
     /// Top puts it on top and shows it, unless `typing` (the user is typing in the stacked card, which
     /// the controller reads from the windows), which keeps the page. Bottom keeps the page.
     case addFromTool(Note, at: Date, to: Landing, typing: Bool)
+    /// The stack ribbon's Spread button. `fresh` is Option-click, or New Spread in the ribbon's menu.
+    /// `cells` are the cells ticked in Settings when it was pressed: the desk can't read Preferences,
+    /// so they travel here, as `addFromTool`'s `Landing` does.
+    /// - Not fresh, with any card of the set on the desktop: Gather. Those cards go to the bottom of
+    ///   the stack in reading order of their places, each remembering its place, and the stack keeps
+    ///   its page. `cells` is not read, so a Settings change waits for the next Spread.
+    /// - Otherwise the set is laid out on `cells`. Fresh first sends the old set's desktop cards to
+    ///   the bottom of the stack as ordinary cards and drops the set. A set laid out for these same
+    ///   cells puts each card back at its home. With other cells, or no set, the card in the first
+    ///   old home gets the first cell and so on, cards past the last cell leave the set, and cells
+    ///   past the last card get new blank cards that join it. A card comes out only where Pop's rule
+    ///   finds its cell untaken and under the 19-card ceiling; one that can't stays stacked, still in
+    ///   the set. New blank cards turn Clarity off, as New does; putting set cards back does not.
+    /// - A layout that would put no card on the desktop changes nothing at all, the fresh sweep
+    ///   included. The controller beeps on exactly that: the desk is `==` to what it was.
+    case spread(SpreadCells, fresh: Bool, at: Date)
 
     /// The card being typed into, for the summarizer's quiet period.
     var typedCard: CardID? {
@@ -183,7 +254,8 @@ enum Command {
 /// - every card is in exactly one place (one desktop entry or one stack position);
 /// - no two snapped items (cards or the stack) share a slot; free ones may overlap anything;
 /// - at most `Slot.count - 1` cards are on the desktop;
-/// - `selection` is in `0...stack.count`.
+/// - `selection` is in `0...stack.count`;
+/// - every card of `spreadSet` is a card on the desk, and the set is never empty (nil instead).
 struct Desk: Equatable {
     /// The cards on the desktop, in the order they arrived.
     private(set) var popped: [PoppedCard]
@@ -201,6 +273,9 @@ struct Desk: Equatable {
     /// Whether every card, popped or stacked, shows its summary in place of its body (the stack's
     /// Clarity button). The only collapse state there is: a card has none of its own.
     private(set) var clarity: Bool
+    /// The Spread button's batch. Nil before the first Spread and again once its last card is
+    /// deleted, so the next click makes a fresh set. Saved in the sidecar (`SavedDesk.spread`).
+    private(set) var spreadSet: SpreadSet?
 
     /// Rebuilds the desk from disk. `notes` decides which cards exist; `saved` only places them.
     /// Total over any input: unknown ids, invalid or doubly-used slots and duplicates are dropped,
@@ -242,11 +317,18 @@ struct Desk: Equatable {
             stack.append(c)
             placed.insert(id)
         }
+        // The set: an entry must name a card and a valid place, and the first such entry per card
+        // wins. Never dropped for being occupied: a home is a wish, checked only when Spread runs.
+        var homes: [CardID: Place] = [:]
+        for m in saved.spread?.members ?? [] where homes[m.card] == nil && notes[m.card] != nil {
+            if let at = place(slot: m.slot, free: m.free) { homes[m.card] = at }
+        }
         self.popped = popped
         self.stackPlace = stackPlace
         self.stack = stack
         self.selection = 0
         self.clarity = saved.clarity
+        self.spreadSet = saved.spread.flatMap { SpreadSet(cells: SpreadCells(indices: $0.cells), homes: homes) }
     }
 
     // MARK: Queries
@@ -255,9 +337,15 @@ struct Desk: Equatable {
     /// takes, snapped or covering it most. Nil = "Desktop full", which also holds at 19 popped
     /// cards, since free cards piled into one slot leave others untaken.
     var firstFreeSlot: Slot? {
-        guard popped.count < Slot.count - 1 else { return nil }
-        let taken = Set(popped.map(\.place.slot) + [stackPlace.slot])
-        return Slot.all.first { !taken.contains($0) }
+        let room = Occupancy(self)
+        return Slot.all.first(where: room.admits)
+    }
+
+    /// Whether any card of the set is on the desktop. Both the Spread button's face and the Gather
+    /// branch of `Command.spread` ask this, so the tooltip and the click never disagree.
+    var spreadIsOut: Bool {
+        guard let set = spreadSet else { return false }
+        return popped.contains { set.contains($0.card.id) }
     }
 
     var allCards: [Card] { poppedCards + stack }
@@ -290,8 +378,8 @@ struct Desk: Equatable {
 
     // MARK: The one mutation entry point
 
-    /// Applies `command` and returns the card that just arrived on the desktop (the new card or
-    /// the popped card), if any.
+    /// Applies `command` and returns the card that just arrived on the desktop (the new card, the
+    /// popped card, or the first new card a Spread made), if any.
     /// Every branch is total: a command naming a card that no longer exists is a no-op.
     @discardableResult
     mutating func apply(_ command: Command) -> CardID? {
@@ -313,6 +401,7 @@ struct Desk: Equatable {
             update(id) { card in if summary.source == card.digest { card.summary = summary } }
         case .syncFiles(let notes): syncFiles(notes)
         case .addFromTool(let note, let date, let landing, let typing): addFromTool(note, at: date, to: landing, typing: typing)
+        case .spread(let cells, let fresh, let date): return pressSpread(cells, fresh: fresh, at: date)
         }
         return nil
     }
@@ -338,10 +427,11 @@ struct Desk: Equatable {
         return card.id
     }
 
-    /// The card forgets where it was: a later Pop takes the first free slot.
+    /// An ordinary card forgets where it was: a later Pop takes the first free slot. A card of the
+    /// Spread set remembers it for the next Spread, and stays in the set.
     private mutating func returnToStack(_ id: CardID) {
         guard let i = popped.firstIndex(where: { $0.card.id == id }) else { return }
-        insertCard(popped.remove(at: i).card, at: 0)
+        insertCard(removePopped(at: i), at: 0)
         selection = 0
     }
 
@@ -404,7 +494,10 @@ struct Desk: Equatable {
     }
 
     /// Deleting the selected stacked card shows the one under it (the blank page after the last).
+    /// The only way a card leaves the Spread set, other than Spread itself; `syncFiles` comes here
+    /// for a file that vanished.
     private mutating func delete(_ id: CardID) {
+        spreadSet = spreadSet?.removing(id)
         if let i = popped.firstIndex(where: { $0.card.id == id }) {
             popped.remove(at: i)
         } else if let i = stack.firstIndex(where: { $0.id == id }) {
@@ -444,6 +537,103 @@ struct Desk: Equatable {
         }
     }
 
+    /// See `Command.spread`. Lays out on a copy, so a layout that puts nothing out leaves the desk
+    /// exactly as it was, the fresh sweep included.
+    private mutating func pressSpread(_ cells: SpreadCells, fresh: Bool, at date: Date) -> CardID? {
+        if !fresh, spreadIsOut, let set = spreadSet {
+            stackAtBottom(popped.map(\.card.id).filter(set.contains))
+            return nil
+        }
+        var next = self
+        if fresh { next.dropSpreadSet() }
+        guard let laid = next.layOut(cells, at: date) else { return nil }
+        self = next
+        return laid.firstNew
+    }
+
+    /// What a layout did, when it put at least one card out.
+    private struct LaidOut {
+        /// The first new blank card, for the controller to focus. Nil when the layout only put set
+        /// cards back.
+        let firstNew: CardID?
+    }
+
+    /// Lays the set out on `cells`, with no card of the set on the desktop (the caller gathered
+    /// instead, or a fresh sweep dropped the set). Nil when no card came out: the caller then throws
+    /// this copy away.
+    private mutating func layOut(_ cells: SpreadCells, at date: Date) -> LaidOut? {
+        let old = spreadSet?.inReadingOrder ?? []
+        let homes: [(id: CardID, home: Place)]
+        let extras: [Slot]
+        if let set = spreadSet, set.cells == cells {
+            homes = old
+            extras = []
+        } else {
+            let order = cells.inReadingOrder
+            homes = zip(old, order).map { (id: $0.id, home: .slot($1)) }
+            extras = Array(order.dropFirst(old.count))
+        }
+
+        // Set cards first, since they hold what the user wrote, then new blank cards.
+        var room = Occupancy(self)
+        var cameOut = 0
+        for (id, home) in homes {
+            guard room.admits(home.slot),
+                  let i = stack.firstIndex(where: { $0.id == id }) else { continue }
+            popped.append(PoppedCard(card: removeCard(at: i), place: home))
+            room.take(home.slot)
+            cameOut += 1
+        }
+        var made: [(id: CardID, home: Place)] = []
+        for cell in extras where room.admits(cell) {
+            clarity = false   // Spread's new blank cards open expanded, as New's do
+            let blank = Card(id: freshID(at: date), note: .blank)
+            popped.append(PoppedCard(card: blank, place: .slot(cell)))
+            room.take(cell)
+            made.append((id: blank.id, home: .slot(cell)))
+        }
+        guard cameOut + made.count > 0 else { return nil }
+
+        spreadSet = SpreadSet(cells: cells, homes: Dictionary(uniqueKeysWithValues: (homes + made).map { ($0.id, $0.home) }))
+        return LaidOut(firstNew: made.first?.id)
+    }
+
+    /// Fresh: the old set's desktop cards go to the bottom of the stack as ordinary cards, its
+    /// stacked cards stay where they are as ordinary cards, and the set is gone.
+    private mutating func dropSpreadSet() {
+        guard let set = spreadSet else { return }
+        spreadSet = nil   // first, so the sweep remembers nothing
+        stackAtBottom(popped.map(\.card.id).filter(set.contains))
+    }
+
+    /// These desktop cards go to the bottom of the stack in reading order of their places, through
+    /// `insertCard`, so the stack keeps its page. Gather and the fresh sweep both use it.
+    private mutating func stackAtBottom(_ ids: [CardID]) {
+        let leaving = Desk.inReadingOrder(popped.filter { ids.contains($0.card.id) }, place: \.place, id: \.card.id)
+        for one in leaving {
+            guard let i = popped.firstIndex(where: { $0.card.id == one.card.id }) else { continue }
+            insertCard(removePopped(at: i), at: stack.count)
+        }
+    }
+
+    /// The only way a card goes from the desktop to the stack: ↩ Stack, Gather and the fresh sweep.
+    /// A card of the set remembers where it was, which is where the next Spread puts it back.
+    private mutating func removePopped(at i: Int) -> Card {
+        let leaving = popped.remove(at: i)
+        spreadSet?.remember(leaving.card.id, at: leaving.place)
+        return leaving.card
+    }
+
+    /// Spread's reading order: by `Place.readingKey`, then by id, so two cards remembering the very
+    /// same place still have an order. Gather, the fresh sweep, the put-back and the remap all sort
+    /// with this.
+    fileprivate static func inReadingOrder<T>(_ items: [T], place: (T) -> Place, id: (T) -> CardID) -> [T] {
+        items.sorted { a, b in
+            let (ka, kb) = (place(a).readingKey, place(b).readingKey)
+            return ka != kb ? ka < kb : id(a) < id(b)
+        }
+    }
+
     /// The only way a card enters `stack`. `selection` keeps pointing at the page it pointed at.
     private mutating func insertCard(_ card: Card, at i: Int) {
         stack.insert(card, at: i)
@@ -472,6 +662,27 @@ struct Desk: Equatable {
         f.dateFormat = "yyyy-MM-dd HHmmss"
         return f
     }()
+}
+
+/// Pop's rule for one more card on the desktop: not onto a cell that a card or the stack takes,
+/// snapped or covering it most, and never a 20th card. The one copy of that rule, used by
+/// `firstFreeSlot` (Pop, New, "Desktop full") and by Spread, which takes cells one by one as it
+/// places cards.
+private struct Occupancy {
+    private var taken: Set<Slot>
+    private var count: Int
+
+    init(_ desk: Desk) {
+        taken = Set(desk.popped.map(\.place.slot) + [desk.stackPlace.slot])
+        count = desk.popped.count
+    }
+
+    func admits(_ cell: Slot) -> Bool { count < Slot.count - 1 && !taken.contains(cell) }
+
+    mutating func take(_ cell: Slot) {
+        taken.insert(cell)
+        count += 1
+    }
 }
 
 // MARK: - What the windows show (pure derivations)
@@ -513,6 +724,8 @@ struct StackFace: Equatable {
     let clarity: Bool
     /// Derived from `firstFreeSlot`, so there is no "full" flag to set or clear.
     let desktopFull: Bool
+    /// What the Spread button does on a click. Derived from `spreadIsOut`.
+    var spreadButton = SpreadButton.spread
 }
 
 extension Desk {
@@ -524,7 +737,8 @@ extension Desk {
     func stackFace(hasKey: Bool) -> StackFace {
         StackFace(stacked: stack.map { StackRow(id: $0.id, title: $0.note.title) },
                   selected: selectedCard.map { face(of: $0, hasKey: hasKey) },
-                  clarity: clarity, desktopFull: firstFreeSlot == nil)
+                  clarity: clarity, desktopFull: firstFreeSlot == nil,
+                  spreadButton: spreadIsOut ? .gather : .spread)
     }
 
     private func face(of card: Card, hasKey: Bool) -> CardFace {
@@ -618,6 +832,17 @@ struct SavedDesk: Codable, Equatable {
     /// Successful summaries only: a failure has no `text`, so it cannot be written here. Each is
     /// kept on load only if the current prompt wrote it.
     var summaries: [SavedSummary] = []
+    /// Optional, with no version bump: synthesized `Decodable` requires every non-Optional key, even
+    /// one with a default, and `Library.load` would read a sidecar written before Spread as none.
+    var spread: SavedSpread?
+}
+
+/// The Spread set. Its fields are required whenever the `spread` key is present.
+struct SavedSpread: Codable, Equatable {
+    /// `SpreadCells.indices`: the cells the set was last laid out for. Validated on load.
+    var cells: [Int]
+    /// Each card of the set and where it goes back to, sorted by id so the file is stable.
+    var members: [SavedPlacement]
 }
 
 /// A popped card's place: `free` if set, else `slot`.
@@ -649,8 +874,17 @@ extension Desk {
             summaries: cards.compactMap { card in
                 guard let summary = card.summary, case .text(let text) = summary.outcome else { return nil }
                 return SavedSummary(card: card.id, source: summary.source, text: text, prompt: Summary.prompt)
-            }
+            },
+            spread: spreadSet.map { SavedSpread($0) }
         )
+    }
+}
+
+private extension SavedSpread {
+    init(_ set: SpreadSet) {
+        self.init(cells: set.cells.indices,
+                  members: set.homes.sorted { $0.key < $1.key }
+                      .map { SavedPlacement(slot: $0.value.savedSlot, free: $0.value.savedFree, card: $0.key) })
     }
 }
 

@@ -123,6 +123,11 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private let resetInstruction = NSButton(title: "Reset to Default", target: nil, action: nil)
     private let connectNote = NSTextField(wrappingLabelWithString: "")
     private let connect: HelperCommand
+    private let spread: SpreadChoice
+    /// The stack's cell now, which can't be ticked. `Slot.stackHome` before the desk exists.
+    private let stackCell: () -> Slot
+    private let spreadPicker = SpreadCellPicker()
+    private let spreadNote = NSTextField(wrappingLabelWithString: "")
     private let pasteboard: NSPasteboard
     private var connectButtons: [(tool: AITool, button: NSButton)] = []
     private var copied: AITool?
@@ -138,12 +143,16 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
     init(keys: KeyStore, hotKey: HotKey, updates: Updates,
          aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
          connect: HelperCommand = HelperCommand(app: Bundle.main.bundleURL, scratchFolder: nil),
+         spread: SpreadChoice = SpreadChoice(preferences: Preferences(defaults: nil)),
+         stackCell: @escaping () -> Slot = { Slot.stackHome },
          pasteboard: NSPasteboard = .general, maxContentHeight: CGFloat? = nil, onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
         self.updates = updates
         self.aiTools = aiTools
         self.connect = connect
+        self.spread = spread
+        self.stackCell = stackCell
         self.pasteboard = pasteboard
         self.maxContentHeight = maxContentHeight
         self.onChange = onChange
@@ -185,6 +194,11 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         defaultButton.action = #selector(useDefaultShortcut)
         let shortcutRow = NSStackView(views: [shortcutField, defaultButton])
         shortcutRow.spacing = 8
+
+        spreadPicker.onToggle = { [unowned self] slot in
+            self.spread.cells = self.spread.cells.toggling(slot)
+            refresh()
+        }
 
         field.placeholderString = "sk-ant-… or sk-…"
         field.target = self
@@ -247,7 +261,8 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
             connectRow.addArrangedSubview(copy)
         }
 
-        for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("API key (Anthropic or OpenAI)"), field,
+        for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote),
+                     heading("Spread"), spreadPicker, caption(spreadNote), heading("API key (Anthropic or OpenAI)"), field,
                      caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
                      heading("AI tools"), allowAITools, landingRow,
                      NSTextField(labelWithString: "Instruction for AI tools"),
@@ -263,6 +278,7 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         stack.alignment = .leading
         stack.spacing = 10
         stack.setCustomSpacing(18, after: shortcutNote)
+        stack.setCustomSpacing(18, after: spreadNote)
         stack.setCustomSpacing(18, after: buttons)
         stack.setCustomSpacing(18, after: updatesNote)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
@@ -306,6 +322,8 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
         shortcutNote.stringValue = Self.shortcutCaption(shortcut: hotKey.shortcut, problem: hotKey.problem,
                                                         usedByMacOS: hotKey.shortcut.isUsedByMacOS(),
                                                         rejected: rejected)
+        spreadPicker.show(spread.cells, stackCell: stackCell())
+        spreadNote.stringValue = Self.spreadCaption(cells: spread.cells)
         status.stringValue = Self.keyStatus(provider: keys.provider, inKeychain: keys.inKeychain)
         privacyNote.stringValue = Self.privacy(for: keys.provider)
         autoCheck.state = updates.checksAutomatically ? .on : .off
@@ -349,6 +367,14 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
                 + "Shortcuts). If it fires instead of Ideator, pick another here."
         }
         return "Hides or shows every card, from any app. Click it, then press the new keys."
+    }
+
+    static func spreadCaption(cells: SpreadCells) -> String {
+        if cells.isEmpty {
+            return "No cell is ticked, so Spread makes no card. Tick the cells it should fill. The dimmed cell is the stack's."
+        }
+        return "Spread on the stack's ribbon puts a new card in each ticked cell. Its next click gathers them into the "
+            + "stack, and the click after puts them back. Option-click starts a new set. The dimmed cell is the stack's."
     }
 
     static func updatesCaption(build: BuildInfo, plan: UpdatePlan) -> String {
@@ -447,6 +473,73 @@ final class SettingsWindow: NSWindow, NSTextViewDelegate {
 /// A view whose origin is its top left, so a scroll view opens on its first row.
 private final class FlippedView: NSView {
     override var isFlipped: Bool { true }
+}
+
+/// Settings › Spread: the desktop's 5 × 4 cells as small toggle buttons, in reading order. Each has
+/// no title (Settings tests find buttons by title) and the accessibility label "Spread cell N", N
+/// from 1 to 20. The stack's cell shows the stack's symbol, dimmed and disabled, whatever is stored
+/// for it; when the stack moves away, a stored tick there shows again.
+final class SpreadCellPicker: NSView {
+    /// About the shape of one cell of a laptop screen.
+    static let cellSize = NSSize(width: 30, height: 22)
+    static let spacing: CGFloat = 4
+    var onToggle: (Slot) -> Void = { _ in }
+    /// In `Slot.all` order.
+    private let buttons: [NSButton]
+
+    init() {
+        buttons = Slot.all.map { slot in
+            let button = NSButton(title: "", target: nil, action: nil)
+            button.setButtonType(.pushOnPushOff)
+            button.bezelStyle = .smallSquare
+            button.imagePosition = .imageOnly
+            button.setAccessibilityLabel("Spread cell \(slot.index + 1)")
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.widthAnchor.constraint(equalToConstant: Self.cellSize.width).isActive = true
+            button.heightAnchor.constraint(equalToConstant: Self.cellSize.height).isActive = true
+            return button
+        }
+        super.init(frame: .zero)
+        for button in buttons {
+            button.target = self
+            button.action = #selector(toggle)
+        }
+        let grid = NSGridView(views: (0..<Slot.rows).map { row in
+            Array(buttons[row * Slot.columns..<(row + 1) * Slot.columns])
+        })
+        grid.rowSpacing = Self.spacing
+        grid.columnSpacing = Self.spacing
+        grid.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(grid)
+        // The picker has no intrinsic size, so the settings stack stretches it to the full width and
+        // the grid hands the extra to one column.
+        let columns = CGFloat(Slot.columns), rows = CGFloat(Slot.rows)
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: columns * Self.cellSize.width + (columns - 1) * Self.spacing),
+            heightAnchor.constraint(equalToConstant: rows * Self.cellSize.height + (rows - 1) * Self.spacing),
+            grid.topAnchor.constraint(equalTo: topAnchor),
+            grid.bottomAnchor.constraint(equalTo: bottomAnchor),
+            grid.leadingAnchor.constraint(equalTo: leadingAnchor),
+            grid.trailingAnchor.constraint(equalTo: trailingAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func show(_ cells: SpreadCells, stackCell: Slot) {
+        for (slot, button) in zip(Slot.all, buttons) {
+            let ticked = slot != stackCell && cells.contains(slot)
+            button.isEnabled = slot != stackCell
+            button.state = ticked ? .on : .off
+            button.image = slot == stackCell ? NSImage(systemSymbolName: "rectangle.stack", accessibilityDescription: "The stack")
+                : ticked ? NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) : nil
+        }
+    }
+
+    @objc private func toggle(_ sender: NSButton) {
+        guard let i = buttons.firstIndex(of: sender) else { return }
+        onToggle(Slot.all[i])
+    }
 }
 
 /// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the

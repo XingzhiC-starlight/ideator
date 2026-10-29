@@ -38,8 +38,8 @@ func send(_ command: Command) {
 
 | File | What it owns |
 | --- | --- |
-| `Desk.swift` | the state, `Command`, every rule (pop, flip, swap, clarity, restore), and Hide all's `Visibility` |
-| `Grid.swift` | slots, free positions, the snap rule, the overhang limit, frames and edge bands (pure) |
+| `Desk.swift` | the state, `Command`, every rule (pop, flip, swap, clarity, Spread, restore), and Hide all's `Visibility` |
+| `Grid.swift` | slots, free positions, the snap rule, the overhang limit, frames and edge bands, and `SpreadCells`, the cells Spread fills (pure) |
 | `Note.swift` | a card's content, its Markdown format, the typing rules for lists, and the level tidy-up |
 | `Clipboard.swift` | copy and paste formats: a run of lines to and from Markdown text and HTML lists (pure) |
 | `DeskController.swift` | the single owner of the desk and of every window |
@@ -49,11 +49,12 @@ func send(_ command: Command) {
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
 | `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
-| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run, which also picks the key store); the persisted shortcut, and no persistence at all in a scratch run |
+| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run, which also picks the key store); the persisted shortcut and Spread cells, and no persistence at all in a scratch run |
 | `Welcome.swift` | the first-launch card and its copy |
 | `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
-| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, the AI tools rows (the instruction editor and the copy buttons) and the privacy line in one window as tall as its rows or the screen's room, scrolling when the rows are taller; entry point, menu bar, reopen |
+| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the Spread cell grid, the update controls with the version line, the AI tools rows (the instruction editor and the copy buttons) and the privacy line in one window as tall as its rows or the screen's room, scrolling when the rows are taller; entry point, menu bar, reopen |
+| `Spread.swift` | the Spread button's presentation: `SpreadChoice`, the ticked cells for this run, `SpreadRefusal`, why the last click changed nothing, and the button's tooltip |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 | `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls); `Instruction`, the text an AI tool gets at a session start and its preference key, and `InstructionSource`, how the helper learns it without starting the app |
 | `Helper/main.swift` | the `ideator-mcp` process: its arguments, starting the app that contains it, and the stdio loop |
@@ -110,6 +111,7 @@ func send(_ command: Command) {
   place and the toggle button's icon all derive from it. The icon shows what a click does (a
   chevron up to fold the stack into its ribbon, down to unfold it), and so does the tooltip.
   The toggle calls `DeskController.toggleHidden`, the path the global shortcut takes, not a `Command`.
+  Spread turns Hide all off before it sends its command, so every card it brings out shows.
 - **The notes folder opens last.** `DeskController` creates `~/Documents/Ideator` when it is built, and
   that first access is what makes macOS ask for the Documents folder. `Launch.run` is the only caller
   of the closure that builds it, and it calls it after the welcome's Continue, or at once when no
@@ -697,6 +699,44 @@ Later changes, after trying the app:
   shortens the hover row by one button, so the title has that much more room. An old sidecar
   that still has a `collapsed` list loads, because the decoder ignores unknown keys, and the next
   save leaves the list out.
+- 2026-10-29, Spread: a fourth ribbon icon, between Hide all and Clarity, lays a batch of new blank
+  cards into the cells ticked in Settings, gathers them into the stack, and brings them back.
+  - One owner for the batch: `Desk.spreadSet: SpreadSet?`, the cells it was laid out for and one
+    home per card. It is never empty, nil instead, so "never spread" and "every card deleted" are
+    one state, and the next click is fresh in both. Whether it is out is derived, never stored, so
+    a card popped or sent back by hand can't make it drift.
+  - One command, `Command.spread(cells, fresh:, at:)`, means "the button was pressed". The desk
+    decides Gather or lay out. The cells travel in the command, as `addFromTool`'s landing does,
+    because the desk can't read Preferences, and that is why a Settings change moves the set at
+    the next press, never at once.
+  - A home is written in one place, `removePopped`, the only way from the desktop to the stack, so
+    Gather, the fresh sweep and ↩ Stack all record where a card was. Nothing reads a home while its
+    card is out. ↩ Stack still forgets an ordinary card's place.
+  - Pop's rule moved into `Occupancy` (a cell taken by a card or the stack, and the 19-card
+    ceiling), which `firstFreeSlot` and Spread share, so "taken" has one copy.
+  - A layout runs on a copy of the desk and commits only if a card came out, so a refused click,
+    fresh included, changes nothing. The controller beeps when the desk is `==` to what it was, a
+    promise the desk check states as P8. The reason (no cells, or every cell taken) is controller
+    state like `Visibility`, never saved, and the tooltip shows it.
+  - The sidecar's `spread` is Optional with no version bump, because a non-Optional field would
+    make every older sidecar fail to decode and load as none. A home is never dropped on load for
+    being taken: it is a wish, checked when Spread runs.
+  - The ribbon's ⋯ menu stops being only Settings… and Quit: New Spread is Option-click in words,
+    for VoiceOver and for a click with no Option key, and the button also has a "New spread"
+    accessibility action. Its tooltip stays "Settings and quit", which still says what the menu
+    is for.
+  - The four icons are spaced by ink, and the ink is measured on the very pixels the button shows.
+    A symbol redraws for every context it is drawn in. On CI's macOS 26, whose screen is 1x, the
+    window drew the plus, the chevron and the grid 0.6 to 1 point narrower than the same symbols
+    drawn on their own, so ink measured on its own left gaps of 12.5 to 13 points. Each icon is
+    now drawn once into a bitmap at the window's pixel density, the button shows that bitmap, and
+    the icons sit on whole pixels, so every gap is 12 points of pixels at 1x and 2x. Whole pixels
+    also keep AppKit from shifting an image that would land on a half pixel. The spacing test reads
+    the ink from the window's own layer contents, not from a drawing made offscreen.
+  - Three sketches (Opus, Sonnet, Fable) agreed on the command, the derived face and the Optional
+    sidecar field. Membership on each `Card` lost: it splits the batch between cards and desk, and
+    "no set" gets two spellings once the last card goes. An array of members lost to the
+    dictionary, which makes one home per card a type fact.
 
 ## Tradeoffs accepted
 
@@ -730,6 +770,12 @@ Later changes, after trying the app:
   exchange for a form whose presence says Ideator wrote it and whose value is the data, with
   nothing to pair across two entries. A paste of Ideator's own copy keeps a blank last line that
   the plain-text rules would drop.
+- We accept that Spread is one command that toggles (press twice: gather, then put back), in
+  exchange for the desk alone deciding Gather or lay out, so the face and the click never disagree.
+- We accept that a Spread card on the desktop carries a stale home, in memory and in the sidecar,
+  in exchange for one place that writes homes. Nothing reads a home while its card is out.
+- We accept that a fresh Spread that can make no card does not even send the old set's cards back,
+  in exchange for one rule with no exceptions: a refused click changes nothing.
 
 ## Alternatives considered
 
@@ -757,6 +803,8 @@ Later changes, after trying the app:
 - New, and the first character typed on the blank page, turn Clarity off, so the new card opens
   expanded with the cursor in it. New on a full desktop makes no card and leaves Clarity alone.
 - While hidden, swipes and edge bands do nothing: there is no card area to switch.
+- A ticked Spread cell that was taken when the set was laid out stays empty at later Spreads until
+  Settings changes or a fresh set is made, and putting Spread cards back gives none the cursor.
 - The menu bar menu adds "Settings…" so the API key has somewhere to go.
 - With no API key, a collapsed card shows "Summary unavailable" with the reason on hover ("No API key.
   Add one in Settings.").

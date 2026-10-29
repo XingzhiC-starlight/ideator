@@ -16,12 +16,12 @@ Requires macOS 15 or later and Xcode 26.
 Ideator is a menu bar app, so it has no Dock icon. Look for the stacked-rectangles icon in the menu
 bar: it has Show All, Hide All, Open Stack, Settings…, Check for Updates… and Quit. **⌃⌥I** hides
 or shows every card from anywhere (Settings… changes it). Hide All leaves the stack's tan ribbon
-where the stack is, so New, Clarity and the menu stay in reach. Opening Ideator again from Finder or
+where the stack is, so New, Spread, Clarity and the menu stay in reach. Opening Ideator again from Finder or
 Spotlight shows everything.
 
 On a MacBook with a crowded menu bar, macOS may hide the icon behind the camera notch. The stack's
-tan ribbon has what you need: the eye button hides or shows everything (an open eye while cards
-show, a slashed eye while they are hidden), and **⋯** at its right opens Settings… and Quit.
+tan ribbon has what you need: the chevron hides or shows everything (it points up while cards
+show and down while they are hidden), and **⋯** at its right opens New Spread, Settings… and Quit.
 
 ## Build from the command line
 
@@ -303,7 +303,7 @@ and never checks for updates, except in the test copies `scripts/verify-update.s
 ## Where notes live
 
 Each card is a Markdown file in `~/Documents/Ideator/`. Slot positions, stack order, whether Clarity
-is on and cached summaries live in the hidden file `~/Documents/Ideator/.cards.json`. To try the app
+is on, cached summaries and the Spread set live in the hidden file `~/Documents/Ideator/.cards.json`. To try the app
 against another folder, pass `-CardsFolder /path/to/folder` as a launch argument (in Xcode: Product
 › Scheme › Edit Scheme › Run › Arguments). Only the argument counts: a `CardsFolder` key in
 Ideator's preferences changes nothing.
@@ -325,9 +325,10 @@ off, and the first save replaces it. The notes themselves are kept.
 | Bring a card out | Select it, hover it and click **↗ Pop** |
 | Move a card | Drag it by its title or by the margin around its text. Let go close to a cell's center (within 15 % of a cell) and it snaps into that cell, and a card or the stack snapped there trades places with it; let go anywhere else and it stays exactly there, over other cards, even partly off the left, right or bottom edge |
 | Put a card back | Hover it and click **↩ Stack** |
+| Lay out a batch of cards | Click **Spread** on the stack's ribbon (the grid): a new blank card fills each cell ticked in Settings › Spread. Click it again to gather them into the bottom of the stack, and again to put them back where they were. Option-click, or **New Spread** in **⋯**, starts a new batch |
 | Reorder the stack | Click the count badge in the stack's corner, then drag a card's row by its grip (≡), or select a row and press ⌥↑ or ⌥↓ |
 | Collapse to a summary | Click **Clarity** on the stack's ribbon: every card, stacked and popped, shows its summary (the icon is filled while on). Clarity turns off when you click a collapsed card or make a new card |
-| Hide every card | Click the eye on the stack's ribbon, press ⌃⌥I, or choose **Hide All** from the menu bar icon; the stack shrinks to its ribbon, and the same again shows everything |
+| Hide every card | Click the chevron on the stack's ribbon, press ⌃⌥I, or choose **Hide All** from the menu bar icon; the stack shrinks to its ribbon, and the same again shows everything |
 | Format | ⌘B, ⌘I, or start a line with `- `, `* `, `1. `, `[] ` or `[ ] `; the bar at the bottom of the card has the same five actions |
 | Nest a list item | **Tab** moves it one level deeper, up to three levels, and **Shift-Tab** one level up |
 | Copy and paste | ⌘C on a selection inside one line copies just its text. A selection across a line break copies every line it touches as Markdown and as an HTML list, so Notes and Mail paste a real list and Markdown apps paste Markdown; ⌘V reads lists from Notes, web pages, the Claude app and terminal output |
