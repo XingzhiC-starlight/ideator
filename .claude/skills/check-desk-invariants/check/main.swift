@@ -18,8 +18,9 @@ func note(_ header: String, _ body: String...) -> Note {
 
 func cid(_ name: String) -> CardID { CardID(rawValue: name) }
 
-/// Starting desks, each through `Desk(notes:saved:)` as a launch builds it.
-let seeds: [(name: String, desk: Desk)] = {
+/// Starting desks, each through `Desk(notes:saved:)` as a launch builds it. `notes` and `saved` are
+/// kept so the check can compare what the load kept with what the sidecar held.
+let seeds: [(name: String, notes: [CardID: Note], saved: SavedDesk, desk: Desk)] = {
     let few = ["a": note("A", "one"), "b": note("B", "one", "two"), "c": note("C")]
     let fewNotes = Dictionary(uniqueKeysWithValues: few.map { (cid($0.key), $0.value) })
 
@@ -35,16 +36,28 @@ let seeds: [(name: String, desk: Desk)] = {
     pileNotes[cid("f")] = note("F")
     placements.append(SavedPlacement(free: Slot.all[0].center, card: cid("f")))
 
-    return [
-        ("empty", Desk(notes: [:], saved: SavedDesk())),
-        ("three stacked", Desk(notes: fewNotes, saved: SavedDesk(stack: [cid("b"), cid("a"), cid("c")]))),
-        ("mixed", Desk(notes: fewNotes, saved: SavedDesk(
-            clarity: true, stackFree: GridPoint(x: 0.5, y: 0.6),
-            placements: [SavedPlacement(slot: 0, card: cid("a")),
-                         SavedPlacement(free: GridPoint(x: 0.31, y: 0.12), card: cid("b"))],
-            stack: [cid("c")], collapsed: [cid("a")]))),
-        ("near full", Desk(notes: pileNotes, saved: SavedDesk(placements: placements, stack: [cid("a"), cid("b")]))),
+    let stacked = SavedDesk(stack: [cid("b"), cid("a"), cid("c")])
+    let mixed = SavedDesk(
+        clarity: true, stackFree: GridPoint(x: 0.5, y: 0.6),
+        placements: [SavedPlacement(slot: 0, card: cid("a")),
+                     SavedPlacement(free: GridPoint(x: 0.31, y: 0.12), card: cid("b"))],
+        stack: [cid("c")], collapsed: [cid("a")])
+    let full = SavedDesk(placements: placements, stack: [cid("a"), cid("b")])
+
+    // Card a's summary was written by the current prompt, card b's by another one, and both describe
+    // the card's current text, so only the prompt tells a load to keep one and drop the other.
+    let otherPrompt = Digest(rawValue: "another prompt")
+    precondition(otherPrompt != Summary.prompt)
+    let summarized = SavedDesk(
+        stack: [cid("a"), cid("b"), cid("c")],
+        summaries: [SavedSummary(card: cid("a"), source: few["a"]!.digest, text: "kept", prompt: Summary.prompt),
+                    SavedSummary(card: cid("b"), source: few["b"]!.digest, text: "dropped", prompt: otherPrompt)])
+
+    let desks: [(String, [CardID: Note], SavedDesk)] = [
+        ("empty", [:], SavedDesk()), ("three stacked", fewNotes, stacked), ("mixed", fewNotes, mixed),
+        ("near full", pileNotes, full), ("summaries under two prompts", fewNotes, summarized),
     ]
+    return desks.map { name, notes, saved in (name, notes, saved, Desk(notes: notes, saved: saved)) }
 }()
 
 /// Every command the check tries from `desk`. Per-card commands name the first two and the last
@@ -301,6 +314,23 @@ func checkState(_ after: Desk) throws {
     }
 }
 
+/// P5, the other direction: a load keeps exactly the text summaries the current prompt wrote. The
+/// desks the search reaches only ever hold summaries stamped with the current prompt, so a sidecar
+/// that holds another prompt's summary has to be a starting desk.
+func checkLoad(notes: [CardID: Note], saved: SavedDesk, desk: Desk) throws {
+    let kept = Dictionary(
+        saved.summaries.filter { $0.prompt == Summary.prompt && notes[$0.card] != nil }
+            .map { ($0.card, Summary(source: $0.source, outcome: .text($0.text))) },
+        uniquingKeysWith: { $1 })
+    for card in desk.allCards where card.summary != kept[card.id] {
+        let held = saved.summaries.first { $0.card == card.id }
+            .map { "a summary stamped with \($0.prompt == Summary.prompt ? "the current prompt" : "another prompt")" } ?? "no summary"
+        let got = card.summary == nil ? "no summary" : "a summary"
+        throw Violation(property: "P5 save and reload",
+                        detail: "the sidecar held \(held) for \"\(card.id.rawValue)\", and a load gave it \(got)")
+    }
+}
+
 extension Command {
     var isWriteBlank: Bool { if case .writeBlank = self { true } else { false } }
 }
@@ -396,8 +426,8 @@ func expand(_ frontier: [(desk: Desk, path: [Command])], seen: Set<String>, seed
     return (results.flatMap { $0 }, steps.reduce(0, +))
 }
 
-for (name, seed) in seeds {
-    do { try checkState(seed) } catch let v as Violation { report(v, seed: name, path: []) } catch {}
+for (name, notes, saved, seed) in seeds {
+    do { try checkLoad(notes: notes, saved: saved, desk: seed); try checkState(seed) } catch let v as Violation { report(v, seed: name, path: []) } catch {}
     var seen: Set<String> = [key(seed)]
     var frontier: [(desk: Desk, path: [Command])] = [(seed, [])]
     for _ in 0..<depth {
@@ -409,6 +439,9 @@ for (name, seed) in seeds {
         for c in candidates where seen.insert(c.key).inserted { frontier.append((c.desk, c.path)) }
         explored += frontier.count
     }
-    print("ok  \(name): \(seen.count) desks")
+    let loaded = saved.summaries.isEmpty ? "" : " (sidecar held \(saved.summaries.count) summaries, "
+        + "\(saved.summaries.filter { $0.prompt != Summary.prompt }.count) under another prompt; the load kept "
+        + "\(seed.allCards.filter { $0.summary != nil }.count))"
+    print("ok  \(name): \(seen.count) desks\(loaded)")
 }
 print(String(format: "PASS P1–P7, depth %d, %d desks, %d steps checked, %.1fs", depth, explored, transitions, Date().timeIntervalSince(started)))

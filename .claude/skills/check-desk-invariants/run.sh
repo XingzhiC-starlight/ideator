@@ -2,7 +2,7 @@
 # Bounded exhaustive check of the real Desk rules. See SKILL.md.
 #
 #   run.sh [DEPTH]        build against the current Cards/*.swift and check (default depth 3, ~10 s)
-#   run.sh --mutants      break the code twelve known ways; each must be caught by its property
+#   run.sh --mutants      break the code thirteen known ways; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
 set -euo pipefail
@@ -43,6 +43,7 @@ MUTANTS=(
   "P4 stack order|stack.insert(stack.remove(at: from), at: to)|stack.insert(stack.remove(at: from), at: min(to + 1, stack.count))"
   "P3 stack page|if let i = stack.firstIndex(where: { card in card.id == id }) { selection = i }|if let i = stack.firstIndex(where: { card in card.id == id }) { selection = min(i + 1, stack.count) }"
   "P5 save and reload|text: text, prompt: Summary.prompt)|text: text, prompt: summary.source)"
+  "P5 save and reload|for s in saved.summaries where s.prompt == Summary.prompt {|for s in saved.summaries {"
 )
 
 mutants() {
