@@ -70,8 +70,9 @@ From the repo root:
 ```
 
 About 10 seconds. It prints one `ok` line per starting desk and `PASS P1–P8, depth 3, …`, exit 0.
-Use `run.sh 4` for depth 4 before merging a large change to `Desk.swift` (about 2 minutes and a
-million steps, most of them on the 20-card near-full desk).
+Use `run.sh 4` for depth 4 before merging a large change to `Desk.swift` (about four million
+steps, most of them on the 20-card near-full desk and the Spread desk; 220 seconds on 2026-10-29
+while two test builds shared the Mac).
 
 Last synced with the code of the change that added Spread (2026-10-29). Find its commit with
 `git log -S"case spread(SpreadCells" -- Cards/Desk.swift`. Depth 3 and depth 4 passed, and 40 of 40
