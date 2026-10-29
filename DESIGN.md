@@ -502,6 +502,19 @@ Later changes, after trying the app:
   fallback ("Notes on" for English, "笔记：" for Chinese), a CJK note names at most two English
   terms and drops key prefixes, versions, IDs and links, and only `[ ]`/`[x]` lines make a to-do
   list, so any other list gets its one or two main points.
+  The fourth run (prompt `e37df450`) had 1 hard fail in 304 checks: Haiku wrote the English thoughts
+  card as two sentences, the second a "Next step", 138 characters. The Chinese card full of English
+  terms passed on both (51 and 53), so the CJK count stays as the spec has it. The prompt now asks
+  for a single sentence, gives the ceiling in words too (about 18, aim 12 to 16), puts a thin card at
+  about 8 words or 30 CJK characters with no padding, and has an all-done list name none of its items.
+  The fifth run (`1f718b33`) cleared `gpt-6-luna` and left 1 hard fail on Haiku: its meeting notes
+  ran to 138 characters, and every long Haiku summary gave all three points of its note whatever the
+  word count said. So the gist is now at most two points, never a third, and the prompt shows the
+  short form by example (meeting notes with two points, an all-done list, a thin question), none on a
+  sample card's topic.
+  The sixth run (`b15b8f30`) passed: 28 of 28 requests, 0 hard fails in 304 checks, longest English
+  summary 126 characters and the mixed Chinese card 55 and 57. One warning, Haiku's thin Dentist card
+  at 62 characters against 60 expected, is left as a judgment call.
 
 ## Tradeoffs accepted
 
