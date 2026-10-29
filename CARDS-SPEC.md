@@ -41,18 +41,18 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Moved like a card (see Moving cards and the stack), by pressing the ribbon's empty space and dragging. A click there that does not move still acts as the edge band under it.
 - Looks like one card: the ribbon holds the toolbar, "Desktop full" when it applies and the menu button; below it, the selected stacked card (header and body). No list or divider for the cards underneath. The count badge sits in the bottom-right corner of the card area, clear of the card's hover buttons and its formatting bar (revised 2026-10-22).
 - Toolbar (revised 2026-10-29): four icons at the ribbon's left, an even 12pt apart between their visible edges. New is a light plus (tooltip "New card"). Next comes the Hide all / Show all toggle (see Hide all), then Spread, a 2 × 2 grid (see Spread), then Clarity on/off (global), a filter icon that shows the state: an outline in the ribbon's ink while off, filled with the accent color while on. Clarity keeps its tooltip and its accessibility name and value ("Clarity", on or off). To the right of the toolbar come "Desktop full" (it truncates before any button moves) and a menu button with New Spread, Settings… and Quit, so the control center works even when the menu bar icon is hidden (revised 2026-10-29).
-- The selected stacked card is a full card (revised 2026-10-22): edited in place exactly like a popped card (see Card content and editing), with every per-card button a popped card has, and ↗ Pop where a popped card has ↩ Stack (Pop moved here from the ribbon, revised 2026-10-22), and shown as its summary while Clarity is on (see Clarity mode; revised 2026-10-29).
+- The selected stacked card is a full card (revised 2026-10-22): edited in place exactly like a popped card (see Card content and editing), with every per-card button a popped card has, and Pop where a popped card has Return to stack (Pop moved here from the ribbon, revised 2026-10-22), and shown as its summary while Clarity is on (see Clarity mode; revised 2026-10-29).
 - Deleting the selected card shows the one underneath.
 - At launch the stack shows its top card, or the blank page when the stack is empty.
 - The count badge counts real cards only, never the blank page.
 - The count badge is a button: it opens the stack arranger (see Arranging the stack). Its tooltip reads "Arrange the stack" (revised 2026-10-23).
 
 ## Pop / return / find space
-- Pop, the ↗ Pop button on the stacked card (revised 2026-10-22), takes the first grid slot (left→right, top→bottom) not taken by a card or the stack. A snapped card or stack takes its slot; a free one takes the slot it covers most. Other apps' windows are ignored.
-- No slot left, or 19 cards already on the desktop → Pop refuses and the stack shows "Desktop full". The ↗ Pop button is greyed and its tooltip reads "Desktop full" (revised 2026-10-22).
+- Pop, the ↗ button on the stacked card (tooltip "Pop this card out"; revised 2026-10-22, 2026-10-29), takes the first grid slot (left→right, top→bottom) not taken by a card or the stack. A snapped card or stack takes its slot; a free one takes the slot it covers most. Other apps' windows are ignored.
+- No slot left, or 19 cards already on the desktop → Pop refuses and the stack shows "Desktop full". The Pop button is greyed and its tooltip reads "Desktop full: no free slot to pop into" (revised 2026-10-22, 2026-10-29).
 - There is no Pop on the blank page, which has no per-card buttons, nor while Hide all has removed the card area (revised 2026-10-22).
 - Popping the card being edited on the stack moves the cursor with it; the stack then shows the next card.
-- "↩ Stack" button returns a card to the top of the stack. It forgets where the card was; a later Pop takes the first free slot. A card of the Spread set remembers it instead, for the next Spread (revised 2026-10-29; see Spread).
+- The Return to stack button (↩, tooltip "Return to stack") returns a card to the top of the stack. It forgets where the card was; a later Pop takes the first free slot. A card of the Spread set remembers it instead, for the next Spread (revised 2026-10-29; see Spread).
 
 ## Spread (added 2026-10-29)
 - Purpose: lay out a batch of new blank cards in cells chosen in Settings with one click, put them into the stack with the next, and bring them back with the one after, instead of making and putting away each card by hand.
@@ -61,15 +61,15 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - First click: one new blank card per ticked cell, in reading order (left to right, top to bottom). They come out as New's card does: expanded, since Clarity turns off, and the first one has the cursor on its header line.
 - A ticked cell is skipped when Pop would call it taken: a snapped card or the stack in it, or a free card that covers it most. The 19-card ceiling counts too.
 - If no card can come out, nothing changes: Ideator beeps, and the tooltip reads "Your Spread cells are taken", or "Pick Spread cells in Settings" when no cell is ticked. It says so until a Spread or Gather click changes something, and only while the button reads Spread.
-- The set: the button remembers the cards it made. A card stays in the set until it is deleted, wherever it goes: moved, sent back with ↩ Stack, popped by hand or moved in the stack arranger.
+- The set: the button remembers the cards it made. A card stays in the set until it is deleted, wherever it goes: moved, sent back with Return to stack, popped by hand or moved in the stack arranger.
 - Gather: a click while any card of the set is on the desktop moves those cards into the stack, at the bottom, in reading order of where they were. There they are stacked cards like any other: the stack shows them, they can be edited, and the badge counts them. The stack keeps showing the page it was on. Cards still empty are gathered too, and stay in the set.
-- Spread again: a click while none of the set is out puts each card back where it last was on the desktop, a slot or an exact free spot. That is where it was when it last left the desktop, by Gather or by ↩ Stack. A card whose place is now taken stays in the stack, still in the set, and is tried again at a later Spread. A free place counts as taken when the cell it covers most is. Putting cards back gives no card the cursor and leaves Clarity as it is.
+- Spread again: a click while none of the set is out puts each card back where it last was on the desktop, a slot or an exact free spot. That is where it was when it last left the desktop, by Gather or by Return to stack. A card whose place is now taken stays in the stack, still in the set, and is tried again at a later Spread. A free place counts as taken when the cell it covers most is. Putting cards back gives no card the cursor and leaves Clarity as it is.
 - A change in Settings moves the set at the next Spread, never at once; while the set is out, the next click gathers and the one after moves it. The cards keep their reading order: the card in the first old place goes to the first new cell, and so on. More cells than cards: new blank cards fill the extra cells and join the set. Fewer cells than cards: the last cards in reading order leave the set and stay in the stack as ordinary cards. Until Settings changes, each card goes back to its own place, and a ticked cell that was taken when the set was laid out stays empty.
 - Fresh set: Option-click Spread, or New Spread in the ribbon's ⋯ menu (VoiceOver: the button's "New spread" action). The old set's cards on the desktop go to the bottom of the stack in reading order, its stacked cards stay where they are, all of them as ordinary cards, and new blank cards are made in the ticked cells. A fresh click that can make no card changes nothing, so the old set stays.
 - Deleting every card of the set ends it, so the next click makes a fresh set.
 - At the 19-card ceiling, set cards come back before new blank cards are made.
 - The set and where each of its cards goes back to are saved in the sidecar (see Storage), so they survive a relaunch.
-- No animation: Gather closes windows and Spread opens them, as ↩ Stack and Pop do.
+- No animation: Gather closes windows and Spread opens them, as Return to stack and Pop do.
 - AI tools (MCP) get no Spread command.
 
 ## Moving cards and the stack (new 2026-10-22)
@@ -90,7 +90,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Two-finger horizontal swipe on the stack: one card per swipe, next or previous following the system scroll direction. Vertical scroll scrolls the selected card's text.
 - Edge bands stay as a click alternative: an invisible band = 5% of the stack's width/height along all four edges. Right/bottom = next, left/top = previous. On hover the band tints faintly and shows ‹ or ›. Popped cards have no bands.
 - Because of the blank page, swiping and the bands work with any number of stacked cards, including zero or one.
-- ↗ Pop takes the selected card.
+- Pop takes the selected card.
 
 ## Arranging the stack (new 2026-10-23)
 - Purpose: put the stacked cards in the order you want, the only way besides cards entering or leaving that the stack's order changes.
@@ -117,7 +117,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - Undo gives back text exactly, bold and italic included, also after an edit that joined a body line into the header (added 2026-10-27).
 - A five-button formatting bar appears along the bottom of a card only while editing.
 - Scroll wheel/trackpad scrolls whichever card the pointer is over. The card being edited has a stronger border.
-- Per-card buttons (summary refresh, ↩ Stack, trash) fade in on hover only; a card has no Clarity button of its own (revised 2026-10-29). Trash asks "Delete this card?". The stacked card has every one of them, with ↗ Pop where a popped card has ↩ Stack (revised 2026-10-22).
+- Per-card buttons (summary refresh, Return to stack, trash) are icons, each named by its tooltip (revised 2026-10-29), and fade in on hover only; a card has no Clarity button of its own (revised 2026-10-29). Trash asks "Delete this card?". The stacked card has every one of them, with Pop where a popped card has Return to stack (revised 2026-10-22).
 - Hover is where the pointer is, also when a card appears or moves under a pointer that rests (Show all, Pop, a snap). While the buttons are hidden a click there is a click on the card under them, never on a button. VoiceOver still lists and presses them (added 2026-10-27).
 - A long title wraps, or truncates on a collapsed card, before the buttons, whether they show or not (added 2026-10-27).
 - New: creates a blank card and pops it straight out, cursor on the header line, expanded: New turns Clarity off, so every card expands with it (revised 2026-10-29). Desktop full → New shows the stack's blank page instead and leaves Clarity as it is.

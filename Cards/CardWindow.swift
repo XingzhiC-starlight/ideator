@@ -158,10 +158,10 @@ final class CardView: NSView {
         case desktop(WindowDrag)
         case stack
 
-        var move: (title: String, help: String, command: (CardID) -> Command) {
+        var move: (symbol: String, help: String, command: (CardID) -> Command) {
             switch self {
-            case .desktop: ("↩ Stack", "Return this card to the top of the stack", { .returnToStack($0) })
-            case .stack: ("↗ Pop", "Bring this card out", { _ in .pop })
+            case .desktop: ("arrow.uturn.backward", "Return to stack", { .returnToStack($0) })
+            case .stack: ("arrow.up.right", "Pop this card out", { _ in .pop })
             }
         }
     }
@@ -202,7 +202,7 @@ final class CardView: NSView {
         self.send = send
         formatBar = FormatBar(editor: editor)
         let move = home.move
-        moveButton = ActionButton(title: move.title, help: move.help)
+        moveButton = ActionButton(symbol: move.symbol, help: move.help)
         super.init(frame: .zero)
 
         editor.onChange = { [unowned self] note in
@@ -273,7 +273,7 @@ final class CardView: NSView {
         summaryView.show(face?.summary ?? .body(""))
         hoverButtons.isHidden = face == nil
         moveButton.isEnabled = !desktopFull
-        moveButton.toolTip = desktopFull ? "Desktop full" : home.move.help
+        moveButton.toolTip = desktopFull ? "Desktop full: no free slot to pop into" : home.move.help
         let collapsed = face?.collapsed ?? false
         if showsCollapsed != collapsed {
             showsCollapsed = collapsed

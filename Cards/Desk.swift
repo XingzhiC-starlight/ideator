@@ -131,7 +131,7 @@ enum SpreadButton: Equatable {
 }
 
 /// The Spread button's batch of cards: which cards are in it, where each goes back to, and the
-/// cells it was last laid out for. A card stays in it wherever it goes (moved, ↩ Stack, popped by
+/// cells it was last laid out for. A card stays in it wherever it goes (moved, Return to stack, popped by
 /// hand, rearranged) until it is deleted, a fresh set replaces the set, or a layout onto fewer cells
 /// lets it go. Never empty: the desk holds nil instead, so "no set" has one spelling, and "every
 /// card in the set was deleted" and "never spread" are the same state.
@@ -185,9 +185,9 @@ enum Command {
     /// the card opens expanded. On a full desktop it creates nothing and changes nothing else; the
     /// stack shows its blank page instead.
     case new(at: Date)
-    /// The stacked card's "↗ Pop" button: the selected card comes out. Nothing while the blank page shows.
+    /// The stacked card's Pop button: the selected card comes out. Nothing while the blank page shows.
     case pop
-    /// Per-card "↩ Stack" button: the card goes to the top of the stack, and the stack shows it.
+    /// Per-card Return to stack button: the card goes to the top of the stack, and the stack shows it.
     case returnToStack(CardID)
     /// Click in one of the stack's edge bands or a two-finger swipe: move around the stack's loop.
     case flipStack(Direction)
@@ -616,7 +616,7 @@ struct Desk: Equatable {
         }
     }
 
-    /// The only way a card goes from the desktop to the stack: ↩ Stack, Gather and the fresh sweep.
+    /// The only way a card goes from the desktop to the stack: Return to stack, Gather and the fresh sweep.
     /// A card of the set remembers where it was, which is where the next Spread puts it back.
     private mutating func removePopped(at i: Int) -> Card {
         let leaving = popped.remove(at: i)

@@ -21,7 +21,8 @@ for the script path in [../SKILL.md](../SKILL.md); type the path itself in every
 - Prefer `cv ax press` (by button name) over `click` at coordinates. Use `click`, `scroll` and
   `drag` only for the edge bands, swipes and drags, which have no button.
 - Wait 1.5 s after the last change before `cv files`: saves are debounced by one second.
-- Treat every command as literal. Keep quoted names, including `↩ Stack` and `↗ Pop`, as written.
+- Treat every command as literal. Keep quoted names, including `Return to stack` and
+  `Pop this card out`, as written.
 
 ## Proof and skip reporting
 
@@ -53,7 +54,7 @@ commands and observable proof.
 - [Create a card](./create-card.md): New from the ribbon, typing the header and body, typing on
   the stack's blank page, and the Markdown file each makes.
 - [Browse the stack](./stack-loop.md): next and previous by edge band and swipe, the blank page in
-  the loop, Pop, ↩ Stack and the count badge.
+  the loop, Pop, Return to stack and the count badge.
 - [Hide all](./hide-all.md): the ribbon's Hide all / Show all toggle, the ribbon-only stack, and
   New while hidden.
 - [Spread](./spread.md): the ribbon's Spread button that lays blank cards into the cells ticked

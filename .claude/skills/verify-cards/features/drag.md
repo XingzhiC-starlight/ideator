@@ -51,7 +51,7 @@ Wait 1 s after each drag before `cv ax windows`, because the snap animates. Wait
 `cv files`. Each step starts from where the previous one left off. Run `cv shot drag-before`
 first.
 
-- **Pop both.** Run `cv ax press "↗ Pop" stack` twice. `cv ax windows` lists Alpha `@0,34`
+- **Pop both.** Run `cv ax press "Pop this card out" stack` twice. `cv ax windows` lists Alpha `@0,34`
   (slot 0), Beta `@342,34` (slot 1) and the stack `@1368,34`. The badge reads 0.
 - **Snap (`drag-snap`).** Drag Alpha down one row, 10 points right and about 7 down of exact. Run
   `cv ax drag card=Alpha 0.5 0.07 10 275`. Alpha is at `@0,302`, exactly slot 5, not
@@ -105,8 +105,8 @@ first.
 
 - `cv ax windows` taken right after `drag` can show the frame mid-animation, for example
   `@344,38` while the card is still sliding into `@342,34`. Wait 1 s.
-- Pick the press point with care. On a popped card the top-right corner holds the ↩ Stack
-  and Delete buttons, at about 0.74 to 0.95 of the width. A drag that starts on a
+- Pick the press point with care. On a popped card the top-right corner holds the Return to stack and
+  Delete buttons, at about 0.84 to 0.95 of the width. A drag that starts on a
   button moves nothing (and a release back on Delete would ask to delete). Press `0.5 0.07` for
   the header line, or `0.97`–`0.98` for the right margin. On the stack, `0.5 0.07` is the
   ribbon gap; Pop and the card's buttons sit lower, at about 0.2 of the height.

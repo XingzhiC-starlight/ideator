@@ -34,14 +34,14 @@ a launch builds them:
 
 From each desk it applies every command in its list to every reachable desk, breadth-first, up to
 the depth (default 3), and skips desks it has already seen. The commands are New, Pop, both flips,
-typing on the blank page (and an empty note), Clarity on and off, forgetting failed summaries, ↩ Stack for
+typing on the blank page (and an empty note), Clarity on and off, forgetting failed summaries, Return to stack for
 the first two and the last desktop card, the stack arranger's moves (the shown card, or the
 bottom one while the blank page shows, to the top, the middle, the bottom and past both ends; the
 top card to the bottom) and its row clicks on the top and bottom card, drags of the stack and the first desktop card (onto each
 other's slot, the first free slot, slot 12, a free point and one past the right edge, and their
 own place), and, for each named card: delete, edit, refresh, a current summary,
 a stale summary and a failed one. It also tries folder rescans (unchanged, the shown card's file
-gone, a file edited, a file added), and a delete, a ↩ Stack, an arranger move and an arranger row
+gone, a file edited, a file added), and a delete, a Return to stack, an arranger move and an arranger row
 click for an id that does not exist, and the last two for a card on the desktop. Last come three
 cards from an AI tool (`add_card`): Top while the user types in the stacked card, Top, and Bottom,
 then the stack ribbon's Spread with four sets of ticked cells (the factory cells, cells that include
@@ -54,12 +54,12 @@ After every step it checks:
 | --- | --- | --- |
 | P1 conservation | Every card stays in exactly one place, keeps its text, and only New, typing on the blank page, a card from an AI tool (exactly one, with the text it was given), Spread (at most one blank card per ticked cell), delete or a rescan add or remove a card | The next save moves a live card's file to the Trash, or writes one card's text over another |
 | P2 places | No two snapped items share a slot, at most 19 cards are on the desktop, and the stack's page exists | Windows on top of each other; Pop past the ceiling; a crash on a bad index |
-| P3 stack page | The stack keeps showing the same page unless the command is meant to change it (a flip moves one page around the loop; ↩ Stack shows the returned card; an arranger row click shows its card; an arranger move keeps the same card, or the blank page, showing; typing on the blank page shows the new card with a new blank page after it; New on a full desktop shows the blank page; a card from an AI tool with Top shows it, unless the user is typing in the stacked card, and then, like Bottom, the page stays; a card that leaves is replaced by the next surviving card under it) | Typing lands in a card the user is not looking at |
-| P4 stack order | Stacked cards keep their order, except the one card an arranger move puts at its clamped index with every other card in its old order; ↩ Stack puts its card on top; a card from an AI tool joins at the top with Top; other cards that enter, Gather's included, join at the bottom; a move and a card from an AI tool touch nothing on the desktop | The stack reshuffles itself, an arranger move drops or misplaces a card, or a card from an AI tool lands on the desktop |
+| P3 stack page | The stack keeps showing the same page unless the command is meant to change it (a flip moves one page around the loop; Return to stack shows the returned card; an arranger row click shows its card; an arranger move keeps the same card, or the blank page, showing; typing on the blank page shows the new card with a new blank page after it; New on a full desktop shows the blank page; a card from an AI tool with Top shows it, unless the user is typing in the stacked card, and then, like Bottom, the page stays; a card that leaves is replaced by the next surviving card under it) | Typing lands in a card the user is not looking at |
+| P4 stack order | Stacked cards keep their order, except the one card an arranger move puts at its clamped index with every other card in its old order; Return to stack puts its card on top; a card from an AI tool joins at the top with Top; other cards that enter, Gather's included, join at the bottom; a move and a card from an AI tool touch nothing on the desktop | The stack reshuffles itself, an arranger move drops or misplaces a card, or a card from an AI tool lands on the desktop |
 | P5 save and reload | The notes written as Markdown and the sidecar as JSON, read back the way `Library.load` reads them, give the same places, stack, Clarity and text summaries (a summary round-trips only under the prompt that wrote it: the sidecar stamps `Summary.prompt`, and a load drops any other) | A relaunch loses positions or text |
 | P6 clarity | Every card's face, popped and stacked, shows collapsed exactly when Clarity is on, and the ribbon's button shows the same; `setClarity` sets it, New, writing the blank page and a Spread that makes cards turn it off, and nothing else moves it, so a card from an AI tool, a rescan, Gather or putting set cards back follows Clarity | A card is collapsed or expanded against the ribbon, or New opens a card among hidden ones |
 | P7 summaries | A summary attaches only to the version of the card it describes | A card shows a summary of text it no longer has |
-| P8 spread | With a card of the set on the desktop, Spread gathers exactly those cards to the bottom of the stack in reading order of their places, each remembering its place. Otherwise it lays the set out: on unchanged cells each card goes back to exactly its place, on changed cells the card in the first old place gets the first cell and so on, cards past the last cell leave the set and cells past the last card get new blank cards, and fresh first sends the old set's desktop cards to the bottom as ordinary cards. Each comes out exactly when Pop's rule finds its cell untaken, set cards before new ones, and the first new card is the one returned to focus. A click that puts nothing out changes nothing, the fresh sweep included. ↩ Stack makes a set card remember its place, a delete or a rescan takes a card out of the set, and nothing else changes the set. The set holds only cards on the desk, and the ribbon's button says Gather exactly when one of them is out | Spread drops a card on a taken cell, forgets where a card was, or brings back a deleted card's place; a refused click half-happens; the button gathers when it says Spread |
+| P8 spread | With a card of the set on the desktop, Spread gathers exactly those cards to the bottom of the stack in reading order of their places, each remembering its place. Otherwise it lays the set out: on unchanged cells each card goes back to exactly its place, on changed cells the card in the first old place gets the first cell and so on, cards past the last cell leave the set and cells past the last card get new blank cards, and fresh first sends the old set's desktop cards to the bottom as ordinary cards. Each comes out exactly when Pop's rule finds its cell untaken, set cards before new ones, and the first new card is the one returned to focus. A click that puts nothing out changes nothing, the fresh sweep included. Return to stack makes a set card remember its place, a delete or a rescan takes a card out of the set, and nothing else changes the set. The set holds only cards on the desk, and the ribbon's button says Gather exactly when one of them is out | Spread drops a card on a taken cell, forgets where a card was, or brings back a deleted card's place; a refused click half-happens; the button gathers when it says Spread |
 
 ## Run it
 
@@ -92,7 +92,7 @@ FAIL P1 conservation
   cards lost: ["2023-11-14 161320"], cards appeared: []
 ```
 
-Read it as clicks: "New, then ↩ Stack on the new card, and the card is gone". The id is the
+Read it as clicks: "New, then Return to stack on the new card, and the card is gone". The id is the
 timestamp a card made by the check gets (the check's clock is fixed at 2023-11-14 22:13:20 UTC,
 written in local time).
 

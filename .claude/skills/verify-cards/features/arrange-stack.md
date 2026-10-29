@@ -97,11 +97,11 @@ Preconditions:
   stack stays 342x46. `cv ax act "Beta card" AXPress` turns the stack to Beta
   and `cv ax windows` lists the stack at 342x268 again, the toggle still `Show all`, and the popover
   under the badge in the card's corner.
-- **Live updates.** Pop the shown card with `cv ax press "↗ Pop" stack`: the popped card becomes the
-  key window, so the popover closes (a user's click on ↗ Pop is outside the popover, and closes it
-  too). Reopen it with `cv ax press "Arrange the stack"`: the popped card's row is gone and the badge
-  is one lower. With it open, run `cv ax press "↩ Stack" card=<popped title>`: the popover stays
-  open, the returned card joins at the top of `rows`, and the current mark follows it. The popover
+- **Live updates.** Pop the shown card with `cv ax press "Pop this card out" stack`: the popped
+  card becomes the key window, so the popover closes (a user's click on Pop is outside the popover,
+  and closes it too). Reopen it with `cv ax press "Arrange the stack"`: the popped card's row is
+  gone and the badge is one lower. With it open, run `cv ax press "Return to stack" card=<popped
+  title>`: the popover stays open, the returned card joins at the top of `rows`, and the current mark follows it. The popover
   closing by itself at zero rows was not reached: Pop closes it first, and a user's click on Pop or
   on a card's trash is outside it. Report that case as not verified.
 - **Zero cards.** With nothing stacked, `cv ax tree` shows `AXButton "0" … [disabled]` and `cv ax
@@ -122,7 +122,8 @@ Preconditions:
 - Open the popover before `cv ax listen`: it watches the elements that exist when it starts.
 - A real click anywhere outside the popover closes it, including `cv ax click`, `focus` and a click
   on a button of the stack. `cv ax press` and keys do not, so use them for steps that must keep it open.
-  The exception is `press "↗ Pop"`: the popped card becomes the key window, which closes the popover.
+  The exception is `press "Pop this card out"`: the popped card becomes the key window, which
+  closes the popover.
 - `cv ax key` goes to the key window. While the popover is open that is the popover, so ⌥↑ moves a
   card instead of typing in the stack. Close it first to type.
 - A drag needs the pointer to keep moving in small steps; `dragat` moves in 30 steps. A drop at the

@@ -87,7 +87,7 @@ final class HoverButtonsTests: XCTestCase {
         for collapsed in [false, true] {
             for home in homes() {
                 let card = show(face(collapsed: collapsed), in: home)
-                let move = home.name == "popped" ? "Return this card to the top of the stack" : "Bring this card out"
+                let move = home.name == "popped" ? "Return to stack" : "Pop this card out"
                 let tooltips = (collapsed ? ["Refresh summary"] : []) + [move, "Delete this card"]
                 for tooltip in tooltips {
                     let hit = pressed(at: button(tooltip, in: card), in: home.window)
@@ -110,18 +110,18 @@ final class HoverButtonsTests: XCTestCase {
         var sent: [Command] = []
         let card = show(face(), in: homes(send: { sent.append($0) })[0])
         let listed = names(under: card)
-        for name in ["↩ Stack", "Delete this card"] {
+        for name in ["Return to stack", "Delete this card"] {
             XCTAssertTrue(listed.contains(name), "VoiceOver finds \(name) without hovering, got \(listed)")
         }
-        _ = button("Return this card to the top of the stack", in: card).accessibilityPerformPress()
-        guard case .returnToStack(_)? = sent.last else { return XCTFail("AXPress on ↩ Stack sends .returnToStack, got \(sent)") }
+        _ = button("Return to stack", in: card).accessibilityPerformPress()
+        guard case .returnToStack(_)? = sent.last else { return XCTFail("AXPress on Return to stack sends .returnToStack, got \(sent)") }
     }
 
     func testACardHasNoClarityButtonOfItsOwn() {
         for collapsed in [false, true] {
             for home in homes() {
                 let card = show(face(collapsed: collapsed), in: home)
-                let move = home.name == "popped" ? "Return this card to the top of the stack" : "Bring this card out"
+                let move = home.name == "popped" ? "Return to stack" : "Pop this card out"
                 let tooltips = row(of: card).arrangedSubviews.filter { !$0.isHidden }.compactMap(\.toolTip)
                 XCTAssertEqual(tooltips, (collapsed ? ["Refresh summary"] : []) + [move, "Delete this card"],
                                "\(home.name), collapsed \(collapsed): Clarity is the ribbon's button alone")
@@ -164,6 +164,24 @@ final class HoverButtonsTests: XCTestCase {
             let header = collapsed.subviews.compactMap { $0 as? NSTextField }.first { $0.stringValue == longTitle }!
             XCTAssertFalse(header.frame.intersects(row(of: collapsed).frame),
                            "\(home.name), collapsed: the title at \(header.frame) runs under the buttons at \(row(of: collapsed).frame)")
+        }
+    }
+
+    func testHoverButtonsKeepTheirSizeWhenTheSummarysRefreshAppears() {
+        for home in homes() {
+            var firstHeight: [String: CGFloat] = [:]
+            for (step, collapsed) in [("expanded", false), ("collapsed", true), ("expanded again", false)] {
+                let card = show(face(longTitle, collapsed: collapsed), in: home)
+                for case let button as NSButton in row(of: card).arrangedSubviews where !button.isHidden {
+                    let name = button.toolTip ?? "a button"
+                    let oneLine = firstHeight[name, default: button.frame.height]
+                    firstHeight[name] = oneLine
+                    XCTAssertGreaterThanOrEqual(button.frame.width, button.intrinsicContentSize.width,
+                                                "\(home.name), \(step): \(name) is squeezed to \(button.frame.size)")
+                    XCTAssertLessThanOrEqual(button.frame.height, oneLine,
+                                             "\(home.name), \(step): \(name) wraps to \(button.frame.size), it was \(oneLine) high")
+                }
+            }
         }
     }
 
