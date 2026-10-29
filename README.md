@@ -283,8 +283,10 @@ Ideator is an MCP server for AI tools such as Claude Code, Codex and Claude Desk
 the helper inside the app, `Ideator.app/Contents/Helpers/ideator-mcp`, which an AI tool runs over
 stdio. Its one tool, `add_card`, hands a card to the running Ideator, which saves it to the stack;
 if Ideator is not running, the helper starts it in the background. Settings has "Let AI tools add
-cards" and "Cards from AI tools go to: Top / Bottom". A copy button for each tool's setup comes in a
-later step. To try it without touching your notes, give the helper the same `-CardsFolder` as a
+cards" and "Cards from AI tools go to: Top / Bottom", an editable instruction that the server gives an
+AI tool when a session starts (with Reset to Default), and under "Connect AI tools" a copy button for
+Claude Code, Codex and Claude Desktop. Each button copies the tool's setup, naming this app's helper,
+for you to paste; Ideator never edits another app's config files. To try it without touching your notes, give the helper the same `-CardsFolder` as a
 scratch run: it then reaches, or starts, only the run on that folder. The verify-cards recipe
 [ai-tools.md](.claude/skills/verify-cards/features/ai-tools.md) drives it with a stand-in client.
 

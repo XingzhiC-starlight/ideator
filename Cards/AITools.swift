@@ -1,10 +1,12 @@
 import Darwin
 import Foundation
 
-/// "Let AI tools add cards" and "Cards from AI tools go to".
+/// "Let AI tools add cards", "Cards from AI tools go to", and the instruction an AI tool gets at a
+/// session start.
 struct AIToolSettings: Equatable {
     var enabled = true
     var landing = Landing.top
+    var instruction = Instruction()
 }
 
 /// The settings for this run: read once from `Preferences`, written back on every change. A scratch
@@ -98,9 +100,11 @@ final class HeldCards {
 /// connection. Any process of this user can connect, so each line is read like a tool call, by
 /// `HandOffRequest.parse`, and `receive` answers through the reply it is given, once, when it is ready.
 /// `close` drops every connection still waiting, as quitting does, so each helper hears that
-/// nothing was saved.
+/// nothing was saved. A connection may instead ask for the instruction (`InstructionSource`), which
+/// `instruction` answers.
 final class ToolInbox {
     typealias Receive = @MainActor (HandOffRequest, @escaping @Sendable (ToolReply) -> Void) -> Void
+    typealias CurrentInstruction = @MainActor () -> String
 
     /// The socket file this instance made, so no instance removes a newer one's.
     nonisolated struct File: Sendable {
@@ -118,7 +122,7 @@ final class ToolInbox {
     private let connections = Connections()
 
     /// Nil when another instance answers on `endpoint`, or the socket could not be made.
-    init?(endpoint: Endpoint, receive: @escaping Receive) {
+    init?(endpoint: Endpoint, instruction: CurrentInstruction? = nil, receive: @escaping Receive) {
         guard let listener = Socket.listen(at: endpoint.path) else { return nil }
         var info = stat()
         guard stat(endpoint.path, &info) == 0 else {
@@ -126,7 +130,7 @@ final class ToolInbox {
             return nil
         }
         file = File(path: endpoint.path, inode: info.st_ino)
-        source = Self.serve(listener, connections, receive)
+        source = Self.serve(listener, connections, instruction, receive)
     }
 
     func close() {
@@ -136,7 +140,7 @@ final class ToolInbox {
     }
 
     /// Off the main thread: accepting and reading never wait on the UI, and only a parsed card reaches it.
-    private nonisolated static func serve(_ listener: Int32, _ connections: Connections,
+    private nonisolated static func serve(_ listener: Int32, _ connections: Connections, _ instruction: CurrentInstruction?,
                                           _ receive: @escaping Receive) -> DispatchSourceRead {
         _ = fcntl(listener, F_SETFL, fcntl(listener, F_GETFL) | O_NONBLOCK)
         let source = DispatchSource.makeReadSource(fileDescriptor: listener, queue: DispatchQueue(label: "Ideator.ToolInbox"))
@@ -149,7 +153,7 @@ final class ToolInbox {
                     Darwin.close(fd)
                     continue
                 }
-                DispatchQueue.global().async { read(fd, connection, receive) }
+                DispatchQueue.global().async { read(fd, connection, instruction, receive) }
             }
         }
         source.setCancelHandler { Darwin.close(listener) }
@@ -157,14 +161,23 @@ final class ToolInbox {
         return source
     }
 
-    private nonisolated static func read(_ fd: Int32, _ connection: Connections.Connection, _ receive: @escaping Receive) {
+    private nonisolated static func read(_ fd: Int32, _ connection: Connections.Connection, _ instruction: CurrentInstruction?,
+                                         _ receive: @escaping Receive) {
         var timeout = timeval(tv_sec: 10, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         var reader = LineReader(fd: fd, limit: 8 * AddCard.byteLimit)
-        let parsed: Result<HandOffRequest, AddCard.Refusal>? = switch reader.next() {
-        case .line(let line)?: ((try? JSONSerialization.jsonObject(with: line)) as? [String: Any]).map(HandOffRequest.parse)
-        case .tooLong?: .failure(.tooLong)
-        case nil: nil
+        var parsed: Result<HandOffRequest, AddCard.Refusal>?
+        switch reader.next() {
+        case .line(let data)?:
+            guard let line = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { break }
+            if InstructionSource.isRequest(line) {
+                guard let instruction else { return connection.reply(.unreadable) }
+                Task { @MainActor in connection.reply(.done(instruction())) }
+                return
+            }
+            parsed = HandOffRequest.parse(line)
+        case .tooLong?: parsed = .failure(.tooLong)
+        case nil: break
         }
         switch parsed {
         case .success(let request)?: Task { @MainActor in receive(request) { connection.reply($0) } }

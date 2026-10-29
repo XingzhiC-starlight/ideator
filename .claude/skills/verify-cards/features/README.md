@@ -81,8 +81,8 @@ commands and observable proof.
 - [Copy and paste](./clipboard.md): Markdown and HTML on copy, pasting HTML lists and terminal
   text, one-line and header pastes, and undoing a paste, with the owner's clipboard restored.
 - [AI tools (MCP)](./ai-tools.md): `add_card` through the real helper, Top and Bottom, typing in
-  the stacked card, Hide all, the off switch, the 1 MB backstop, the background start and the
-  welcome card.
+  the stacked card, Hide all, the off switch, the 1 MB backstop, the background start, the
+  welcome card, the instruction box and the Connect AI tools copy buttons.
 
 Not mapped yet: bold and italic, summaries with a real key, the menu bar icon,
 and folder changes made outside the app.

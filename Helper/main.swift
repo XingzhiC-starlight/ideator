@@ -58,7 +58,8 @@ let app = HandOff.app(containing: executable)
 let version = app.flatMap { Bundle(url: $0)?.infoDictionary?["CFBundleShortVersionString"] as? String } ?? "0"
 let launcher = Launcher(app: app, scratchFolder: arguments.scratchFolder)
 let handOff = HandOff(endpoint: Endpoint(scratchFolder: arguments.scratchFolder), launch: { launcher.start() })
-let server = MCPServer(version: version) { handOff.send($0) }
+let instruction = InstructionSource(scratchFolder: arguments.scratchFolder, appDomain: app.flatMap { Bundle(url: $0)?.bundleIdentifier })
+let server = MCPServer(version: version, instructions: { instruction.current() }) { handOff.send($0) }
 
 /// Several times the backstop, so a call past it is still read and answered as one.
 var input = LineReader(fd: STDIN_FILENO, limit: 64 * AddCard.byteLimit)
