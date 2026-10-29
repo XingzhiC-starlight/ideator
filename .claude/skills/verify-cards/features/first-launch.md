@@ -37,9 +37,10 @@ Preconditions:
 - Plain `cv launch` for the `settings-*` recipes is enough, and so is the welcome.
 
 - **welcome-card.** Run `cv launch --welcome`. `cv ax tree` lists the text "Welcome to Ideator", the
-  five paragraphs (the second names `⌃⌥I`, the fifth starts "Updates come from GitHub." and ends
-  "Nothing else leaves your Mac.") and `AXButton "Continue"`, and no `New`.
-  `cv ax windows` lists one window. `cv shot welcome` is the proof image.
+  five paragraphs (the second names `⌃⌥I`, the fifth starts "Updates come from GitHub.") and
+  `AXButton "Continue"`, and no `New`. `tree` prints only a value's first 120 characters, so read
+  the fifth paragraph's end, "Nothing else leaves your Mac.", in `cv shot welcome`, the proof image.
+  `cv ax windows` lists one window.
 - **welcome-gate.** Run `cv launch --welcome --seed`. Before Continue, `cv ax windows` lists one window
   and `cv ax tree` has no `New` and no count badge: the seeded cards have not been read. Run
   `cv ax press Continue`. The welcome window is gone, `cv ax tree` shows `New` and the badge `"2"`
@@ -53,7 +54,8 @@ Preconditions:
   fits its rows.
   `cv ax press "⌃⌥I"` starts recording (the button reads `Type shortcut…`). `cv ax key
   ctrl+cmd+h`: the button reads `⌃⌘H` and Use Default is enabled; a scratch run saves nothing, so a
-  relaunch is back to `⌃⌥I`. Press the button again and `cv ax key cmd+k`: the caption reads
+  relaunch is back to `⌃⌥I`. Press the button again, by its new title (`cv ax press "⌃⌘H"`;
+  `press "⌃⌥I"` now fails), and `cv ax key cmd+k`: the caption reads
   "⌘K can't be the shortcut. Use ⌃ or ⌘ with at least one other modifier key, so typing never
   triggers it." and the button is still recording. `cv ax key escape` cancels. `cv ax press "Use
   Default"` after a change restores `⌃⌥I`.
@@ -64,8 +66,9 @@ Preconditions:
   the proof image. After `cv stop` the `shasum` is unchanged.
 - **settings-privacy.** `cv ax tree` of the Settings window has, after the Privacy heading, the
   static text beginning "With a key saved, Ideator sends a card's text to Anthropic or OpenAI,
-  whichever your key is for" (with a key saved it names that one company instead) and ending
-  "Nothing else leaves your Mac: no analytics, no crash reports."
+  whichever your key is for" (with a key saved it names that one company instead). Its end,
+  "Nothing else leaves your Mac: no analytics, no crash reports.", is past `tree`'s 120
+  characters, so read it in `cv shot settings`.
 
 ## Gotchas
 
@@ -81,4 +84,5 @@ Preconditions:
 - A scratch run registers no global shortcut. Ending a recording without a pick (Esc, a click) registers
   nothing there. Picking a combination registers it in that process until `cv stop`, which can
   contend with the owner's Ideator, so pick an obscure one (`ctrl+cmd+h` is) and stop the run right
-  after the recipe.
+  after the recipe. `Use Default` after a pick registers `⌃⌥I`, the owner's own shortcut, in that
+  process too, so end the recipe there and `cv stop` at once.

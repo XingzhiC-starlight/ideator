@@ -28,9 +28,10 @@ an error and nothing changes on disk.
 ## Driving it with cards-verify
 
 Preconditions: `scripts/package.sh` made a disk image, and the terminal has Accessibility. `cv launch`
-cannot reach this feature: a scratch run, and any build `cv build` makes, never starts Sparkle, and
-Settings dims its update controls. Use the script, which launches its own copies of the shipped app
-under a test bundle id and drives them with `cards-ax` by pid.
+cannot reach this feature: any build `cv build` makes never starts Sparkle, and neither does a
+scratch run of a packaged build, so Settings dims its update controls. Use the script, which
+launches its own copies of the shipped app under a test bundle id, as scratch runs that the test
+copy's `IdeatorUpdateTest` key lets check, and drives them with `cards-ax` by pid.
 
 - **updates-all.** `scripts/verify-update.sh` runs the four phases below, prints a `PASS` line for each,
   then `PASS: the owner's Ideator is untouched`, and keeps its evidence in

@@ -19,7 +19,7 @@ source "$SKILL_DIR/scripts/live-lock.sh"
 
 usage() {
   cat <<'EOF'
-cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax
+cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax, cards-clip and cards-mcp
 cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from)
 cards-verify doctor                 read-only health check of the current run, and who holds the live-UI lock
 cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, where, mouse, dragat, listen)
@@ -138,7 +138,7 @@ doctor() {
   echo "run       $RUN_ID"
   if ours; then echo "process   ok: pid $PID is $BIN on $FOLDER"; else echo "process   FAIL: pid $PID is not this run's Cards (gone, or reused)"; ok=0; fi
   local newest
-  newest="$(find "$REPO/Cards" -name '*.swift' -newer "$BIN" | head -1)"
+  newest="$(find "$REPO/Cards" "$REPO/MCP" "$REPO/Helper" -name '*.swift' -newer "$BIN" | head -1)"
   if [[ -z "$newest" ]]; then echo "build     ok: no source newer than the binary"; else echo "build     STALE: $newest is newer than the binary; run: cards-verify build, then relaunch"; ok=0; fi
   if [[ -d "$FOLDER" ]]; then echo "folder    ok: $(ls -A "$FOLDER" | wc -l | tr -d ' ') entries in $FOLDER"; else echo "folder    FAIL: $FOLDER is missing"; ok=0; fi
   if [[ $ok == 1 ]] && "$AX" tree "$PID" > /tmp/cards-verify-doctor.$$ 2>&1; then

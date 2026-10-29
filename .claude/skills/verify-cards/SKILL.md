@@ -6,7 +6,8 @@ description: Drive the real Ideator macOS app (menu bar app, card windows, the s
 # Verify Ideator
 
 Ideator is a native AppKit menu bar app: each card is a borderless window, the stack is one more
-window with a tan ribbon (New, Clarity, Hide all, ⋯), and every card is a Markdown file in a
+window with a tan ribbon (the New, Hide all and Clarity icons on the left, ⋯ on the right), and
+every card is a Markdown file in a
 folder plus a hidden sidecar `.cards.json`. This skill starts an isolated copy of the app on an
 empty temp folder and drives it through macOS Accessibility, by pid, so it never touches the
 owner's own Ideator or `~/Documents/Ideator`.
@@ -27,7 +28,7 @@ Unit tests are not this skill's job. Run them with the
 ## Launch
 
 ```bash
-cv build              # xcodebuild into build/VerifyDerivedData, and compile the cards-ax helper
+cv build              # xcodebuild into build/VerifyDerivedData, and compile cards-ax, cards-clip and cards-mcp
 cv launch --seed      # or plain `cv launch` for an empty folder
 cv launch --welcome   # the first-launch card, as a stranger sees it
 ```
@@ -52,7 +53,8 @@ cv launch --welcome   # the first-launch card, as a stranger sees it
 - `launch` also takes the live-UI lock `/tmp/claude-<uid>/ideator-live-ui.lock` and refuses, naming the holder, while another session has it (retry every 30 s). `stop` releases only a lock this run took, and `doctor` prints the holder.
 - `cv mcp STEP…` drives this build's AI tools helper on the current run's folder, as an AI tool does,
   and `cv mcp-launch STEP…` takes the lock as `launch` does and lets the helper start the run itself;
-  see [features/ai-tools.md](features/ai-tools.md). The log keeps a card's title and body as lengths.
+  see [features/ai-tools.md](features/ai-tools.md). The log shows a request's title and body as
+  lengths, but an `Added "…"` reply quotes the title.
 - The app activates itself at launch and on most clicks, so it takes focus from whatever the user
   is doing.
 
@@ -62,9 +64,9 @@ cv launch --welcome   # the first-launch card, as a stranger sees it
 cv doctor
 ```
 
-Read-only. Checks that the pid is this run's binary on this run's folder, that no Swift source is
-newer than the binary, that the folder exists, and that the stack window (or, after `launch
---welcome` and before Continue, the welcome card) answers. It lists other
+Read-only. Checks that the pid is this run's binary on this run's folder, that no Swift source in
+`Cards/`, `MCP/` or `Helper/` is newer than the binary, that the folder exists, and that the stack
+window (or, after `launch --welcome` and before Continue, the welcome card) answers. It lists other
 Ideator processes, such as the owner's Xcode run, as a note. Never drive those. Run `doctor` first
 whenever a step fails or anything looks off. It must print `healthy` before any proof counts.
 
@@ -75,7 +77,7 @@ whenever a step fails or anything looks off. It must print `healthy` before any 
 
 | Command | What it does |
 | --- | --- |
-| `cv ax tree` | Every window and element: role, name, value, `[disabled]`, `[focused]`, frame |
+| `cv ax tree` | Every window and element: role, name, value (its first 120 characters), `[disabled]`, `[focused]`, frame |
 | `cv ax press NAME [WINDOW]` | Accessibility press on the first button whose title, description or tooltip is NAME |
 | `cv ax text [WINDOW]` | The text of each text area, one JSON string per line |
 | `cv ax focus WINDOW` | A real click into that card's text (activates Ideator) |
@@ -96,10 +98,13 @@ the z-order and change after any click, so use the names.
 
 Stable handles in this app, all from the code:
 
-- Stack ribbon buttons: `New`, `Clarity`, `Hide all` / `Show all`, `Settings and quit` (the ⋯
-  menu). Clarity always has that name. Its state is the `value="off"` or `value="on"` that `tree`
-  prints on its line (its tooltip, `Clarity is off: click to collapse every card` or `Clarity is
-  on: click to expand every card`, says it too), and its text color, which only `shot` shows.
+- Stack ribbon buttons, left to right: `New` (a plus, tooltip `New card`), `Hide all` / `Show all`
+  (a chevron, up or down), `Clarity` (a filter icon), then `Settings and quit` (the ⋯ menu) at the
+  right. They are icons; these are their accessibility names. Clarity always has that name. Its
+  state is the `value="off"` or `value="on"` that `tree` prints on its line (its tooltip, `Clarity
+  is off: click to collapse every card` or `Clarity is on: click to expand every card`, says it
+  too), and its icon, a dark brown outline when off and a filled reddish brown circle when on,
+  which only `shot` shows.
 - Card buttons (popped card, or the stack's selected card): `Collapse this card` / `Expand this
   card`, `Refresh summary` (collapsed, with two or more body lines), `↩ Stack` (popped only), `↗ Pop`
   (stacked card only; `[disabled]` with the tooltip `Desktop full` while the desktop is full),
@@ -172,8 +177,9 @@ the text; and `app.log` the app's stdout/stderr). That folder survives `stop`. P
 - Capture the action and the resulting state: a `shot` or `tree` before and after, not only the
   last screen.
 - Check side effects as well as what shows. Every change that should persist needs `cv files`
-  showing the `.md` text and the sidecar (`placements`, `stack`, `collapsed`, `clarity`). Popping
-  or returning a card changes only the sidecar; typing changes the `.md`.
+  showing the `.md` text and the sidecar (`placements`, `stack`, `collapsed`, `clarity`, and
+  `stackSlot` or `stackFree` after a stack drag). Popping or returning a card changes only the
+  sidecar; typing changes the `.md`.
 - Read the UI through `cv ax tree` / `cv ax text`, then look at the PNG to confirm the look
   (header bold, summary lighter, ribbon only).
 
@@ -191,7 +197,8 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
 ## Gotchas
 
 - Deleting a card through the app moves its `.md` to the user's real Trash (that is the feature).
-  Those files are named by timestamp and are harmless. Leave them, and say so in the report.
+  Those files keep their names (`seed-a.md`, or a timestamp) and are harmless. Leave them, and say
+  so in the report.
 - A scratch run (`cv launch` passes `-CardsFolder`) never reads or writes the login Keychain, so
   it starts with no key, whatever the owner has saved, and no macOS Keychain prompt can block the
   UI. Collapsed cards with two or more body lines show "Summary unavailable" unless you paste a
@@ -204,8 +211,9 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   the hotkey.
 - The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has the same Settings… and
   Quit. Check for Updates… is only in the menu bar icon's menu; Settings' Check Now does the same.
-- A scratch run never starts Sparkle, and neither does any build `cv build` makes, which
-  `scripts/package.sh` did not stamp. No Sparkle object exists, so nothing goes to GitHub and no
+- A `cv` run never starts Sparkle: no build `cv build` makes is stamped by `scripts/package.sh`,
+  and a scratch run of a stamped build does not start it either (only `verify-update.sh`'s test
+  copy, marked `IdeatorUpdateTest`, does). No Sparkle object exists, so nothing goes to GitHub and no
   `SU*` key reaches the owner's `com.systemlabs.Ideator` preferences. Settings' update controls
   are dimmed, and the caption under them says why.
   Updating is proved by `scripts/verify-update.sh`, not by `cv`; see

@@ -17,7 +17,7 @@ is saved as its own Markdown file.
 
 ## How to get to it (user POV)
 
-- Click `New` in the stack's tan ribbon.
+- Click New, the plus icon at the left of the stack's tan ribbon (tooltip `New card`).
 - Flip the stack to its blank page (after the last card), click into it and type.
 - When the desktop is full, New shows the stack's blank page instead (not driven here).
 

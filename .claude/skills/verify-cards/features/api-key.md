@@ -26,8 +26,9 @@ that starts with `sk-ant-` is Anthropic's and any other key is OpenAI's.
 Preconditions:
 
 - `cv launch --seed`; `cv doctor` prints `healthy`.
-- Fake keys only. Each paste sends the seeded card text to api.openai.com or api.anthropic.com with an
-  invalid key, which answers 401. Never paste a real key, and a scratch run never touches the Keychain.
+- Fake keys only. Each paste sends Beta's text (the seeded card with two body lines; Alpha's one line
+  is never sent) to api.openai.com or api.anthropic.com with an invalid key, which answers 401.
+  Never paste a real key, and a scratch run never touches the Keychain.
 
 - **key-none.** `cv ax press Clarity stack`, then `cv ax click stack 0.985 0.6` to show Beta.
   `cv ax tree` has `AXStaticText "No API key. Add one in Settings." value="Summary unavailable"`. Open
