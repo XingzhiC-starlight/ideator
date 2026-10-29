@@ -148,7 +148,9 @@ func send(_ command: Command) {
   stack. An edit that removes a line break starts its own undo step for the same reason.
 - **The clipboard is a file boundary.** Copy and paste go through `Clipboard`, not the text
   view's own RTF. Copy writes the touched lines as the card file's Markdown (through `Note`'s
-  writer) plus an HTML nested list; a selection inside one line is only its text. Paste reads an
+  writer) plus an HTML nested list; a selection inside one line is only its text. A copy of whole
+  lines also writes the Markdown on Ideator's private type, and paste reads that first with
+  `Note.bodyLines`, so a copy between cards is exact. Otherwise paste reads an
   HTML list if one is there, with a hand-written tolerant reader. Otherwise each line of the
   text is first rewritten into the file grammar (`•◦▪·‣` bullets, `1)` numbers, `#` headings)
   and read by `Note`'s one reader, which keeps Markdown's backslash rule for files and pastes alike. `Clipboard.paste` splices the run
@@ -515,6 +517,20 @@ Later changes, after trying the app:
   The sixth run (`b15b8f30`) passed: 28 of 28 requests, 0 hard fails in 304 checks, longest English
   summary 126 characters and the mixed Chinese card 55 and 57. One warning, Haiku's thin Dentist card
   at 62 characters against 60 expected, is left as a judgment call.
+- 2026-10-28, pasting Ideator's own copy (audit item 15): a paste read the HTML first whenever
+  it held a list item. That is right for the Claude app, web pages and Notes, but `HTMLReader`
+  drops blank lines and an empty parent item and turns tabs into spaces, so a copy from one card
+  to another lost them. A whole plain line has no list item, so it took the text rules, which
+  type one row verbatim, and its Markdown escapes showed (`C:\\Users \*x\*`). A copy of whole
+  lines now also writes its Markdown on the private type `com.systemlabs.Ideator.card-lines`.
+  `Clipboard.lines` reads that type first with `Note.bodyLines`, the card file's reader, and
+  rewrites nothing. A first row that starts with `#` is the copied header, because the writer
+  escapes a body line that does. A selection inside one line gets no private type, because its
+  text is not Markdown. No other app writes the type, so other apps' pastes keep every rule.
+  `CardTextView` lists its forms once, in `ClipboardForm`, and derives the writable and readable
+  types and both writes from it. Three sketches (Opus, Fable, Sonnet) agreed on this shape. A
+  marker in the HTML lost: a web page can keep the marker and pair it with another app's text. A
+  lossless HTML reader lost too: it would change the rules for every app.
 
 ## Tradeoffs accepted
 
@@ -544,6 +560,10 @@ Later changes, after trying the app:
 - We accept owning an HTML reader (about 200 lines) in exchange for one that is pure, tested on
   fixtures shaped like Notes, Google Docs, the Claude app and web pages, keeps checkboxes and never
   touches WebKit during a paste.
+- We accept a copy carrying its Markdown twice, as plain text and on Ideator's private type, in
+  exchange for a form whose presence says Ideator wrote it and whose value is the data, with
+  nothing to pair across two entries. A paste of Ideator's own copy keeps a blank last line that
+  the plain-text rules would drop.
 
 ## Alternatives considered
 

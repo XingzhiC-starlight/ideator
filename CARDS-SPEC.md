@@ -119,6 +119,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 ## Copy and paste (new 2026-10-23)
 - Copy puts two forms on the clipboard: the card file's Markdown (markers, 4 spaces per level, `**bold**`, `*italic*`) and HTML with real nested `<ul>`/`<ol>` lists, so Notes, Mail and Docs paste a list and Markdown apps paste Markdown.
 - A selection inside one line copies just its text. A selection crossing a line break copies every line it touches with its marker; levels count from the shallowest copied item, and a copied header becomes `# Title`.
+- A copy of whole lines also puts the same Markdown on a type only Ideator reads (added 2026-10-28). A paste of Ideator's own copy, from any card and any Ideator build, reads that exactly as the card file is read: blank lines, tabs, empty items and plain lines that look like other bullets come back as they were copied, and a whole line copied with its line break pastes its text, not its Markdown. A selection inside one line does not get that type. Pastes from other apps follow the rules below.
 - Paste reads HTML first when it holds a list (a selection in the Claude app, web pages, Notes); otherwise the plain text is read as Markdown, also accepting `•` `◦` `▪` `·` `‣` bullets and `1)` numbering (terminal output such as Claude Code's).
 - From HTML: list items, nesting, ordered vs unordered, checkboxes, bold and italic are kept. Headings, links, code and table cells become plain lines with their text; images are dropped.
 - A paste with no line break is inserted as typed text and never starts a list.
