@@ -9,7 +9,7 @@ blank page turn it off.
 
 - `clarity-global-on` Clarity off → on collapses every card, the stacked one included.
 - `clarity-global-off` Clarity on → off expands every card.
-- `clarity-state` The ribbon button, the filter icon third from the left, is always named
+- `clarity-state` The ribbon button, the filter icon fourth from the left, is always named
   `Clarity`. Its value is `off` or `on`, its tooltip says what a click does, and its icon is a
   dark brown outline when off and a filled reddish brown circle when on.
 - `clarity-click` Clicking a collapsed card's body turns Clarity off: every card expands, and the

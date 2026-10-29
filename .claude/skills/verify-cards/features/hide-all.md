@@ -9,7 +9,7 @@ is on the stacked card, which hidden removes.
 ## Sub-features
 
 - `hide-toggle` The ribbon's chevron button hides everything, then shows everything again.
-- `hide-ribbon` While hidden the stack is just its ribbon, with the New, Show all and Clarity icons
+- `hide-ribbon` While hidden the stack is just its ribbon, with the New, Show all, Spread and Clarity icons
   on the left, the count badge left of the ⋯ menu on the right, and no `↗ Pop`.
 - `hide-new` New while hidden shows only the new card.
 - `hide-show` Show all brings back the stack's card and every popped card.
