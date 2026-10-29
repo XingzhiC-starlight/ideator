@@ -251,6 +251,10 @@ final class CardView: NSView {
             hoverButtons.addArrangedSubview(button)
         }
         hoverButtons.spacing = 6
+        // With a layer, alphaValue takes its target at once and Core Animation draws the fade. Without
+        // one, which is how every card starts, AppKit steps alphaValue from a display tick, and a
+        // display that is off never ticks.
+        hoverButtons.wantsLayer = true
         hoverButtons.alphaValue = 0
         addSubview(hoverButtons)
     }
