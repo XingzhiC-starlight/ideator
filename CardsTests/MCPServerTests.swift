@@ -7,9 +7,10 @@ import XCTest
 final class MCPServerTests: XCTestCase {
     private var calls: [AddCard] = []
     private var answer = ToolReply.done("Added it.")
+    private var instructions: String? = Instruction.standard
 
     private func server() -> MCPServer {
-        MCPServer(version: "0.9") { [unowned self] card in
+        MCPServer(version: "0.9", instructions: { [unowned self] in instructions }) { [unowned self] card in
             calls.append(card)
             return answer
         }
@@ -52,7 +53,7 @@ final class MCPServerTests: XCTestCase {
 
     // MARK: Legacy clients
 
-    func testInitializeAnswersWithTheClientsVersionTheServerNameAndTheDefaultInstructions() throws {
+    func testInitializeAnswersWithTheClientsVersionTheServerNameAndTheInstructions() throws {
         let reply = try respond(request("initialize", ["protocolVersion": "2025-06-18", "capabilities": [:],
                                                        "clientInfo": ["name": "claude-code", "version": "2"]]))
         XCTAssertEqual(reply?["id"] as? Int, 1)
@@ -62,17 +63,19 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual((result["serverInfo"] as? [String: Any])?["name"] as? String, "ideator")
         XCTAssertEqual((result["serverInfo"] as? [String: Any])?["version"] as? String, "0.9")
         XCTAssertNotNil((result["capabilities"] as? [String: Any])?["tools"])
-        XCTAssertEqual(result["instructions"] as? String, MCPServer.defaultInstructions)
+        XCTAssertEqual(result["instructions"] as? String, Instruction.standard)
         XCTAssertNil(result["resultType"], "a legacy result has no resultType")
         XCTAssertTrue(calls.isEmpty, "a session start hands nothing to Ideator")
     }
 
-    func testTheDefaultInstructionsAreTheSpecsText() {
-        XCTAssertEqual(MCPServer.defaultInstructions, "Ideator keeps sticky-note cards on the user's Mac desktop, for ideas, "
-            + "to-dos and things to remember later. A card has a title, then lines, bullets or checkboxes (up to 3 levels). "
-            + "Cards scroll, so length is fine, but the first few lines are what the user sees at a glance: lead with what "
-            + "matters, and keep one topic per card. Create a card only when the user asks; you may offer when something "
-            + "looks worth saving.")
+    func testInitializeGivesTheEditedInstructionsAndNoneWhenThereAreNone() throws {
+        instructions = "Only for to-dos."
+        let edited = try result(respond(request("initialize", ["protocolVersion": "2025-06-18"])))
+        XCTAssertEqual(edited["instructions"] as? String, "Only for to-dos.")
+
+        instructions = nil
+        let none = try result(respond(request("initialize", ["protocolVersion": "2025-06-18"])))
+        XCTAssertNil(none["instructions"], "a blank instruction leaves the field out")
     }
 
     func testInitializeWithAnUnknownVersionAnswersTheLatestLegacyVersion() throws {
@@ -205,11 +208,12 @@ final class MCPServerTests: XCTestCase {
     }
 
     func testDiscoverListsTheVersionsTheToolsCapabilityAndTheInstructions() throws {
+        instructions = "Edited for discover."
         let result = try result(respond(request("server/discover", ["_meta": modernMeta])))
         XCTAssertEqual(result["resultType"] as? String, "complete")
         XCTAssertEqual(result["supportedVersions"] as? [String], ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"])
         XCTAssertNotNil((result["capabilities"] as? [String: Any])?["tools"])
-        XCTAssertEqual(result["instructions"] as? String, MCPServer.defaultInstructions)
+        XCTAssertEqual(result["instructions"] as? String, "Edited for discover.")
         let serverInfo = (result["_meta"] as? [String: Any])?["io.modelcontextprotocol/serverInfo"] as? [String: Any]
         XCTAssertEqual(serverInfo?["name"] as? String, "ideator")
     }

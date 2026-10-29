@@ -53,11 +53,12 @@ func send(_ command: Command) {
 | `Welcome.swift` | the first-launch card and its copy |
 | `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
-| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, and the privacy line in one window sized to its rows; entry point, menu bar, reopen |
+| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the update controls with the version line, the AI tools rows (the instruction editor and the copy buttons) and the privacy line in one window as tall as its rows or the screen's room, scrolling when the rows are taller; entry point, menu bar, reopen |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
-| `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls) |
+| `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls); `Instruction`, the text an AI tool gets at a session start and its preference key, and `InstructionSource`, how the helper learns it without starting the app |
 | `Helper/main.swift` | the `ideator-mcp` process: its arguments, starting the app that contains it, and the stdio loop |
-| `AITools.swift` | the app's side: `ToolInbox` on this instance's endpoint, `HeldCards` while the welcome card waits, and the two settings (`AIToolsChoice`) |
+| `AITools.swift` | the app's side: `ToolInbox` on this instance's endpoint (cards, and the helper's ask for the instruction), `HeldCards` while the welcome card waits, and the settings (`AIToolsChoice`) |
+| `Connect.swift` | `AITool` and `HelperCommand`: the text each "Connect AI tools" button copies (pure) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
   `Place`) or a stack position. There is no id-to-card map to keep in step,
@@ -580,6 +581,86 @@ Later changes, after trying the app:
   - `package.sh` checks the helper's signature, runtime, team and slices, and its launch check hands
     the scratch run a card through the shipped helper and reads the saved file. The check opens a
     real window, so it takes the live-UI lock, waiting up to 30 minutes for it.
+- 2026-10-28, the instruction and the Connect section (MCP, step 3). `Instruction` is the edited text
+  or nothing (`edited: String?`), so no `AIToolsInstruction` key in the preferences means the standard
+  text, and a later build's standard text reaches everyone who never edited it. Typing the standard
+  text back is no edit. A blank text is kept as blank and sends no `instructions` field, because
+  someone who clears the editor wants none; Reset to Default is the way back.
+  - How the edit reaches the helper without starting the app (step 2's rule that a session start never
+    starts Ideator): the helper asks a running instance first, with one line, `{"request":"instruction"}`,
+    on the socket cards use, and the app answers from memory. With no answer inside 2 seconds it reads
+    the app's saved preference (`CFPreferencesCopyAppValue` on the bundle id of the app that contains
+    it, so an update-test copy reads its own), and a scratch helper falls back to the standard text.
+    Both halves are one `InstructionSource` in `MCP/`, and the app stays the only writer of the notes
+    folder and of its preferences. A scratch run saves nothing, so its edit exists only in the process:
+    the socket carries it while the run is up, and when the run quits it is gone, as "lasts for the
+    run" says. A normal run saves each keystroke to its preferences, so the helper finds the edit with
+    Ideator closed. An app from before this change reads the ask as a card with no title and answers
+    with an error, which the helper treats as no answer.
+  - Rejected: a file the app writes for the helper. In the temporary folder, macOS cleans the file out,
+    and a killed scratch run would leave an edit for the next helper to read. In Application Support
+    it is a second copy of a setting and a new place to document, and the scratch case still needs
+    another carrier. In the notes folder it makes the AI tool's process read `~/Documents`, which is
+    the Documents prompt step 2 exists to avoid. Preferences alone could not carry a scratch edit,
+    so verify-cards could never see one. The socket alone would show the standard text whenever
+    Ideator is closed, which is when most sessions start. Starting the app to ask breaks step 2.
+  - A normal helper asks the socket too, rather than going straight to preferences, so the path the
+    live proof exercises is the path the owner's helper takes while Ideator is open. The preference
+    read is covered by unit tests, since a live proof of it would write the owner's domain. An app
+    whose main thread is busy (the Documents prompt) answers late, so the ask is bounded and the
+    saved text, which is the same value, is the answer then.
+  - Connect: `AITool` names the three tools and `setup(for:)` writes each one's text from a
+    `HelperCommand`, the helper's path inside `Bundle.main` and, for a scratch run, `-CardsFolder
+    <folder>`. Claude Code gets `claude mcp add --transport stdio --scope user ideator -- <helper>`;
+    the default scope is the current project only, and a note app belongs to every project. Codex gets
+    a `[mcp_servers.ideator]` table, Claude Desktop the `mcpServers` object. Shell words are single
+    quoted when they need it, and TOML and JSON strings come from `JSONSerialization`, so a path with
+    a space, a quote or a backslash survives. A unit test hands the shell words to zsh and reads them
+    back. Rejected: `codex mcp add` for Codex, since the spec asks for a config line and the table
+    is what a user can see and edit afterwards; a launch-time check that the helper exists, since
+    a copy from a build without one fails visibly in the tool.
+  - The copy buttons write to `NSPasteboard.general` only on a click, and the unit tests write to a
+    pasteboard of their own, so a test run never replaces the clipboard.
+  - The two blocks made Settings' rows 950 points tall (a 982-point window with its title bar), more
+    than a 13-inch display has below the menu bar,
+    and the window is not resizable. Its rows now sit in a scroll view over a flipped document view, and
+    the window is as tall as the rows or as the screen's visible room (minus the title bar and 24
+    points), whichever is less, so a short screen scrolls from the Shortcut row and a tall one shows
+    everything. Rejected: shrinking the rows to fit (the instruction box and three buttons need about
+    300 points), and collapsing the two blocks behind disclosure arrows, which hide the Connect
+    buttons from the user who comes for them. A unit test sets the room through `maxContentHeight`;
+    capped scrolling on a short screen was not driven live, since this Mac's display fits the window.
+  - A limit on the instruction. The reply to the helper's ask is a JSON line that `InstructionSource`
+    reads up to 1 MiB, and a verifier found that a text of 200,000 control characters (1.2 MB as JSON)
+    came back past that, was dropped as too long, and left the helper serving the standard text with no
+    sign of it. The text now holds up to 100,000 bytes, which JSON writes in at most about 600,000
+    (every control character becomes six bytes), so every text the editor takes reaches the helper.
+    `Instruction` holds the limit itself: `edit(to:)` and the read of the preferences both cut a longer
+    text between characters, so a text written with `defaults write` is bounded too. The Settings box
+    refuses a change that would pass it and says so in the line above, since a keystroke that does
+    nothing needs a reason. Rejected: raising the helper's read limit for this reply, which moves the
+    failure to a larger text and leaves the editor with no size it can promise, for a text about 200 times the
+    standard one, which an instruction has no use for.
+  - Connect from a place that goes away. A copy button writes the helper's path inside `Bundle.main`.
+    From a disk image, or from the copy Gatekeeper runs a downloaded app from until it is moved
+    (`.../AppTranslocation/<uuid>/d/Ideator.app`), that path is gone after the eject or the next
+    launch, and the pasted setup fails in the AI tool at a later session, far from where it was
+    copied. `RunPlace.isTemporary` is the rule, and the file system answers it: the app is not on the
+    startup volume (`volumeIsRootFileSystem` is false), or its path has an `AppTranslocation`
+    component, the only sign of a translocated copy that needs no private API. A path the file system
+    cannot find has no answer and does not count. A first version decided by the path string, with
+    links followed: it passed here and failed on CI, whose runner has a link to the startup volume in
+    `/Volumes` but no app at the path, so there was nothing to follow. Then the buttons are dimmed and
+    the line above them says to move Ideator to Applications. Rejected: copying anyway with a warning,
+    since the user pastes before reading it; asking DiskArbitration which volumes are disk images, when
+    one flag already separates them from the startup volume; and exempting other volumes, which can be
+    unplugged as an image can be ejected (the cost: someone who keeps the app on an external drive moves
+    it to use Connect). The disk image case was driven live with a scratch image (recipe
+    `mcp-connect-volume`, also at a mount point outside `/Volumes`); the translocated case was not, since
+    only Gatekeeper makes that copy. The unit tests hand `RunPlace` the file system's answer and a path
+    for both cases, and read the host's own answer for every volume it has mounted.
+  - `MCPServer` is `nonisolated` like the rest of `MCP/`: the helper's server asks the socket from
+    its own thread, and a test must be able to do the same without the main actor.
 - 2026-10-28, pasting Ideator's own copy (audit item 15): a paste read the HTML first whenever
   it held a list item. That is right for the Claude app, web pages and Notes, but `HTMLReader`
   drops blank lines and an empty parent item and turns tabs into spaces, so a copy from one card
@@ -694,6 +775,9 @@ Later changes, after trying the app:
   stack's width. It is top-right where the stack appears.
 - A card from an AI tool with Top keeps the page while the cursor is in the stack's editor, the
   blank page included, since a first character there is about to become a card.
+- An edit of the instruction reaches an AI tool at its next session, never the one running, because
+  MCP gives server instructions once, at `initialize`. A tool that caches them longer is that
+  tool's choice.
 - A card from an AI tool that cannot be saved stays in the stack, as any unsaved edit does, and the
   reply says not to add it again, because a retry would add a second copy.
 - The welcome card that a background start shows comes to the front with `orderFrontRegardless`,

@@ -69,9 +69,18 @@ class KeyStore {
     }
 }
 
-final class SettingsWindow: NSWindow {
+final class SettingsWindow: NSWindow, NSTextViewDelegate {
     private static let width: CGFloat = 440
     private static let inner: CGFloat = 400
+    private static let editorHeight: CGFloat = 112
+
+    private static let connectCaption = "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files."
+    private static let limitName = "\(Instruction.byteLimit / 1_000) KB"
+    private static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next "
+        + "session. It holds up to \(limitName)."
+    private static let connectMoveFirst = "Ideator is running from a disk image, another volume or a quarantined download, so a "
+        + "setup copied now would point at a path that goes away. Move Ideator to Applications, open it from there, then copy a setup."
+    private static let instructionRefusal = "That change would pass the \(limitName) limit, so Ideator did not make it."
 
     /// Names the company of the saved key, or both while no key is saved.
     static func privacy(for provider: Provider?) -> String {
@@ -109,16 +118,34 @@ final class SettingsWindow: NSWindow {
     private let allowAITools = NSButton(checkboxWithTitle: "Let AI tools add cards", target: nil, action: nil)
     private let landsOnTop = NSButton(radioButtonWithTitle: "Top", target: nil, action: nil)
     private let landsAtBottom = NSButton(radioButtonWithTitle: "Bottom", target: nil, action: nil)
+    private let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: SettingsWindow.inner, height: SettingsWindow.editorHeight))
+    private let instructionNote = NSTextField(wrappingLabelWithString: "")
+    private let resetInstruction = NSButton(title: "Reset to Default", target: nil, action: nil)
+    private let connectNote = NSTextField(wrappingLabelWithString: "")
+    private let connect: HelperCommand
+    private let pasteboard: NSPasteboard
+    private var connectButtons: [(tool: AITool, button: NSButton)] = []
+    private var copied: AITool?
     private let stack = NSStackView()
+    private let document = FlippedView()
+    private let maxContentHeight: CGFloat?
     private var rejected: String?
+    private var instructionRefused = false
     private var releasedForRecording = false
 
+    /// The window is as tall as its rows, and scrolls where the screen has less room. `maxContentHeight`
+    /// replaces the screen's room, for a test.
     init(keys: KeyStore, hotKey: HotKey, updates: Updates,
-         aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)), onChange: @escaping () -> Void) {
+         aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
+         connect: HelperCommand = HelperCommand(app: Bundle.main.bundleURL, scratchFolder: nil),
+         pasteboard: NSPasteboard = .general, maxContentHeight: CGFloat? = nil, onChange: @escaping () -> Void) {
         self.keys = keys
         self.hotKey = hotKey
         self.updates = updates
         self.aiTools = aiTools
+        self.connect = connect
+        self.pasteboard = pasteboard
+        self.maxContentHeight = maxContentHeight
         self.onChange = onChange
         super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -184,13 +211,54 @@ final class SettingsWindow: NSWindow {
         let landingRow = NSStackView(views: [NSTextField(labelWithString: "Cards from AI tools go to:"), landsOnTop, landsAtBottom])
         landingRow.spacing = 8
 
+        let editorScroll = NSScrollView()
+        editorScroll.borderType = .bezelBorder
+        editorScroll.hasVerticalScroller = true
+        editorScroll.drawsBackground = false
+        editorScroll.documentView = editor
+        editor.minSize = NSSize(width: 0, height: Self.editorHeight)
+        editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        editor.isVerticallyResizable = true
+        editor.isHorizontallyResizable = false
+        editor.autoresizingMask = .width
+        editor.textContainer?.widthTracksTextView = true
+        editor.textContainerInset = NSSize(width: 2, height: 4)
+        editor.font = .systemFont(ofSize: NSFont.systemFontSize)
+        editor.drawsBackground = false
+        editor.isRichText = false
+        editor.allowsUndo = true
+        editor.isAutomaticQuoteSubstitutionEnabled = false
+        editor.isAutomaticDashSubstitutionEnabled = false
+        editor.isAutomaticTextReplacementEnabled = false
+        editor.isAutomaticSpellingCorrectionEnabled = false
+        editor.delegate = self
+        editor.setAccessibilityLabel("Instruction for AI tools")
+        resetInstruction.target = self
+        resetInstruction.action = #selector(resetInstructionText)
+
+        let connectRow = NSStackView()
+        connectRow.spacing = 8
+        for tool in AITool.allCases {
+            let copy = NSButton(title: tool.name, image: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil) ?? NSImage(),
+                                target: self, action: #selector(copySetup))
+            copy.imagePosition = .imageLeading
+            copy.setAccessibilityLabel("Copy setup for \(tool.name)")
+            connectButtons.append((tool, copy))
+            connectRow.addArrangedSubview(copy)
+        }
+
         for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote), heading("API key (Anthropic or OpenAI)"), field,
                      caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
                      heading("AI tools"), allowAITools, landingRow,
+                     NSTextField(labelWithString: "Instruction for AI tools"),
+                     caption(instructionNote), editorScroll, resetInstruction,
+                     heading("Connect AI tools"), caption(connectNote), connectRow,
                      heading("Privacy"), caption(privacyNote)] {
             stack.addArrangedSubview(view)
         }
         stack.setCustomSpacing(18, after: landingRow)
+        stack.setCustomSpacing(18, after: resetInstruction)
+        stack.setCustomSpacing(18, after: connectRow)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -198,13 +266,24 @@ final class SettingsWindow: NSWindow {
         stack.setCustomSpacing(18, after: buttons)
         stack.setCustomSpacing(18, after: updatesNote)
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        document.addSubview(stack)
         NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: document.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor),
             stack.widthAnchor.constraint(equalToConstant: Self.width),
             field.widthAnchor.constraint(equalToConstant: Self.inner),
             buttons.trailingAnchor.constraint(equalTo: field.trailingAnchor),
             updatesRow.widthAnchor.constraint(equalToConstant: Self.inner),
+            editorScroll.widthAnchor.constraint(equalToConstant: Self.inner),
+            editorScroll.heightAnchor.constraint(equalToConstant: Self.editorHeight),
         ])
-        contentView = stack
+        let scroll = NSScrollView()
+        scroll.documentView = document
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        contentView = scroll
         refresh()
     }
 
@@ -237,10 +316,28 @@ final class SettingsWindow: NSWindow {
         landsAtBottom.state = aiTools.value.landing == .bottom ? .on : .off
         landsOnTop.isEnabled = aiTools.value.enabled
         landsAtBottom.isEnabled = aiTools.value.enabled
-        contentView?.layoutSubtreeIfNeeded()
+        if editor.string != aiTools.value.instruction.text { editor.string = aiTools.value.instruction.text }
+        resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
+        instructionNote.stringValue = instructionRefused ? Self.instructionRefusal : Self.instructionCaption
+        for (tool, button) in connectButtons {
+            button.title = copied == tool ? "Copied" : tool.name
+            button.isEnabled = !connect.isTemporary
+        }
+        connectNote.stringValue = connect.isTemporary ? Self.connectMoveFirst
+            : copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
+        stack.layoutSubtreeIfNeeded()
+        let rows = stack.fittingSize.height
+        document.setFrameSize(NSSize(width: Self.width, height: rows))
         let top = frame.maxY
-        setContentSize(NSSize(width: Self.width, height: stack.fittingSize.height))
+        setContentSize(NSSize(width: Self.width, height: min(rows, roomForContent)))
         setFrameTopLeftPoint(NSPoint(x: frame.minX, y: top))
+    }
+
+    /// What the screen the window is on has left below its title bar, with a margin.
+    private var roomForContent: CGFloat {
+        if let maxContentHeight { return maxContentHeight }
+        guard let visible = (screen ?? NSScreen.main)?.visibleFrame else { return .greatestFiniteMagnitude }
+        return visible.height - (frame.height - contentRect(forFrameRect: frame).height) - 24
     }
 
     static func shortcutCaption(shortcut: Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
@@ -282,6 +379,44 @@ final class SettingsWindow: NSWindow {
         refresh()
     }
 
+    func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
+        guard textView === editor, let replacement = replacementString else { return true }
+        let removed = (editor.string as NSString).substring(with: range).utf8.count
+        guard editor.string.utf8.count - removed + replacement.utf8.count > Instruction.byteLimit else { return true }
+        instructionRefused = true
+        instructionNote.stringValue = Self.instructionRefusal
+        return false
+    }
+
+    func textDidChange(_ notification: Notification) {
+        aiTools.value.instruction.edit(to: editor.string)
+        resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
+        instructionRefused = false
+        instructionNote.stringValue = Self.instructionCaption
+    }
+
+    /// Replaces the text through the editor, so Undo brings the edit back.
+    @objc private func resetInstructionText() {
+        let all = NSRange(location: 0, length: (editor.string as NSString).length)
+        guard editor.shouldChangeText(in: all, replacementString: Instruction.standard) else { return }
+        editor.replaceCharacters(in: all, with: Instruction.standard)
+        editor.didChangeText()
+    }
+
+    @objc private func copySetup(_ sender: NSButton) {
+        guard let tool = connectButtons.first(where: { $0.button === sender })?.tool else { return }
+        pasteboard.clearContents()
+        pasteboard.setString(tool.setup(for: connect), forType: .string)
+        copied = tool
+        refresh()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, copied == tool else { return }
+            copied = nil
+            refresh()
+        }
+    }
+
     @objc private func useDefaultShortcut() {
         pick(.standard)
         refresh()
@@ -307,6 +442,11 @@ final class SettingsWindow: NSWindow {
         if keys.set(nil) { onChange() } else { NSSound.beep() }
         refresh()
     }
+}
+
+/// A view whose origin is its top left, so a scroll view opens on its first row.
+private final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }
 
 /// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the

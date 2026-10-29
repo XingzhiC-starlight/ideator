@@ -13,6 +13,7 @@
 //   add-bytes N            tools/call add_card titled "Too long" whose body is N bytes of "x"
 //
 // Prints each request (cut at 300 characters) after "->" and each reply after "<-" with the time it took.
+// After an initialize or discover reply it prints the `instructions` field in full on a line of its own.
 // Exit 1 when the helper ends or a reply takes longer than CARDS_MCP_TIMEOUT seconds (default 120).
 import Foundation
 
@@ -106,6 +107,13 @@ func request(_ method: String, _ params: [String: Any]) {
         exit(1)
     }
     print(String(format: "<- %@  (%.2f s)", cut(reply), Date().timeIntervalSince(started)))
+    if method == "initialize" || method == "server/discover" {
+        let result = (try? JSONSerialization.jsonObject(with: reply) as? [String: Any])?["result"] as? [String: Any]
+        let text = result?["instructions"] as? String
+        print("   instructions (\(text.map { "\($0.count) characters" } ?? "none")): "
+            + (text.flatMap { try? JSONSerialization.data(withJSONObject: $0, options: [.fragmentsAllowed, .withoutEscapingSlashes]) }
+                .map { String(decoding: $0, as: UTF8.self) } ?? "none"))
+    }
 }
 
 let modernMeta: [String: Any] = [
