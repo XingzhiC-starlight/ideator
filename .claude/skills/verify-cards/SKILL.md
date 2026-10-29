@@ -44,7 +44,9 @@ cv launch --welcome   # the first-launch card, as a stranger sees it
   `seed-b.md` ("Beta card", two body lines). With no sidecar both start in the stack, Alpha on
   top. Without `--seed` the stack starts on its blank page with a count of 0.
 - `--seed SIDECAR` also copies SIDECAR in as `.cards.json` before launch, to start from saved
-  places, Clarity or summaries.
+  places, Clarity or summaries. A SIDECAR named `.cards.json`, as `cv files` saves it, brings the
+  `.md` files beside it too: the app drops what the sidecar names without its card file, so a
+  saved Spread set needs them.
 - `--welcome` forces the first-launch card even though a scratch run never shows it: it adds
   `--env CARDS_SHOW_WELCOME=1` to `open`, and the command line stays `… --args -CardsFolder <folder>`.
   Ready is then the card's Continue button, not New. It combines with `--seed`, which goes second.
