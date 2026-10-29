@@ -1,10 +1,11 @@
 import AppKit
 
 struct WelcomeCopy: Equatable {
-    /// Raise it whenever the paragraphs about Anthropic or GitHub change what they say Ideator
-    /// sends or asks, so a Mac that acknowledged an older card sees this one before Ideator does
-    /// anything the older card did not announce. 1 is the card from before the GitHub paragraph.
-    static let version = 2
+    /// Raise it whenever the paragraphs about Anthropic, OpenAI or GitHub change what they say
+    /// Ideator sends or asks, so a Mac that acknowledged an older card sees this one before Ideator
+    /// does anything the older card did not announce. 1 is the card from before the GitHub
+    /// paragraph, 2 the card from before OpenAI was named.
+    static let version = 3
 
     let title = "Welcome to Ideator"
     let buttonTitle = "Continue"
@@ -33,10 +34,10 @@ struct WelcomeCopy: Equatable {
                       text: "Each card is a Markdown file in \(path). After you continue, macOS asks whether Ideator may "
                           + "use your Documents folder. Choose Allow."),
             Paragraph(lead: "Summaries are optional.",
-                      text: "To show a short summary when you collapse a card, add your own Anthropic API key in Settings. "
-                          + "Ideator then sends a card's text to Anthropic whenever the card has no summary for its text "
-                          + "as it is now, such as when you save the key or change the card. "
-                          + "Only a card's text goes to Anthropic."),
+                      text: "To show a short summary when you collapse a card, add your own Anthropic or OpenAI API key "
+                          + "in Settings. Ideator then sends a card's text to Anthropic or OpenAI, whichever your key is "
+                          + "for, whenever the card has no summary for its text as it is now, such as when you save the "
+                          + "key or change the card. Only a card's text goes to that company."),
             Paragraph(lead: "Updates come from GitHub.",
                       text: "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "
                           + "installs one. You can turn the daily check off in Settings. Nothing else leaves your Mac."),

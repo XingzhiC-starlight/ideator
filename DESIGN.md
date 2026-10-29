@@ -44,7 +44,7 @@ func send(_ command: Command) {
 | `Clipboard.swift` | copy and paste formats: a run of lines to and from Markdown text and HTML lists (pure) |
 | `DeskController.swift` | the single owner of the desk and of every window |
 | `Library.swift` | `~/Documents/Ideator/*.md` and the hidden sidecar `.cards.json` |
-| `Summarizer.swift` | summary requests and the one Anthropic call |
+| `Summarizer.swift` | summary requests, `Provider` (whose key it is), and the two wire formats, `Anthropic` and `OpenAI` |
 | `CardWindow.swift`, `CardEditor.swift` | the card window, press routing, and the text view |
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
@@ -468,6 +468,40 @@ Later changes, after trying the app:
   sidecar older than this build's version as none: every card in the stack, the stack at its home.
   `SavedSummary.prompt` stopped being optional for the same reason, so a sidecar from before the
   prompt stamp (2026-10-24) fails to decode and is read as none too.
+- 2026-10-28, summaries with an Anthropic or an OpenAI key: users without an Anthropic account should
+  still get summaries on day one of the public build, and OpenAI keys are the common ones. Settings
+  keeps one key field. `Provider` is chosen from the key's start (`sk-ant-` is Anthropic, anything
+  else OpenAI) in one initializer, and `Anthropic` and `OpenAI` are only wire formats, each a request
+  builder and a reply reader; `Provider.summarize` is the one transport and the one place an error
+  becomes a reason. OpenAI goes through the Responses API with `gpt-6-luna` (no SDK, `store: false`,
+  low reasoning effort, no `temperature` or `top_p`) and its text is read from the `output_text` parts
+  of `message` items by type, because the output begins with a `reasoning` item. The prompt is shared:
+  `scripts/check-summaries.sh` runs the real request over sample cards against the spec's rules, so
+  a rule a model breaks is fixed in `Summary.instructions` for both companies. The Keychain item is
+  now the neutral account `api-key`, the old `anthropic-api-key` one is not migrated (before beta),
+  and the privacy line, the welcome card (version 3) and PRIVACY.md name the company that gets the
+  text. A key from any other service goes to OpenAI and fails with HTTP 401 on hover, in exchange for
+  no base-URL field. `Desk` is unchanged except the reason for a card with no key, which no longer
+  says Anthropic.
+- 2026-10-28, the prompt's language rule: the first `check-summaries.sh` run with `gpt-6-luna` gave
+  three English cards a Chinese summary, each opening with one of the prompt's Chinese kind labels,
+  and ran a Chinese card full of English terms to 82 characters. The language rule now comes second
+  in `Summary.instructions`, names English as well as Chinese, says the examples never set the
+  language, and ties the Chinese kinds to notes in Chinese; the CJK budget counts every letter,
+  digit, space and mark. The same text goes to both companies, so the rerun with each key is the
+  proof. `Desk` changes only in that text.
+  The second run kept every summary in its card's language but ran three past the length limit
+  (133 and 138 characters for English, 75 for Chinese), each listing every point of its note. The
+  limit is now a hard ceiling with a lower aim (15 to 18 words, 40 to 50 CJK characters), the gist
+  comes only if it fits, the model picks one or two main points (a to-do list still names every open
+  item), and a thin card gets at most half the limit; nothing measures or cuts the reply.
+  The third run, with both companies, had 5 hard fails in 304 checks: Haiku answered the Chinese thin
+  card in English, opening with the prompt's English fallback "Notes on"; both ran the Chinese card
+  full of English terms to 77 and 82 characters by copying every term; and `gpt-6-luna` listed the
+  whole numbered launch plan as a "to-do list" (134 characters). Each kind list now carries its own
+  fallback ("Notes on" for English, "笔记：" for Chinese), a CJK note names at most two English
+  terms and drops key prefixes, versions, IDs and links, and only `[ ]`/`[x]` lines make a to-do
+  list, so any other list gets its one or two main points.
 
 ## Tradeoffs accepted
 
@@ -522,7 +556,8 @@ Later changes, after trying the app:
 - A file added outside the app while Clarity is ON joins the stack collapsed.
 - While hidden, swipes and edge bands do nothing: there is no card area to switch.
 - The menu bar menu adds "Settings…" so the API key has somewhere to go.
-- With no API key, a collapsed card shows "Summary unavailable" with the reason on hover.
+- With no API key, a collapsed card shows "Summary unavailable" with the reason on hover ("No API key.
+  Add one in Settings.").
 - A collapsed card whose body is empty or one line shows that line in the lighter style.
 - The grid uses the menu-bar screen and does not subtract the Dock. Only the overhang limit
   does, so a header can't hide under it.

@@ -83,7 +83,7 @@ They do this:
    Anyway**, and confirm.
 4. Ideator opens with a welcome card. Press **Continue**. If macOS then asks whether Ideator can
    access the Documents folder, allow it. Notes live in `~/Documents/Ideator`.
-5. For summaries, choose **Settings…** from the menu bar icon and paste their own Anthropic API key.
+5. For summaries, choose **Settings…** from the menu bar icon and paste their own Anthropic or OpenAI API key.
    The image holds no key.
 
 Each new version you send repeats the Open Anyway step. If they saved a key, macOS may also ask again
@@ -116,6 +116,25 @@ validation off. With a Team ID the workaround has to go, and `scripts/package.sh
 The Team ID path has not run with a real Developer ID yet. `scripts/test-signing.sh` checks the
 order, identity and flags of every `codesign` call against a stand-in for `codesign`, in seconds and
 without Xcode. The first run with the certificate is the real test.
+
+## Check the summary prompt against a real key
+
+```bash
+scripts/check-summaries.sh
+```
+
+The script sends fourteen sample cards (English, Chinese and Japanese: to-do lists, thoughts, meeting
+notes, links, a nested plan, thin cards) through the app's own request, using the key in
+`$OPENAI_API_KEY` or one pasted at a hidden prompt, and checks each summary against the rules in
+CARDS-SPEC.md § AI summaries that a program can check. `--anthropic` also runs the Anthropic request.
+A rule marked (heuristic) can fire on a good summary, so it prints WARN and does not fail the run.
+The script reads the key itself, before it compiles, so the prompt shows at once, nothing you paste is
+echoed, and a key of any length (an `sk-proj-` key is over 128 characters) arrives whole. It then prints
+one line with the key's company and length, such as "Read an OpenAI key, 164 characters.", so a cut or
+empty paste shows before any request is sent. The key is never an argument and is never printed or
+stored; the program gets it only through its environment. The cards are in
+`scripts/check-summaries/main.swift`; none of yours are sent. When a rule fails, edit `Summary.instructions`
+in `Cards/Desk.swift`, the one prompt for both companies, and run the script again.
 
 ## Is the installed app current?
 
@@ -239,19 +258,23 @@ app, see "When the Developer ID arrives" above.
 
 ## Where to paste the API key
 
-Summaries use the Anthropic API (model `claude-haiku-5-5`). Click the menu bar icon (or **⋯** on
-the stack's tan ribbon), choose **Settings…**, paste your key into **Anthropic API key**, and click **Save**.
+Summaries use the Anthropic API (model `claude-haiku-5-5`) or the OpenAI API (model `gpt-6-luna`).
+Click the menu bar icon (or **⋯** on the stack's tan ribbon), choose **Settings…**, paste your key into
+**API key (Anthropic or OpenAI)**, and click **Save**. A key that starts with `sk-ant-` is Anthropic's and
+any other key is OpenAI's; the line under the field says which one Ideator took. A key from another
+service goes to OpenAI and fails there: the card shows "Summary unavailable" with HTTP 401 on hover.
 
-The key is stored in your login Keychain (service "Ideator"), never in the project or the notes
-folder. Without a key everything works; collapsed cards just say "Summary unavailable". Debug
+The key is stored in your login Keychain (service "Ideator", account "api-key"), never in the project
+or the notes folder. A key saved by a build from before 2026-10-28 sits under the account
+"anthropic-api-key", which Ideator does not read: paste the key once more. Without a key everything works; collapsed cards just say "Summary unavailable". Debug
 builds are not signed with a stable identity, so after a rebuild macOS may ask once whether Ideator
 may read its Keychain item; choose **Always Allow**. A run started with `-CardsFolder` never reads
 or writes the Keychain: it starts with no key, and a key pasted into Settings lasts until that run
 quits.
 
 [PRIVACY.md](PRIVACY.md) lists what Ideator stores and the two things it sends: a card's text to
-Anthropic whenever the card has no summary for its text as it is now, and a daily update check to
-GitHub.
+Anthropic or OpenAI, whichever company's key you saved, whenever the card has no summary for its text
+as it is now, and a daily update check to GitHub.
 
 ## First launch
 

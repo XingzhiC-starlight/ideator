@@ -13,7 +13,7 @@ button collapses or expands just that card, and the card keeps its state when it
 - `clarity-card` A card's collapse/expand button changes only that card, not the global button.
 - `clarity-short-body` A card with an empty or one-line body shows that line instead of a summary.
 - `clarity-no-key` Without an API key, a longer card shows `Summary unavailable`, with the reason
-  on hover.
+  `No API key. Add one in Settings.` on hover.
 - `clarity-saved` Collapsed cards and the global state survive in the sidecar.
 - `clarity-three-lines` A long summary wraps onto three lines and the third ends in `…`.
 - `clarity-prompt-stamp` A saved summary shows only if the current prompt wrote it (its `prompt`
@@ -40,10 +40,11 @@ Preconditions:
   brown; crop and enlarge the ribbon to compare the two PNGs.
 - **Longer body.** Flip to Beta. Run `cv ax click stack 0.985 0.6`. `cv ax tree` shows
   `Beta card`, a `Refresh summary` button, and one of three summary lines. With no key stored it
-  is `AXStaticText "No Anthropic API key. Add one in Settings." value="Summary unavailable"`: the
+  is `AXStaticText "No API key. Add one in Settings." value="Summary unavailable"`: the
   reason is the label's tooltip, which `tree` prints as its name. A key the API rejects gives the
-  same value with the API's error as the reason, such as `HTTP 401: invalid x-api-key`. A working
-  key gives a summary once one arrives. `cv shot clarity-beta` shows the summary line lighter than
+  same value with the API's error as the reason, such as `HTTP 401: invalid x-api-key` from
+  Anthropic or `HTTP 401: Incorrect API key provided: …` from OpenAI ([api-key](./api-key.md)). A
+  working key gives a summary once one arrives. `cv shot clarity-beta` shows the summary line lighter than
   the header.
 - **One card.** Expand only Beta. Run `cv ax press "Expand this card" stack`. The stack's
   `AXTextArea` is back with Beta's text, the card button reads `Collapse this card`, and Clarity
@@ -73,7 +74,7 @@ Preconditions:
 
 - A scratch run starts with no API key (it never reads the login Keychain), so Beta shows
   `Summary unavailable`. Pasting a working key into Settings makes Beta show a spinner and then real
-  text from the Anthropic API, which costs a request. Use Alpha (one body line) when a
+  text from the API of the key's company (Anthropic or OpenAI), which costs a request. Use Alpha (one body line) when a
   deterministic proof is enough.
 - A collapsed card has no text area, so `cv ax text` prints nothing for it, and
   `card=<title>` finds it by its header text instead.

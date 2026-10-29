@@ -63,7 +63,8 @@ Preconditions:
   build. Only builds made by scripts/package.sh check for updates." `cv shot settings-updates` is
   the proof image. After `cv stop` the `shasum` is unchanged.
 - **settings-privacy.** `cv ax tree` of the Settings window has, after the Privacy heading, the
-  static text beginning "With a key saved, Ideator sends a card's text to Anthropic" and ending
+  static text beginning "With a key saved, Ideator sends a card's text to Anthropic or OpenAI,
+  whichever your key is for" (with a key saved it names that one company instead) and ending
   "Nothing else leaves your Mac: no analytics, no crash reports."
 
 ## Gotchas

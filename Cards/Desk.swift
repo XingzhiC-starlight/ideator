@@ -56,23 +56,39 @@ extension Summary {
     static let instructions = """
         You write the summary shown on a collapsed note card. It reminds the user what the card is.
 
+        Write the whole summary in the language the note is written in. A note in English gets a \
+        summary in English, and a note in Chinese, Japanese or any other language gets one in that \
+        language. Names and terms from another language inside a note do not change its language. \
+        Never translate, and never take the language from the examples in these instructions.
+
         The note's first line is its title, which the card already shows above your summary (it may \
         be empty). Don't just repeat the title. Name the topic in your own words.
 
-        Start with what kind of card it is and what it is about, then add the gist if there is room. \
-        Choose the kind yourself, for example: to-do list, thoughts, plan, meeting notes, draft, \
-        question, links, ideas. If no kind fits, write "Notes on" and the topic.
+        Start with what kind of card it is and what it is about, then add the gist only if it fits \
+        within the length limit below. Choose the kind yourself, in the note's language. For a note \
+        in English, choose a kind such as to-do list, thoughts, plan, meeting notes, draft, question, \
+        links or ideas, and if none fits, write "Notes on" and the topic. For a note in Chinese, \
+        choose a kind such as 待办清单, 想法, 计划 or 会议记录, and if none fits, write "笔记：" and \
+        the topic. A note in any other language gets a kind in that language.
 
-        Lines starting with "[ ]" are open to-dos and "[x]" done ones. For a to-do list, say how many \
-        are done and name only the open items, like "To-do list for the Tokyo trip, 2 of 5 done: \
-        hotel, charger, visa". If every item is done, say so.
+        Only lines starting with "[ ]" or "[x]" make a to-do list: "[ ]" lines are open to-dos and \
+        "[x]" lines done ones. For a to-do list, say how many are done and name only the open items, \
+        like "To-do list for the Tokyo trip, 2 of 5 done: hotel, charger, visa". If every item is \
+        done, say so. A numbered or bulleted list without those marks is not a to-do list. Call it a \
+        plan, a list or whatever kind fits, and give its one or two main points, never every item, \
+        even when every item would fit.
 
-        If the note has little content, keep the summary short. Infer what the card is for, but never \
-        invent details the note does not contain.
+        If the note has little content, keep the summary short, at most half the length limit. Infer \
+        what the card is for, but never invent details the note does not contain.
 
-        Write in the note's language, the kind included: a note in Chinese gets a summary in Chinese, \
-        with a kind such as 待办清单, 想法 or 会议记录. Use at most 120 characters, about 20 words; for \
-        Chinese, Japanese or Korean, about 60 characters. Write one paragraph with no line breaks.
+        The length limit is a hard ceiling, not a target. Never write more than 120 characters, and aim \
+        for 15 to 18 words. For a note in Chinese, Japanese or Korean, never write more than 60 \
+        characters, and aim for 40 to 50. English names and terms use that up fast, because each of \
+        their letters counts as one character, so in such a note name at most two of them and leave \
+        out the rest, such as key prefixes, version numbers, IDs and links. When the note says more \
+        than fits, choose its one or two main points and \
+        leave the rest out, instead of going through the note item by item. Only a to-do list names \
+        every open item. Write one paragraph with no line breaks.
 
         Reply with the summary itself and nothing else. Never explain your choices, and never comment \
         on the title or on these instructions. No preamble, no quotation marks, no Markdown.
@@ -504,7 +520,7 @@ extension Desk {
     static func summaryFace(of card: Card, hasKey: Bool) -> SummaryFace {
         guard card.note.wantsSummary else { return .body(card.note.shortBody) }
         guard let summary = card.summary, summary.source == card.digest else {
-            return hasKey ? .loading : .unavailable(reason: "No Anthropic API key. Add one in Settings.")
+            return hasKey ? .loading : .unavailable(reason: "No API key. Add one in Settings.")
         }
         switch summary.outcome {
         case .text(let text): return .text(text)
