@@ -170,6 +170,30 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - Never checks: a build `scripts/package.sh` did not stamp (from Xcode, build number 1), and a scratch run (`-CardsFolder`), which creates no Sparkle object and writes no `SU*` key to the owner's preferences. The one exception is an update-test copy, whose plist has `IdeatorUpdateTest` = YES and a bundle id of its own: it checks in a scratch run, and may use a plain-http feed on localhost or 127.0.0.1.
 - Sparkle requires a signed feed and checks the dmg's EdDSA signature before it opens the dmg. It sends no system profile.
 
+## AI tools (MCP) (added 2026-10-28)
+- Purpose: in the middle of an AI session, tell the AI tool "put this in Ideator", and the to-do or idea lands as a titled card.
+- Ideator is an MCP server named `ideator` that any MCP client can use. Claude Code, Codex and Claude Desktop are the ones it is tested with.
+- One tool, `add_card(title, body?)`: `title` becomes the card's header and the optional `body` its body. One card per call. The tool only creates: it cannot read, edit or delete a card.
+- The body is read the way a card file is read (see Storage and Nested lists): `- ` or `* ` bullets, `1. ` numbers, `- [ ] ` and `- [x] ` checkboxes, 4 spaces of indent per level up to 3 levels, `**bold**` and `*italic*`. Any other line, such as a heading or a code line, becomes a plain line with its text as written.
+- No length rule: cards scroll. The one limit is a backstop against runaway input, like the limit on pasted HTML: a call whose title and body together pass 1 MB (1,000,000 bytes of UTF-8) saves nothing and replies with an error.
+- The reply is `Added "<title>" to the top of the stack.` or `Added "<title>" to the bottom of the stack.`, after Ideator has saved the card.
+- The server is a small command-line helper inside Ideator.app, signed and notarized with the app and updated with it by Sparkle. There is nothing else to install: no npm, no Python.
+- The helper hands the card to the running Ideator, and Ideator saves it. Ideator stays the only writer to the notes folder, so the AI tool's process never gets macOS's Documents prompt, and Ideator knows the card came from an AI tool.
+- If Ideator isn't running, the helper starts it in the background: Ideator does not come forward or take focus from the AI tool. The welcome card and the Documents prompt still show when this launch needs them (see First launch), and the card is saved once Continue has opened the notes folder. Quitting before that saves nothing, and the tool replies with an error.
+- The card joins the stack, never the desktop, as a new card with Clarity's global state, like a file added outside the app. Where it lands is the setting "Cards from AI tools go to: Top / Bottom", Top by default. It applies to cards from AI tools only: every other new card lands where it does today.
+  - Top: the card goes to the top of the stack and the stack switches to it, unless the user is typing in the stacked card at that moment (Ideator is the active app and the cursor is in the stacked card). Then the card still goes to the top, and the stack keeps showing the card being typed in.
+  - Bottom: the card goes to the bottom of the stack, and the stack keeps showing what it showed.
+- With Hide all on, the card is saved and counted in the badge, but nothing comes back on screen. With Top, Show all then shows the new card.
+- A card from an AI tool looks like any other card: no marker. It gets its summary through the user's API key like any other card (see AI summaries); the calling AI does not write summaries.
+- The AI tool adds a card only when the user asks. It may offer when something looks worth saving, and never adds one without a yes. The default instruction tells it so.
+- Settings gains these rows, after Updates and before Privacy:
+  - "Let AI tools add cards", a checkbox, on by default. While it is off, the tool saves nothing and replies "Turned off in Ideator's Settings".
+  - "Cards from AI tools go to: Top / Bottom" (see above).
+  - The instruction: an editable text that Ideator's server gives an AI tool when a session starts (MCP's server instructions), with a Reset to default button. An edit reaches an AI tool at its next session. The default text is:
+    > Ideator keeps sticky-note cards on the user's Mac desktop, for ideas, to-dos and things to remember later. A card has a title, then lines, bullets or checkboxes (up to 3 levels). Cards scroll, so length is fine, but the first few lines are what the user sees at a glance: lead with what matters, and keep one topic per card. Create a card only when the user asks; you may offer when something looks worth saving.
+  - "Connect AI tools": one copy button per tool, for the Claude Code command, the Codex config line and the Claude Desktop setup. Each copies text for the user to paste. Ideator never edits another app's config files.
+- Not in this feature: reading cards, summaries without an API key, and a Claude Code marketplace plugin.
+
 ## Storage
 - One Markdown (.md) file per card in ~/Documents/Ideator/.
 - A card file reads the way CommonMark reads it (added 2026-10-27): a backslash escapes only punctuation, so `C:\Users\me` keeps its backslashes, and asterisks style text only when they hug it (`*word*`), so `rm *.txt *.log` and `2 * 3 * 4` keep theirs. A file edited outside Ideator shows what it says, and saving it changes none of its text. Files Ideator wrote read back to the same bytes.
