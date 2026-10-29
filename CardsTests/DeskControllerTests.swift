@@ -174,33 +174,27 @@ final class DeskControllerTests: XCTestCase {
         let windows = NSApp.windows.compactMap { $0 as? CardWindow }.filter(\.isVisible)
         XCTAssertEqual(windows.count, 1, "Pop puts the one card on the desktop")
         let window = try XCTUnwrap(windows.first)
-        try await expectHoverButtons(shown: true, in: window, "Pop put the card under a pointer that rests")
+        try expectHoverButtons(shown: true, in: window, "Pop put the card under a pointer that rests")
 
         pointer = offScreen
         controller.send(.toggleClarity)
-        try await expectHoverButtons(shown: false, in: window, "the pointer rests away from the card")
+        try expectHoverButtons(shown: false, in: window, "the pointer rests away from the card")
 
         pointer = insideSlot
         controller.send(.toggleClarity)
-        try await expectHoverButtons(shown: true, in: window, "the pointer rests on the card again")
+        try expectHoverButtons(shown: true, in: window, "the pointer rests on the card again")
     }
 
     /// What the user can tell about the card's buttons: a press at Delete's point reaches the button
-    /// only while they are shown, and their row fades to opaque or clear.
-    private func expectHoverButtons(shown: Bool, in window: NSWindow, _ context: String) async throws {
+    /// only while they are shown, and their row is opaque or clear.
+    private func expectHoverButtons(shown: Bool, in window: NSWindow, _ context: String) throws {
         window.contentView!.layoutSubtreeIfNeeded()
         let delete = try XCTUnwrap(button("Delete this card", under: window.contentView!))
         let point = delete.convert(NSPoint(x: delete.bounds.midX, y: delete.bounds.midY), to: nil)
         XCTAssertEqual(window.contentView!.hitTest(point) === delete, shown,
                        "\(context): a press on Delete should \(shown ? "reach it" : "go to the card under it")")
         let row = try XCTUnwrap(delete.superview)
-        let faded: CGFloat = shown ? 1 : 0
-        var waits = 0
-        while row.alphaValue != faded, waits < 200 {   // the row fades over 0.15 s
-            try await Task.sleep(for: .milliseconds(10))
-            waits += 1
-        }
-        XCTAssertEqual(row.alphaValue, faded, "\(context): the buttons should be \(shown ? "shown" : "hidden")")
+        XCTAssertEqual(row.alphaValue, shown ? 1 : 0, "\(context): the buttons should be \(shown ? "shown" : "hidden")")
     }
 
     private func button(_ tooltip: String, under view: NSView) -> NSButton? {
