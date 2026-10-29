@@ -4,8 +4,8 @@ The stack ribbon's Spread button, a 2 × 2 grid third from the left, lays a new 
 each cell ticked in Settings › Spread, the left three cells of the top two rows by default. The
 first card has the cursor. The next click gathers those cards into the bottom of the stack, and
 the click after puts each back where it was. The button remembers its cards until they are
-deleted, across ↩ Stack, Pop and a relaunch. A cell another card or the stack takes is skipped, and
-a click that can bring out nothing changes nothing and says why in the tooltip.
+deleted, across Return to stack, Pop and a relaunch. A cell another card or the stack takes is
+skipped, and a click that can bring out nothing changes nothing and says why in the tooltip.
 
 ## Sub-features
 

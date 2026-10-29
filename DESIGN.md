@@ -101,8 +101,10 @@ func send(_ command: Command) {
 - **One card view, two homes.** The stack shows its selected card with the same `CardView` a
   popped card uses. On the stack it does not drag and leaves its border to the stack. It shows
   the blank page when it has no card. The hover row's move button comes from one table,
-  `CardView.Home.move`: "↩ Stack" on the desktop, "↗ Pop" on the stack, each with its tooltip
-  and command. On a full desktop the stack greys Pop and sets its tooltip to "Desktop full".
+  `CardView.Home.move`: the `arrow.uturn.backward` icon, "Return to stack", on the desktop and the
+  `arrow.up.right` icon, "Pop this card out", on the stack, each with its tooltip and command. Both
+  are icons, like Refresh and Delete, so nothing in the row can wrap. On a full desktop the stack
+  greys Pop and sets its tooltip to "Desktop full: no free slot to pop into".
   That flag is per desk, so `StackView` passes it to `CardView.apply` and it is not in `CardFace`.
 - **Hide all is presentation.** `Visibility` lives outside the desk and is never saved. While
   hidden, New reveals just the card it brings out, and the stack window shrinks to its
@@ -322,6 +324,14 @@ Later changes, after trying the app:
   hover row, where a desktop card has "↩ Stack", so every card's buttons sit in one row. The
   ribbon is New and Clarity. Clarity lost its "On" and "Off" and shows its state by text color
   (`inkSoft` off, `accent` on), with the state in its tooltip and accessibility value.
+- 2026-10-29, Pop and Stack became icons: "↗ Pop" was the one view in the stacked card's hover row
+  that AppKit could shrink. When Clarity collapsed the card and Refresh summary joined the row,
+  the row did not widen enough, Pop wrapped to two lines, and it stayed wrapped after Refresh
+  left. Pop and the desktop card's "↩ Stack" are now icons like Refresh and Delete
+  (`arrow.up.right`, "Pop this card out"; `arrow.uturn.backward`, "Return to stack"). An icon
+  button has a fixed size, so no button in the row can wrap. A full desktop now says why in Pop's
+  tooltip, "Desktop full: no free slot to pop into". `HoverButtonsTests` shows a long-titled card
+  expanded, collapsed and expanded again, and checks that no hover button shrinks or wraps.
 - 2026-10-23, stack arranger: the count badge became a button that opens a popover listing the
   stacked cards, top first, to reorder by grip drag, ⌥↑ and ⌥↓ or VoiceOver actions, and to turn
   the stack to one. This is the one place besides entering and leaving that changes the stack's
@@ -710,8 +720,8 @@ Later changes, after trying the app:
     because the desk can't read Preferences, and that is why a Settings change moves the set at
     the next press, never at once.
   - A home is written in one place, `removePopped`, the only way from the desktop to the stack, so
-    Gather, the fresh sweep and ↩ Stack all record where a card was. Nothing reads a home while its
-    card is out. ↩ Stack still forgets an ordinary card's place.
+    Gather, the fresh sweep and Return to stack all record where a card was. Nothing reads a home while its
+    card is out. Return to stack still forgets an ordinary card's place.
   - Pop's rule moved into `Occupancy` (a cell taken by a card or the stack, and the 19-card
     ceiling), which `firstFreeSlot` and Spread share, so "taken" has one copy.
   - A layout runs on a copy of the desk and commits only if a card came out, so a refused click,
@@ -795,7 +805,7 @@ Later changes, after trying the app:
 
 - New on a full desktop beeps, shows "Desktop full", and shows the stack's blank page with the
   cursor in it. While hidden, that also brings back the stack's card area.
-- "↩ Stack" shows the returned card on the stack, so you see where it went.
+- Return to stack shows the returned card on the stack, so you see where it went.
 - Switching the stack to another card takes the cursor out of the editor, so typing never lands
   in a card you did not click.
 - A file added outside the app, or a card from an AI tool, shows as Clarity says: collapsed while

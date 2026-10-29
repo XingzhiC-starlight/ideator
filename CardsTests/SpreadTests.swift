@@ -161,7 +161,7 @@ final class SpreadTests: XCTestCase {
         let spot = GridPoint(x: 0.47, y: 0.71)
         desk.apply(.move(.card(c0), to: .free(spot)))
         desk.apply(.returnToStack(c0))
-        XCTAssertEqual(desk.stack.first?.id, c0, "↩ Stack still puts it on top")
+        XCTAssertEqual(desk.stack.first?.id, c0, "Return to stack still puts it on top")
         XCTAssertEqual(desk.spreadSet?.homes, [c0: .free(spot)], "and it stays in the set, remembering where it was")
         spread(&desk, cells(0))
         XCTAssertEqual(desk.place(of: .card(c0)), .free(spot), "Spread puts it back there")

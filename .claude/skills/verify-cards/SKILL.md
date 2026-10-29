@@ -109,13 +109,14 @@ Stable handles in this app, all from the code:
   is off: click to collapse every card` or `Clarity is on: click to expand every card`, says it
   too), and its icon, a dark brown outline when off and a filled reddish brown circle when on,
   which only `shot` shows.
-- Card buttons (popped card, or the stack's selected card): `Refresh summary` (collapsed, with two or
-  more body lines), `↩ Stack` (popped only), `↗ Pop` (stacked card only; `[disabled]` with the
-  tooltip `Desktop full` while the desktop is full), `Delete this card`. A card has no collapse
-  button: Clarity is the ribbon's alone. They fade in on hover, but they are in the tree at alpha 0
-  too, so `press` works without hovering. The stack's blank page has none of them.
-- `press` matches a button's whole title, description or tooltip, so `press "↗ Pop"` and `press
-  Clarity` work, and `press Pop` does not.
+- Card buttons (popped card, or the stack's selected card), all icons; these are their accessibility
+  names: `Refresh summary` (collapsed, with two or more body lines), `Return to stack` (a ↩ arrow,
+  popped only), `Pop this card out` (a ↗ arrow, stacked card only; `[disabled]` with the tooltip
+  `Desktop full: no free slot to pop into` while the desktop is full), `Delete this card`. A card
+  has no collapse button: Clarity is the ribbon's alone. They fade in on hover, but they are in the
+  tree at alpha 0 too, so `press` works without hovering. The stack's blank page has none of them.
+- `press` matches a button's whole title, description or tooltip, so `press "Pop this card out"` and
+  `press Clarity` work, and `press Pop` does not.
 - Delete confirmation: a sheet "Delete this card?" with buttons `Delete` and `Cancel`.
 - Count badge: a button. `tree` prints it as `AXButton "2" | "2 cards in the stack" | "Arrange the stack"`
   (title = number of stacked cards, then its VoiceOver label, then its tooltip), `[disabled]` at

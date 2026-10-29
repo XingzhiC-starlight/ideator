@@ -29,7 +29,7 @@ Preconditions:
 - No card is popped (the baseline).
 
 - **New.** Click New. Run `cv ax press New`. `cv ax tree` shows a second window at the top-left
-  cell whose `AXTextArea` is empty and `[focused]`, with buttons `↩ Stack` and
+  cell whose `AXTextArea` is empty and `[focused]`, with buttons `Return to stack` and
   `Delete this card`.
 - **Type.** Type a header and body. Run `cv ax type 'Release checklist\nTag and publish'`.
   `cv ax text card=Release` prints `"Release checklist\nTag and publish"`. `cv shot create-new`
@@ -39,7 +39,7 @@ Preconditions:
   id with `"slot" : 0`, and `stack` still lists `seed-a`, `seed-b`.
 - **Blank page.** Show the blank page and type on it. Run `cv ax click stack 0.015 0.6` (previous
   from the top card wraps to the blank page). `cv ax text stack` prints `""` and the tree has no
-  `↗ Pop`, since the blank page has no card buttons (it still lists the formatting bar's five).
+  `Pop this card out`, since the blank page has no card buttons (it still lists the formatting bar's five).
   Run `cv ax focus stack`, then `cv ax type 'Gamma card\ngamma body'`.
   `cv ax text stack` prints `"Gamma card\ngamma body"` and the badge, `AXButton "2"` in `cv ax tree`,
   goes to `AXButton "3"`.

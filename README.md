@@ -322,9 +322,9 @@ off, and the first save replaces it. The notes themselves are kept.
 | Make a card | **New** on the stack, or type on the stack's blank page |
 | Select a stacked card | Swipe left or right with two fingers on the stack, or click the thin band along its edge: right/bottom = next, left/top = previous |
 | Edit a stacked card | Click into it on the stack; it edits like any other card |
-| Bring a card out | Select it, hover it and click **↗ Pop** |
+| Bring a card out | Select it, hover it and click **Pop this card out** (the ↗ arrow) |
 | Move a card | Drag it by its title or by the margin around its text. Let go close to a cell's center (within 15 % of a cell) and it snaps into that cell, and a card or the stack snapped there trades places with it; let go anywhere else and it stays exactly there, over other cards, even partly off the left, right or bottom edge |
-| Put a card back | Hover it and click **↩ Stack** |
+| Put a card back | Hover it and click **Return to stack** (the ↩ arrow) |
 | Lay out a batch of cards | Click **Spread** on the stack's ribbon (the grid): a new blank card fills each cell ticked in Settings › Spread. Click it again to gather them into the bottom of the stack, and again to put them back where they were. Option-click, or **New Spread** in **⋯**, starts a new batch |
 | Reorder the stack | Click the count badge in the stack's corner, then drag a card's row by its grip (≡), or select a row and press ⌥↑ or ⌥↓ |
 | Collapse to a summary | Click **Clarity** on the stack's ribbon: every card, stacked and popped, shows its summary (the icon is filled while on). Clarity turns off when you click a collapsed card or make a new card |

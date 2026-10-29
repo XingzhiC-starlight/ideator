@@ -10,7 +10,7 @@ is on the stacked card, which hidden removes.
 
 - `hide-toggle` The ribbon's chevron button hides everything, then shows everything again.
 - `hide-ribbon` While hidden the stack is just its ribbon, with the New, Show all, Spread and Clarity icons
-  on the left, the count badge left of the ⋯ menu on the right, and no `↗ Pop`.
+  on the left, the count badge left of the ⋯ menu on the right, and no `Pop this card out`.
 - `hide-new` New while hidden shows only the new card.
 - `hide-show` Show all brings back the stack's card and every popped card.
 
@@ -26,12 +26,12 @@ is on the stacked card, which hidden removes.
 Preconditions:
 
 - `cv launch --seed`; `cv doctor` prints `healthy`.
-- One card popped: run `cv ax press "↗ Pop" stack`. `cv ax windows` lists two windows, both
+- One card popped: run `cv ax press "Pop this card out" stack`. `cv ax windows` lists two windows, both
   342x268 on the owner's display.
 
 - **Hide.** Click the chevron button. Run `cv ax press "Hide all" stack`. `cv ax windows` lists one
   window, the stack, now only ribbon-high (`342x46` on the owner's display). `cv ax tree` shows
-  `Show all` where `Hide all` was, no `AXTextArea`, no `↗ Pop`, and the count badge
+  `Show all` where `Hide all` was, no `AXTextArea`, no `Pop this card out`, and the count badge
   (`AXButton "1" | "1 card in the stack"`, tooltip `Arrange the stack`: Beta is the only stacked
   card) inside the ribbon, left of `Settings and quit`.
   `cv shot hide-ribbon` shows the tan strip only, its chevron pointing down.

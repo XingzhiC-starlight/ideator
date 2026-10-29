@@ -51,11 +51,11 @@ Preconditions:
   "$FOLDER"`, type more, wait 2 s, `cv ax press OK`, `chmod 755 "$FOLDER"`, `cv ax key cmd+q`. The
   pid is gone with no alert, and the card's file holds the whole text.
 - **newer-sidecar-later.** quit-saves ended its run, so `cv stop` and a new `cv launch --seed` first.
-  `cv ax press "↗ Pop"`, wait 1.5 s, `cv files popped` shows a
+  `cv ax press "Pop this card out"`, wait 1.5 s, `cv files popped` shows a
   `"version" : 2` sidecar with Alpha's placement. Write
   `{"version":3,"layout":{"kind":"from a newer Ideator"}}` over `$FOLDER/.cards.json` (here the
-  edit is the scenario itself, another Mac's write, not a shortcut). `cv ax press "↗ Pop"` again and
-  wait 2 s: `cv ax tree` shows "These notes were arranged by a newer Ideator" and `OK`; `cv shot`;
+  edit is the scenario itself, another Mac's write, not a shortcut). `cv ax press "Pop this card
+  out"` again and wait 2 s: `cv ax tree` shows "These notes were arranged by a newer Ideator" and `OK`; `cv shot`;
   `cv ax press OK`. `cv files after-newer` shows the version-3 bytes unchanged, and `cv shot` shows
   both cards popped.
 

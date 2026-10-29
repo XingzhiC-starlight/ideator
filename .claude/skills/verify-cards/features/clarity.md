@@ -43,8 +43,8 @@ Preconditions:
   `cv ax tree` shows the button still named `Clarity`, now with `value="on"` and the tooltip
   `Clarity is on: click to expand every card`. The stack has no `AXTextArea`, and two static
   texts: `Alpha card` and `alpha body` (a one-line body shows itself). The card has no collapse
-  button, only `↗ Pop` and `Delete this card`. `cv shot clarity-on` shows the icon filled in reddish
-  brown, where `clarity-off` shows a dark brown outline.
+  button, only `Pop this card out` and `Delete this card`. `cv shot clarity-on` shows the icon
+  filled in reddish brown, where `clarity-off` shows a dark brown outline.
 - **Saved.** Wait 1.5 s and run `cv files clarity`. The sidecar has `"clarity" : true` and no
   `collapsed` key.
 - **Longer body.** Flip to Beta. Run `cv ax click stack 0.985 0.6`. `cv ax tree` shows
@@ -55,8 +55,8 @@ Preconditions:
   Anthropic or `HTTP 401: Incorrect API key provided: …` from OpenAI ([api-key](./api-key.md)). A
   working key gives a summary once one arrives. `cv shot clarity-beta` shows the summary line lighter than
   the header.
-- **Popped card.** With Beta showing, run `cv ax press "↗ Pop" stack`. Beta arrives at `@0,34`
-  collapsed, with no `AXTextArea`, and Alpha shows collapsed on the stack.
+- **Popped card.** With Beta showing, run `cv ax press "Pop this card out" stack`. Beta arrives at
+  `@0,34` collapsed, with no `AXTextArea`, and Alpha shows collapsed on the stack.
 - **Click a body (`clarity-click`).** Run `cv ax click "card=Beta card" 0.5 0.8`, a real click on
   Beta's body. `cv ax tree` shows Clarity with `value="off"`, an `AXTextArea` in Beta's window that is
   `[focused]` and another in the stack, and `cv shot clarity-click` shows both expanded. The same

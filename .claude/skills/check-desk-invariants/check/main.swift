@@ -288,7 +288,7 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     let entered = after.stack.map(\.id).filter { id in !before.stack.contains { $0.id == id } }
     switch command {
     case .returnToStack(let id) where !entered.isEmpty:
-        if entered != [id] || after.stack.first?.id != id { try fail("P4 stack order", "↩ Stack did not put \"\(id.rawValue)\" on top") }
+        if entered != [id] || after.stack.first?.id != id { try fail("P4 stack order", "Return to stack did not put \"\(id.rawValue)\" on top") }
     case .addFromTool(_, _, .top, _):
         if entered.count != 1 || after.stack.first?.id != entered.first {
             try fail("P4 stack order", "a card from an AI tool with Top did not join at the top: \(after.stack.map(\.id.rawValue))")
@@ -348,14 +348,14 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
         }
     case .returnToStack(let id) where homes[id] != nil && before.place(of: .card(id)) != nil:
         try setIs(homes.merging([(id, before.place(of: .card(id))!)]) { $1 }, cells: before.spreadSet?.cells,
-                  after: "↩ Stack on \"\(id.rawValue)\"")
+                  after: "Return to stack on \"\(id.rawValue)\"")
     case .delete(let id):
         try setIs(homes.filter { $0.key != id }, cells: before.spreadSet?.cells, after: "deleting \"\(id.rawValue)\"")
     case .syncFiles(let files):
         try setIs(homes.filter { files[$0.key] != nil }, cells: before.spreadSet?.cells, after: "a rescan")
     default:
         if after.spreadSet != before.spreadSet {
-            try fail("P8 spread", "the set changed without Spread, ↩ Stack or a delete: \(describe(before.spreadSet)) "
+            try fail("P8 spread", "the set changed without Spread, Return to stack or a delete: \(describe(before.spreadSet)) "
                      + "became \(describe(after.spreadSet))")
         }
     }
