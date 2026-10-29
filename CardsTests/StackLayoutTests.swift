@@ -90,10 +90,10 @@ final class StackLayoutTests: XCTestCase {
         }
     }
 
-    /// Where each of `buttons` shows ink, as a span of its superview's x coordinates: read from the
-    /// pixels its window puts on screen, with the window ordered in out of sight and each button's
-    /// layer rendered at the window's pixel density. Not from a drawing of the view offscreen, which
-    /// can differ: on a 1x screen macOS 26 drew some symbols narrower in the window than on their own.
+    /// Where each of `buttons` shows ink, as a span of its superview's x coordinates on the screen's
+    /// pixel grid. Read from what the window puts on screen: the window is ordered in out of sight,
+    /// and each button's layer contents are rendered at the window's pixel density, so the test does
+    /// not rest on an offscreen drawing matching the screen.
     private func shownSpans(of buttons: [NSButton], in window: NSWindow) throws -> [ClosedRange<CGFloat>] {
         window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
         window.orderFrontRegardless()
@@ -103,18 +103,20 @@ final class StackLayoutTests: XCTestCase {
         let scale = window.backingScaleFactor
         return try buttons.map { button in
             let layer = try XCTUnwrap(button.layer)
-            let columns = Int((button.bounds.width * scale).rounded())
-            let rows = Int((button.bounds.height * scale).rounded())
+            let pixelMinX = (button.frame.minX * scale).rounded(.down) / scale   // the screen's pixel grid
+            let columns = Int(((button.frame.maxX - pixelMinX) * scale).rounded(.up))
+            let rows = Int((button.bounds.height * scale).rounded(.up))
             let context = try XCTUnwrap(CGContext(data: nil, width: columns, height: rows, bitsPerComponent: 8,
                                                   bytesPerRow: columns * 4, space: CGColorSpaceCreateDeviceRGB(),
                                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
             context.scaleBy(x: scale, y: scale)
+            context.translateBy(x: button.frame.minX - pixelMinX, y: 0)
             layer.render(in: context)
             let alpha = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
             let inked = (0..<columns).filter { x in (0..<rows).contains { y in alpha[(y * columns + x) * 4 + 3] > 25 } }
             let first = try XCTUnwrap(inked.first, "\(button.accessibilityLabel() ?? "a button") shows nothing")
             let last = try XCTUnwrap(inked.last)
-            return (button.frame.minX + CGFloat(first) / scale)...(button.frame.minX + CGFloat(last + 1) / scale)
+            return (pixelMinX + CGFloat(first) / scale)...(pixelMinX + CGFloat(last + 1) / scale)
         }
     }
 
