@@ -1,7 +1,7 @@
 # Card buttons on hover
 
-Each card's buttons (refresh summary on a collapsed card with two or more body lines, collapse or
-expand, ↩ Stack or ↗ Pop, delete) sit in its top-right corner and fade in while the pointer is over
+Each card's buttons (refresh summary on a collapsed card with two or more body lines, ↩ Stack or
+↗ Pop, delete) sit in its top-right corner and fade in while the pointer is over
 the card, on a popped card and on the stack's card. While they are hidden, a click there is a click on the card: it puts
 the caret at the end of the title, and on a collapsed card it is a header press. A card that
 appears or moves under a pointer that rests (Show all, Pop, a snap) shows or hides them without a
@@ -29,7 +29,7 @@ truncates when collapsed, before the buttons, never under them.
   a hidden card's place.
 - ↗ Pop while the pointer rests over the first free slot.
 - Drag a card or the stack so it snaps.
-- Type a long first line, then collapse the card.
+- Type a long first line, then turn Clarity on.
 
 ## Driving it with cards-verify
 
@@ -47,7 +47,7 @@ Preconditions:
   318 53`. `cv ax tree` has no `AXSheet`, and Alpha's `AXTextArea` is `[focused]`. To see where the
   caret went, `cv ax type 'X'` gives `"Alpha cardX\nalpha body"`; undo it with `cv ax key cmd+z`.
 - **Hover (`hover-show`).** Run `cv ax mouse move 900 700`, then `cv ax mouse move 318 53`, wait
-  0.5 s, and `cv shot hover-on`: Collapse, ↩ Stack and Delete show. The same `mouse down` and
+  0.5 s, and `cv shot hover-on`: ↩ Stack and Delete show. The same `mouse down` and
   `mouse up` at `318 53` open the sheet `Delete this card?`. Run `cv ax press Cancel`.
 - **Show all (`hover-show-all`).** Run `cv ax press "Hide all" stack`; `cv ax windows` lists only the
   ribbon, `@1368,34 342x46`. Run `cv ax mouse move 300 300` and `cv ax mouse move 318 53`, then
@@ -64,18 +64,19 @@ Preconditions:
   card"`. Run `cv ax mouse move 1539 72` (the ribbon's gap, near its bottom edge) and `cv shot
   hover-stack-before`: Beta on the stack shows no buttons. Run `cv ax dragat 1539 72 0 302`: the
   stack lands 34 points below slot 9 and snaps up to `@1368,302`, which puts the pointer 29 points
-  into the card area. Wait 1 s; `cv shot hover-stack-under` shows Collapse, ↗ Pop and Delete.
+  into the card area. Wait 1 s; `cv shot hover-stack-under` shows ↗ Pop and Delete.
 - **Accessibility (`hover-press`).** Run `cv ax mouse move 900 700`. `cv ax tree` still lists
-  Alpha's three buttons, and `cv ax press "Collapse this card" "card=Alpha card"` collapses Alpha.
-  Run `cv ax press "Expand this card" "card=Alpha card"` to undo it.
+  Alpha's two buttons, and `cv ax press "Delete this card" "card=Alpha card"` opens the sheet
+  `Delete this card?`. Run `cv ax press Cancel`.
 - **Long title (`hover-title`).** Run `cv ax press New stack` and `cv ax type 'Everything to
   finish before the holidays\nline one\nline two'`. The card is at `@342,34`. Run `cv ax mouse
-  move 610 140` and `cv shot hover-title-expanded`: the title wraps after "finish", left of
-  Collapse. Run `cv ax press "Collapse this card" "card=Everything to finish before the
-  holidays"`, hover again, and `cv shot hover-title-collapsed`: the title ends in `…` left of
-  Refresh, and `cv ax tree` shows the title's static text ending before `Refresh summary` starts.
-  For the stack, run `cv ax press "↩ Stack" "card=Everything to finish before the holidays"` and
-  `cv ax press "Expand this card" stack`, hover the stack's card, and take the same two shots.
+  move 610 140` and `cv shot hover-title-expanded`: the title wraps left of
+  ↩ Stack. Run `cv ax press Clarity stack`, hover again, and `cv shot hover-title-collapsed`: the
+  title ends in `…` left of Refresh, and `cv ax tree` shows the title's static text ending before
+  `Refresh summary` starts. For the stack, run `cv ax press "↩ Stack" "card=Everything to finish
+  before the holidays"` (Clarity is on, so the stack shows it collapsed), hover the stack's card,
+  and take `cv shot hover-title-stack-collapsed`. Run `cv ax press Clarity stack` and take
+  `cv shot hover-title-stack-expanded`.
 
 ## Gotchas
 

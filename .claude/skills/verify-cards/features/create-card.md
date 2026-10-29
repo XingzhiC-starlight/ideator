@@ -29,8 +29,8 @@ Preconditions:
 - No card is popped (the baseline).
 
 - **New.** Click New. Run `cv ax press New`. `cv ax tree` shows a second window at the top-left
-  cell whose `AXTextArea` is empty and `[focused]`, with buttons `Collapse this card`, `↩ Stack`
-  and `Delete this card`.
+  cell whose `AXTextArea` is empty and `[focused]`, with buttons `↩ Stack` and
+  `Delete this card`.
 - **Type.** Type a header and body. Run `cv ax type 'Release checklist\nTag and publish'`.
   `cv ax text card=Release` prints `"Release checklist\nTag and publish"`. `cv shot create-new`
   shows `Release checklist` in bold above `Tag and publish`.
