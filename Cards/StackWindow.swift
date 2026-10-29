@@ -93,10 +93,41 @@ final class StackWindow: NSWindow {
     }
 }
 
-/// Looks like one card: a tan ribbon with the toolbar (New, Clarity), "Desktop full",
-/// the Hide all / Show all button and the app menu button, above the selected stacked card, which
-/// is a full `CardView`. The count badge sits in that card's bottom-right corner, and in the
-/// ribbon beside the Show all button while Hide all has removed the card. The window's margin is
+/// The blank points an image leaves before and after what it draws, across its width. Symbol images
+/// carry side bearings, so `size.width` is wider than the ink.
+private struct InkSpan {
+    let lead: CGFloat
+    let trail: CGFloat
+
+    static let blank = InkSpan(lead: 0, trail: 0)
+
+    /// Scans the image drawn at 4x for its first and last column with visible alpha.
+    static func of(_ image: NSImage) -> InkSpan {
+        let scale: CGFloat = 4
+        let size = image.size
+        let columns = Int((size.width * scale).rounded(.up))
+        let rows = Int((size.height * scale).rounded(.up))
+        guard columns > 0, rows > 0,
+              let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows,
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: rep) else { return .blank }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(x: 0, y: 0, width: columns, height: rows))
+        NSGraphicsContext.restoreGraphicsState()
+        let inked = (0..<columns).filter { x in
+            (0..<rows).contains { y in (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 }
+        }
+        guard let first = inked.first, let last = inked.last else { return .blank }
+        return InkSpan(lead: CGFloat(first) / scale, trail: CGFloat(columns - 1 - last) / scale)
+    }
+}
+
+/// Looks like one card: a tan ribbon with the toolbar (New, Hide all / Show all, Clarity), "Desktop
+/// full" and the app menu button, above the selected stacked card, which is a full `CardView`. The
+/// count badge sits in that card's bottom-right corner, and in the ribbon beside the menu button
+/// while Hide all has removed the card. The window's margin is
 /// four invisible edge bands that select another stacked card: left/top the previous,
 /// right/bottom the next.
 /// The stack draws the card shape and the editing border; the `CardView` inside draws nothing.
@@ -104,20 +135,32 @@ private final class StackView: NSView {
     /// A press on the ribbon's empty space: true when it moved and dragged the window, false for a click.
     var onRibbonPress: (NSEvent) -> Bool = { _ in false }
     private let send: (Command) -> Void
-    private let toolbar = NSStackView()
-    private let clarityButton: ActionButton
+    private let newButton: ActionButton
     private let toggleButton: ActionButton
+    private let clarityButton: ActionButton
+    /// Left to right at the ribbon's left edge.
+    private var toolbar: [ActionButton] { [newButton, toggleButton, clarityButton] }
+    /// What each toolbar button's current image leaves blank at its sides, measured when it is set.
+    private var inkSpans: [ObjectIdentifier: InkSpan] = [:]
     private let menuButton = ActionButton(symbol: "ellipsis.circle", help: "Settings and quit")
     private let cardView: CardView
     /// False under Hide all: the window is only the ribbon, and the edge bands do nothing.
     private(set) var showsCard = true
-    /// Hide all is on: the toggle shows a slashed eye and offers Show all.
+    /// Hide all is on: the toggle's chevron points down and offers Show all.
     private var allHidden = false {
         didSet {
             guard allHidden != oldValue else { return }
             let help = allHidden ? "Show all" : "Hide all"
-            toggleButton.image = NSImage(systemSymbolName: allHidden ? "eye.slash" : "eye", accessibilityDescription: help)
+            setIcon(allHidden ? "chevron.down" : "chevron.up", help, on: toggleButton, weight: .light)
             toggleButton.toolTip = help
+            toggleButton.setAccessibilityLabel(help)
+        }
+    }
+    private var clarity = false {
+        didSet {
+            guard clarity != oldValue else { return }
+            setIcon(clarity ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle", "Clarity", on: clarityButton)
         }
     }
     private let badge = CountBadge()
@@ -131,26 +174,41 @@ private final class StackView: NSView {
     }
 
     static let ribbonHeight: CGFloat = 40
+    /// Between the toolbar icons' drawn (inked) edges; each hit area reaches a few points into it.
+    static let toolbarGap: CGFloat = 12
+
+    /// A ribbon icon at 13 points; the plus and the chevron are light, like thin lines.
+    private static func icon(_ symbol: String, _ help: String, weight: NSFont.Weight = .regular) -> NSImage? {
+        NSImage(systemSymbolName: symbol, accessibilityDescription: help)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: weight))
+    }
+
+    private func setIcon(_ symbol: String, _ help: String, on button: ActionButton, weight: NSFont.Weight = .regular) {
+        let image = Self.icon(symbol, help, weight: weight)
+        button.image = image
+        inkSpans[ObjectIdentifier(button)] = image.map { InkSpan.of($0) } ?? InkSpan.blank
+        needsLayout = true
+    }
 
     init(send: @escaping (Command) -> Void, menu: @escaping () -> NSMenu, toggleHidden: @escaping () -> Void) {
         self.send = send
         arranger = StackArranger(send: send)
         cardView = CardView(home: .stack, send: send)
-        clarityButton = ActionButton(title: "Clarity", help: "") { send(.toggleClarity) }
-        toggleButton = ActionButton(symbol: "eye", help: "Hide all") { toggleHidden() }
+        newButton = ActionButton(symbol: "plus", help: "New card") { send(.new(at: Date())) }
+        toggleButton = ActionButton(symbol: "chevron.up", help: "Hide all") { toggleHidden() }
+        clarityButton = ActionButton(symbol: "line.3.horizontal.decrease.circle", help: "") { send(.toggleClarity) }
         super.init(frame: .zero)
 
-        let newButton = ActionButton(title: "New", help: "Create a card") { send(.new(at: Date())) }
-        for button in [newButton, clarityButton] {
-            button.font = .systemFont(ofSize: 12, weight: .semibold)
+        setIcon("plus", "New", on: newButton, weight: .light)
+        newButton.setAccessibilityLabel("New")
+        setIcon("chevron.up", "Hide all", on: toggleButton, weight: .light)
+        toggleButton.setAccessibilityLabel("Hide all")
+        setIcon("line.3.horizontal.decrease.circle", "Clarity", on: clarityButton)
+        clarityButton.setAccessibilityLabel("Clarity")
+        for button in toolbar {
             button.contentTintColor = Palette.ribbonInk
-            toolbar.addArrangedSubview(button)
+            addSubview(button)
         }
-        toolbar.spacing = 14
-        addSubview(toolbar)
-
-        toggleButton.contentTintColor = Palette.ribbonInk
-        addSubview(toggleButton)
 
         menuButton.contentTintColor = Palette.ribbonInk
         menuButton.handler = { [unowned menuButton] in
@@ -190,7 +248,8 @@ private final class StackView: NSView {
         badge.show(count: face.count)
         arranger.apply(face.arrangement)
         fullLabel.isHidden = !face.desktopFull
-        clarityButton.contentTintColor = face.clarity ? Palette.accent : Palette.inkSoft
+        clarity = face.clarity
+        clarityButton.contentTintColor = face.clarity ? Palette.accent : Palette.ribbonInk
         clarityButton.toolTip = face.clarity ? "Clarity is on: click to expand every card"
                                              : "Clarity is off: click to collapse every card"
         clarityButton.setAccessibilityValue(face.clarity ? "on" : "off")
@@ -223,10 +282,12 @@ private final class StackView: NSView {
                width: bounds.width, height: Self.ribbonHeight + CardShape.gap)
     }
 
-    /// Right to left, the ribbon holds the menu button, the Hide all / Show all button, the badge
-    /// (only under Hide all, since the card area that normally has it is gone) and "Desktop
-    /// full". The toolbar and the buttons never move: "Desktop full" takes what room is left
-    /// and truncates, and the badge hides once there is no room for it.
+    /// The toolbar's icons sit at the left, `toolbarGap` apart between the ink they draw, not between
+    /// their images, whose side bearings differ. Right to left, the ribbon holds the menu button, the
+    /// badge (only under Hide all, since the card area that normally has it is gone) and "Desktop
+    /// full". The toolbar and the buttons never move:
+    /// "Desktop full" takes what room is left and truncates, and the badge hides once there is no
+    /// room for it.
     override func layout() {
         super.layout()
         let inner = content
@@ -238,11 +299,19 @@ private final class StackView: NSView {
         let card = NSRect(x: left, y: bottom, width: right - left, height: ribbonRect.minY - bottom)
         if showsCard { cardView.frame = card }
 
-        toolbar.frame = NSRect(x: inner.minX, y: ribbonMid - 11, width: toolbar.fittingSize.width, height: 20)
+        var edge = inner.minX   // where the next icon's ink starts
+        for button in toolbar {
+            let imageWidth = button.image?.size.width ?? 18
+            let span = inkSpans[ObjectIdentifier(button)] ?? InkSpan.blank
+            let width = max(imageWidth + 6, 18)   // the hit area, centered on the image the button draws
+            let imageMinX = edge - span.lead
+            button.frame = NSRect(x: imageMinX + imageWidth / 2 - width / 2, y: ribbonMid - 10, width: width, height: 18)
+            edge = imageMinX + imageWidth - span.trail + Self.toolbarGap
+        }
+        let toolbarEnd = clarityButton.frame.maxX
         menuButton.frame = NSRect(x: inner.maxX - 18, y: ribbonMid - 10, width: 18, height: 18)
-        toggleButton.frame = NSRect(x: menuButton.frame.minX - 8 - 18, y: ribbonMid - 10, width: 18, height: 18)
         let badgeWidth = max(22, badge.fittingSize.width + 10)
-        var trailing = toggleButton.frame.minX
+        var trailing = menuButton.frame.minX
         if showsCard {
             // In the card's bottom-right at its content inset: clear of the hover buttons at the
             // top and of the formatting bar's buttons, which are at the left of its row.
@@ -254,10 +323,10 @@ private final class StackView: NSView {
         } else {
             badge.frame = NSRect(x: trailing - 8 - badgeWidth, y: ribbonMid - 9.5, width: badgeWidth, height: 17)
             badge.layer?.backgroundColor = Palette.paper.withAlphaComponent(0.85).cgColor
-            badge.isHidden = badge.frame.minX < toolbar.frame.maxX + 8
+            badge.isHidden = badge.frame.minX < toolbarEnd + 8
             if !badge.isHidden { trailing = badge.frame.minX }
         }
-        let room = max(trailing - toolbar.frame.maxX - 2 * 8, 0)
+        let room = max(trailing - toolbarEnd - 2 * 8, 0)
         let fullWidth = min(fullLabel.fittingSize.width, room)
         fullLabel.frame = NSRect(x: trailing - 8 - fullWidth, y: ribbonMid - 9, width: fullWidth, height: 15)
         arranger.follow(badge.isHidden || !badge.isEnabled ? nil : badge.frame)
