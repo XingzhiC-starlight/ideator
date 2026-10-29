@@ -101,7 +101,9 @@ private struct InkSpan {
 
     static let blank = InkSpan(lead: 0, trail: 0)
 
-    /// Scans the image drawn at 4x for its first and last column with visible alpha.
+    /// Scans the image drawn at 4x for its first and last column with visible alpha. The bitmap is
+    /// sized in points, so the image draws at its own size: a symbol stretched into a bigger rect
+    /// draws with other side bearings (square.grid.2x2 by 0.75 points).
     static func of(_ image: NSImage) -> InkSpan {
         let scale: CGFloat = 4
         let size = image.size
@@ -110,11 +112,12 @@ private struct InkSpan {
         guard columns > 0, rows > 0,
               let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-              let context = NSGraphicsContext(bitmapImageRep: rep) else { return .blank }
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return .blank }
+        rep.size = NSSize(width: CGFloat(columns) / scale, height: CGFloat(rows) / scale)
+        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return .blank }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
-        image.draw(in: NSRect(x: 0, y: 0, width: columns, height: rows))
+        image.draw(in: NSRect(origin: .zero, size: rep.size))
         NSGraphicsContext.restoreGraphicsState()
         let inked = (0..<columns).filter { x in
             (0..<rows).contains { y in (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 }
