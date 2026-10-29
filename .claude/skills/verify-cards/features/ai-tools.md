@@ -113,15 +113,17 @@ under the run's evidence folder.
   the buttons saying where to paste. `cv clip restore`, then `osascript -e 'clipboard
   info' | shasum` and `pbpaste | shasum` match their values from before `clip save`.
 - **mcp-connect-volume.** A build runs from a build folder on the startup volume, so its Connect buttons stay
-  enabled; to see them dimmed, run a copy from another volume. Take the live-UI lock (`scripts/live-lock.sh`), then
-  in one script under `build/`: `hdiutil create -size 300m -fs APFS -volname IdeatorScratch -ov <scratch>.dmg`,
+  enabled; to see them dimmed, run a copy from another volume. In one script under `build/`, `source
+  .claude/skills/verify-cards/scripts/live-lock.sh` and `live_lock_take "<a holder line>"` (it fails while anyone
+  holds the lock: retry every 30 s), then: `hdiutil create -size 300m -fs APFS -volname IdeatorScratch -ov <scratch>.dmg`,
   `hdiutil attach <scratch>.dmg -mountpoint <a folder under build/ or /private/tmp>`, `cp -R
   build/VerifyDerivedData/Build/Products/Debug/Ideator.app <mount>/`, then run `<mount>/Ideator.app/Contents/MacOS/Ideator
   -CardsFolder <a new temp folder> &` and find its pid with `pgrep -f -- "^<mount>/Ideator.app/Contents/MacOS/Ideator
   -CardsFolder <folder>\$"`. Open Settings with `build/verify-tools/cards-ax key <pid> cmd+,`; `cards-ax tree <pid>`
   shows the three Connect buttons `[disabled]` and the line above them saying to move Ideator to Applications. A
   mount point outside `/Volumes` gives the same answer, because the file system decides. Then `kill <pid>` (that
-  pid only, never by name), `hdiutil detach <mount>`, delete the dmg and the temp folder, and release the lock. The
+  pid only, never by name), `hdiutil detach <mount>`, delete the dmg and the temp folder, and `live_lock_release "<the same holder line>"`, also when a step failed
+  (a `trap` on EXIT does it). The
   same copy run from the startup volume (`cp -R` to a folder under `build/`) shows the buttons enabled.
 
 ## Gotchas
