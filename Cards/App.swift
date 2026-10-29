@@ -28,6 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private lazy var updates = Updates(build: .current, isScratch: launch.isScratch)
     private lazy var aiTools = AIToolsChoice(preferences: preferences)
+    /// Settings writes it; the controller reads it at each Spread click.
+    private lazy var spreadChoice = SpreadChoice(preferences: preferences)
     private let held = HeldCards()
     private var inbox: ToolInbox?
     private var terminationSource: DispatchSourceSignal?
@@ -61,7 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             welcome: { [unowned self] onContinue in showWelcome(onContinue) },
             openNotes: { [unowned self] in
                 controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
-                                            appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
+                                            appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) },
+                                            spreadCells: { [unowned self] in self.spreadChoice.cells })
                 held.release { self.answer($0) ?? .waitingForContinue }
                 updates.start()
                 if !launch.inBackground { NSApp.activate() }
@@ -198,9 +201,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func checkForUpdates() { updates.checkNow() }
 
+    /// The stack's cell is read on every refresh: the window is kept between openings, the stack
+    /// moves while it is closed, and before Continue there is no desk.
     @objc private func openSettings() {
         let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates, aiTools: aiTools,
-                                                      connect: HelperCommand(app: Bundle.main.bundleURL, scratchFolder: launch.folder)) { [weak self] in
+                                                      connect: HelperCommand(app: Bundle.main.bundleURL, scratchFolder: launch.folder),
+                                                      spread: spreadChoice,
+                                                      stackCell: { [weak self] in self?.controller?.desk.stackPlace.slot ?? Slot.stackHome }) { [weak self] in
             self?.controller?.apiKeyChanged()
         }
         settingsWindow = window

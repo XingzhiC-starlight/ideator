@@ -1,5 +1,19 @@
 import Foundation
 
+/// Settings › Spread's ticked cells for this run: read once from `Preferences`, written back on every
+/// change. A scratch run's preferences write nowhere, so there a change lasts until the run quits.
+/// The controller reads it only when the button is pressed, which is why a Settings change moves the
+/// set at the next Spread, never at once.
+final class SpreadChoice {
+    private let preferences: Preferences
+    var cells: SpreadCells { didSet { preferences.spreadCells = cells } }
+
+    init(preferences: Preferences) {
+        self.preferences = preferences
+        cells = preferences.spreadCells
+    }
+}
+
 /// Why the last Spread click changed nothing. Presentation only: the controller holds it beside
 /// `visibility`, it is never saved, and it stays until a Spread or Gather click changes something.
 enum SpreadRefusal: Equatable {
