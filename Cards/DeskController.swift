@@ -122,6 +122,17 @@ final class DeskController {
     /// Settings saved or removed the key.
     func apiKeyChanged() { send(.forgetFailedSummaries) }
 
+    /// A card from an AI tool, answered once it is saved. The user is typing in the stacked card when
+    /// Ideator is active and the cursor is in the stack's card.
+    func add(_ card: AddCard, landing: Landing) -> ToolReply {
+        let typing = NSApp.isActive && stackWindow.editingSelection != nil
+        send(.addFromTool(card.note, at: Date(), to: landing, typing: typing))
+        pendingSave?.cancel()
+        // The AI tool gives up on a call it waits too long for, then adds the card again: the alert
+        // of a first failed save waits for the reply.
+        return saveNow(alertLater: true) ? .added(card.title, to: landing) : .notSaved(card.title, folder: library.folder)
+    }
+
     /// Save now: on deactivate, quit, and before a rescan. False when the folder doesn't match the desk.
     @discardableResult
     func flush() -> Bool {
@@ -247,7 +258,7 @@ final class DeskController {
         }
     }
 
-    private func saveNow() -> Bool {
+    private func saveNow(alertLater: Bool = false) -> Bool {
         let saved = library.save(desk)
         let firstFailure = !saved && !saveFailing
         saveFailing = !saved   // before the alert: its modal loop can deliver another save
@@ -256,7 +267,14 @@ final class DeskController {
             alert.alertStyle = .warning
             alert.messageText = "Ideator can't save your notes"
             alert.informativeText = Self.saveFailureText(folder: library.folder)
-            _ = present(alert)
+            if alertLater {
+                // A run loop block, not the main queue: the main queue is serial, so a modal loop
+                // inside one of its blocks would hold back every card that arrives while the alert is up.
+                CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue) { [present] in _ = present(alert) }
+                CFRunLoopWakeUp(CFRunLoopGetMain())
+            } else {
+                _ = present(alert)
+            }
         }
         warnIfLayoutIsLocked()   // a save can be the first to see a newer sidecar
         return saved

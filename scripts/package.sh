@@ -60,6 +60,17 @@ entitlements="$(codesign -d --entitlements - --xml "$APP" 2>/dev/null)"
 [[ "$entitlements" != *get-task-allow* ]] || die "Ideator carries the get-task-allow debug entitlement"
 echo "signing: hardened runtime, not debuggable"
 
+# The MCP server AI tools run. It is notarized with the app, so it needs the same runtime and no debug entitlement.
+helper="$APP/Contents/Helpers/ideator-mcp"
+[[ -x "$helper" ]] || die "the AI tools helper is not at Contents/Helpers/ideator-mcp"
+helper_signature="$(codesign -dv "$helper" 2>&1)"
+[[ "$helper_signature" == *"flags="*"runtime"* ]] || die "ideator-mcp is not signed with the hardened runtime"
+[[ "$(codesign -d --entitlements - --xml "$helper" 2>/dev/null)" != *get-task-allow* ]] \
+  || die "ideator-mcp carries the get-task-allow debug entitlement"
+[[ "$(sed -n 's/^TeamIdentifier=//p' <<<"$helper_signature")" == "$(sed -n 's/^TeamIdentifier=//p' <<<"$signature")" ]] \
+  || die "ideator-mcp is not signed by Ideator's team"
+echo "helper: Contents/Helpers/ideator-mcp, hardened runtime, not debuggable, Ideator's team"
+
 sparkle="$APP/Contents/Frameworks/Sparkle.framework"
 [[ -d "$sparkle" ]] || die "Sparkle.framework is not in Ideator's Contents/Frameworks"
 pinned="$(jq -r '.pins[] | select(.identity == "sparkle") | .state.version' "$RESOLVED")"
@@ -89,15 +100,17 @@ else
     other="$(codesign -dv "$file" 2>&1 | sed -n 's/^TeamIdentifier=//p' || true)"
     [[ "$other" == "$team" ]] \
       || die "${file#"$APP"/} has Team ID '${other:-none}', Ideator's is $team: sign_for_release in scripts/signing.sh does not sign it (a program this Sparkle version ships that it does not list)"
-  done < <(find "$APP/Contents/Frameworks" -type f -print0)
+  done < <(find "$APP/Contents/Frameworks" "$APP/Contents/Helpers" -type f -print0)
   echo "signing policy: Team ID $team, library validation on, embedded code signed by the same team"
 fi
 
-archs="$(lipo -archs "$APP/Contents/MacOS/Ideator")"
-for arch in arm64 x86_64; do
-  [[ " $archs " == *" $arch "* ]] || die "Ideator has no $arch slice (found: $archs)"
+for program in MacOS/Ideator Helpers/ideator-mcp; do
+  archs="$(lipo -archs "$APP/Contents/$program")"
+  for arch in arm64 x86_64; do
+    [[ " $archs " == *" $arch "* ]] || die "$program has no $arch slice (found: $archs)"
+  done
 done
-echo "architectures: $archs"
+echo "architectures: $archs, in Ideator and ideator-mcp"
 
 [[ -f "$APP/Contents/Resources/AppIcon.icns" ]] || die "Ideator has no AppIcon.icns"
 icon="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP/Contents/Info.plist" 2>/dev/null || true)"
@@ -105,7 +118,19 @@ icon="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP/Contents/Info
 echo "icon: AppIcon"
 
 # A signature that verifies can still belong to an app dyld refuses to start. The scratch run on an empty
-# folder writes no preferences and registers no shortcut.
+# folder writes no preferences and registers no shortcut. The helper, given the same folder, reaches only
+# that run, as an AI tool's call would reach the owner's Ideator.
+# The run shows a real window, and keys typed for another live session can land in it, so the check
+# takes the live-UI lock that cards-verify takes, waiting up to 30 minutes for it.
+source .claude/skills/verify-cards/scripts/live-lock.sh
+lock_token="scripts/package.sh pid $$ in $PWD since $(date '+%H:%M:%S')"
+for attempt in $(seq 1 61); do
+  live_lock_take "$lock_token" && break
+  ((attempt < 61)) || die "another live Ideator session held $LIVE_LOCK for 30 minutes (holder: $(live_lock_holder))"
+  echo "package.sh: waiting for $LIVE_LOCK, held by: $(live_lock_holder)" >&2
+  sleep 30
+done
+trap 'live_lock_release "$lock_token" || true' EXIT
 scratch="$(mktemp -d)"
 mkdir "$scratch/notes"
 "$APP/Contents/MacOS/Ideator" -CardsFolder "$scratch/notes" >"$scratch/output" 2>&1 &
@@ -113,9 +138,14 @@ pid=$!
 sleep 3
 alive=NO
 mapped=""
+handed=""
+saved=""
 if kill -0 "$pid" 2>/dev/null; then
   alive=YES
   mapped="$(lsof -p "$pid" -Fn 2>/dev/null || true)"
+  handed="$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add_card","arguments":{"title":"Package check"}}}' \
+    | perl -e 'alarm 20; exec @ARGV' "$helper" -CardsFolder "$scratch/notes" 2>&1 || true)"
+  saved="$(cat "$scratch/notes"/*.md 2>/dev/null || true)"
   kill "$pid" 2>/dev/null || true
 fi
 status=0
@@ -125,7 +155,12 @@ rm -rf "$scratch"
 [[ "$alive" == YES ]] || die "Ideator exited with status $status within 3 seconds of launch${output:+: $output}"
 grep -q '/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle$' <<<"$mapped" \
   || die "Ideator is running without Sparkle.framework mapped in"
-echo "launch: ran for 3 seconds on an empty folder, with Sparkle loaded"
+[[ "$handed" == *'"text":"Added \"Package check\" to the top of the stack."'* ]] \
+  || die "ideator-mcp did not hand a card to the running Ideator: ${handed:-no reply}"
+[[ "$saved" == "# Package check" ]] || die "Ideator replied to ideator-mcp but its folder holds: ${saved:-nothing}"
+echo "launch: ran for 3 seconds on an empty folder, with Sparkle loaded, and saved the card ideator-mcp handed it"
+live_lock_release "$lock_token" || echo "package.sh: $LIVE_LOCK is not held by this run (holder: $(live_lock_holder)); left alone" >&2
+trap - EXIT
 
 rm -rf "$OUT"
 mkdir -p "$OUT"

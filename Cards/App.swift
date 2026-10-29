@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.withDesk { $0.toggleHidden() }
     }
     private lazy var updates = Updates(build: .current, isScratch: launch.isScratch)
+    private lazy var aiTools = AIToolsChoice(preferences: preferences)
+    private let held = HeldCards()
+    private var inbox: ToolInbox?
+    private var terminationSource: DispatchSourceSignal?
     private var controller: DeskController?
     private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
@@ -44,6 +48,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = makeStatusItem()
         // A scratch run leaves the global shortcut to the owner's running Ideator.
         if !launch.isScratch { hotKey.register() }
+        // Before the welcome, so a helper that started this run reaches it; the cards wait for Continue.
+        inbox = ToolInbox(endpoint: Endpoint(scratchFolder: launch.folder)) { [unowned self] request, reply in
+            if let answer = answer(request.card) { reply(answer) } else { held.hold(request, reply: reply) }
+        }
+        terminationSource = inbox.map { Self.removeOnSIGTERM($0.file) }
         // Building the controller is the first touch of the notes folder, which starts macOS's
         // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
         launch.run(
@@ -52,9 +61,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openNotes: { [unowned self] in
                 controller = DeskController(library: Library(folder: launch.notesFolder), keys: keys,
                                             appMenu: { [unowned self] in self.makeAppMenu(for: .ribbon) })
+                held.release { self.answer($0) ?? .waitingForContinue }
                 updates.start()
-                NSApp.activate()
+                if !launch.inBackground { NSApp.activate() }
             })
+    }
+
+    /// Nil while the notes are not open yet: the card waits for Continue.
+    private func answer(_ card: AddCard) -> ToolReply? {
+        guard aiTools.value.enabled else { return .turnedOff }
+        return controller?.add(card, landing: aiTools.value.landing)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) { inbox?.close() }
+
+    /// `kill`, as cards-verify and package.sh end a scratch run, skips `applicationWillTerminate`, and
+    /// each scratch folder's socket file has a name of its own, so none is ever reused. Off the main
+    /// thread, so a blocked main thread never delays the kill; the process then ends as SIGTERM ends it.
+    private nonisolated static func removeOnSIGTERM(_ file: ToolInbox.File) -> DispatchSourceSignal {
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+        source.setEventHandler {
+            file.remove()
+            signal(SIGTERM, SIG_DFL)
+            raise(SIGTERM)
+        }
+        source.resume()
+        return source
     }
 
     /// The welcome card. Continue closes it first and opens the folder on the next turn of the run
@@ -68,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async(execute: onContinue)
         }
         welcome = window
-        window.present()
+        window.present(takingFocus: launch.welcomeTakesFocus)
     }
 
     private func withDesk(_ action: (DeskController) -> Void) {
@@ -160,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func checkForUpdates() { updates.checkNow() }
 
     @objc private func openSettings() {
-        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates) { [weak self] in
+        let window = settingsWindow ?? SettingsWindow(keys: keys, hotKey: hotKey, updates: updates, aiTools: aiTools) { [weak self] in
             self?.controller?.apiKeyChanged()
         }
         settingsWindow = window

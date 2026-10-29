@@ -10,6 +10,8 @@ APP="$DERIVED/Build/Products/Debug/Ideator.app"
 BIN="$APP/Contents/MacOS/Ideator"
 AX="$REPO/build/verify-tools/cards-ax"
 CLIP="$REPO/build/verify-tools/cards-clip"
+MCP="$REPO/build/verify-tools/cards-mcp"
+HELPER="$APP/Contents/Helpers/ideator-mcp"
 RUNS="$REPO/build/verify-runs"
 EVIDENCE_ROOT="$REPO/build/verify-evidence"
 # shellcheck disable=SC1091
@@ -28,6 +30,8 @@ cards-verify clip save              keep the owner's clipboard (every type) unti
 cards-verify clip set TEXT [HTML]   the clipboard holds TEXT as plain text, and HTML as public.html
 cards-verify clip show              the clipboard's types, plain text and HTML (what a copy wrote)
 cards-verify clip restore           put the owner's clipboard back (stop does this too if you forget)
+cards-verify mcp STEP...            one MCP session through this build's helper, on this run's folder (steps: see scripts/cards-mcp.swift)
+cards-verify mcp-launch STEP...     take the live-UI lock, then the same with no app running: the helper starts this build on a new temp folder, which becomes the current run
 cards-verify stop                   quit the instance this run started, release the lock this run took, delete its temp folder, keep evidence
 cards-verify env                    print RUN_ID, PID, FOLDER, EVIDENCE of the current run
 EOF
@@ -61,7 +65,7 @@ build() {
   xcodebuild -project "$REPO/Cards.xcodeproj" -scheme Ideator -configuration Debug \
     -derivedDataPath "$DERIVED" -disableAutomaticPackageResolution build -quiet
   local tool src
-  for tool in cards-ax cards-clip; do
+  for tool in cards-ax cards-clip cards-mcp; do
     src="$SKILL_DIR/scripts/$tool.swift"
     if [[ ! -x "$REPO/build/verify-tools/$tool" || "$src" -nt "$REPO/build/verify-tools/$tool" ]]; then
       mkdir -p "$REPO/build/verify-tools"
@@ -214,6 +218,66 @@ clip() {
   esac
 }
 
+# The steps as the log keeps them: card text as a length, like `ax type`.
+mcp_steps() {
+  local out="mcp" step
+  while (($#)); do
+    step="$1"; shift
+    out+=" $step"
+    if [[ "$step" == add && $# -gt 0 ]]; then
+      out+=" <${#1} characters>"; shift
+      if [[ $# -gt 0 && -f "$1" ]]; then out+=" <body of $(wc -c < "$1" | tr -d ' ') bytes>"; shift; fi
+    fi
+  done
+  echo "$out"
+}
+
+mcp() {
+  current
+  [[ -x "$MCP" ]] || die "not built; run: cards-verify build"
+  ours || die "pid $PID is not this run's Cards; run: cards-verify doctor"
+  log_line "$(mcp_steps "$@")" >> "$EVIDENCE/log.txt"
+  "$MCP" "$HELPER" -CardsFolder "$FOLDER" "$@" | tee -a "$EVIDENCE/mcp.log"
+}
+
+frontmost() {
+  local info
+  info="$(lsappinfo info "$(lsappinfo front)")"
+  echo "$(sed -n '1s/^"\(.*\)" ASN.*/\1/p' <<<"$info") (pid $(sed -n 's/.*pid = \([0-9]*\).*/\1/p' <<<"$info" | head -1))"
+}
+
+# What an AI tool does when Ideator is not running: the helper starts the app that contains it, with
+# -CardsFolder, in the background. The run is adopted by its exact command line, as launch finds its pid.
+mcp_launch() {
+  [[ -x "$BIN" && -x "$MCP" ]] || die "not built; run: cards-verify build"
+  if [[ -f "$RUNS/current.env" ]]; then
+    current
+    if ours; then die "run $RUN_ID (pid $PID) is still up; stop it first: cards-verify stop"; fi
+    [[ -z "${LOCK_TOKEN:-}" ]] || live_lock_release "$LOCK_TOKEN" || true
+  fi
+  local run_id folder evidence pid="" before after lock_token
+  run_id="$(date '+%Y%m%d-%H%M%S')"
+  lock_token="cards-verify run $run_id in $REPO since $(date '+%H:%M:%S')"
+  live_lock_take "$lock_token" || die "another live Ideator session holds $LIVE_LOCK (holder: $(live_lock_holder)); retry in 30 s"
+  trap 'live_lock_release "$lock_token" || true' EXIT
+  folder="${TMPDIR:-/tmp/}cards-verify/$run_id/folder"
+  folder="${folder//\/\//\/}"
+  evidence="$EVIDENCE_ROOT/$run_id"
+  mkdir -p "$folder" "$evidence" "$RUNS"
+  before="$(frontmost)"
+  "$MCP" "$HELPER" -CardsFolder "$folder" "$@" | tee -a "$evidence/mcp.log"
+  sleep 1
+  after="$(frontmost)"
+  # The binary too: the helper's own command line also ends in "-CardsFolder <folder>".
+  pid="$(pgrep -f -- "^$BIN -CardsFolder $folder\$" || true)"
+  [[ -n "$pid" ]] || die "the helper started no Ideator on $folder; see $evidence/mcp.log"
+  printf 'RUN_ID=%q\nPID=%q\nFOLDER=%q\nEVIDENCE=%q\nLOCK_TOKEN=%q\n' "$run_id" "$pid" "$folder" "$evidence" "$lock_token" > "$RUNS/current.env"
+  trap - EXIT
+  current
+  log "mcp-launch run $RUN_ID: $(mcp_steps "$@"); the helper started pid $PID on $FOLDER; frontmost app before: $before, after: $after"
+  echo "evidence: $EVIDENCE"
+}
+
 stop() {
   if [[ -f "$SAVED_CLIPBOARD" ]]; then "$CLIP" restore "$SAVED_CLIPBOARD"; fi
   current
@@ -243,6 +307,8 @@ case "${1:-}" in
   files) files "${2:?NAME}" ;;
   note) current; log "${2:?TEXT}" ;;
   clip) shift; clip "$@" ;;
+  mcp) shift; mcp "$@" ;;
+  mcp-launch) shift; mcp_launch "$@" ;;
   stop) stop ;;
   env) current; cat "$RUNS/current.env" ;;
   *) usage ;;
