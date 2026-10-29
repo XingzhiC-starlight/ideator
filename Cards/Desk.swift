@@ -64,8 +64,10 @@ extension Summary {
         The note's first line is its title, which the card already shows above your summary (it may \
         be empty). Don't just repeat the title. Name the topic in your own words.
 
-        Start with what kind of card it is and what it is about, then add the gist only if it fits \
-        within the length limit below. Choose the kind yourself, in the note's language. For a note \
+        Start with what kind of card it is and what it is about, then add at most two points of its \
+        gist, if they fit within the length limit below, like "Meeting notes on the office move: lease \
+        signed, movers booked for May". Never add a third point, even when the note has more and it \
+        would fit. Choose the kind yourself, in the note's language. For a note \
         in English, choose a kind such as to-do list, thoughts, plan, meeting notes, draft, question, \
         links or ideas, and if none fits, write "Notes on" and the topic. For a note in Chinese, \
         choose a kind such as 待办清单, 想法, 计划 or 会议记录, and if none fits, write "笔记：" and \
@@ -74,20 +76,22 @@ extension Summary {
         Only lines starting with "[ ]" or "[x]" make a to-do list: "[ ]" lines are open to-dos and \
         "[x]" lines done ones. For a to-do list, say how many are done and name only the open items, \
         like "To-do list for the Tokyo trip, 2 of 5 done: hotel, charger, visa". If every item is \
-        done, say so. A numbered or bulleted list without those marks is not a to-do list. Call it a \
-        plan, a list or whatever kind fits, and give its one or two main points, never every item, \
-        even when every item would fit.
+        done, say only that, like "To-do list for the party, all 4 done", and name none of them. A \
+        numbered or bulleted list without those marks is not a to-do list. Call it a plan, a list or \
+        whatever kind fits, and give its one or two main points, never every item, even when every \
+        item would fit.
 
-        If the note has little content, keep the summary short, at most half the length limit. Infer \
-        what the card is for, but never invent details the note does not contain.
+        If the note has little content, keep the summary short, at most half the length limit: about 8 \
+        words, or 30 characters in Chinese, Japanese or Korean, like "Question about a resizable \
+        sidebar". Infer what the card is for, but never invent details the note does not contain, and \
+        never pad the summary to make it longer.
 
-        The length limit is a hard ceiling, not a target. Never write more than 120 characters, and aim \
-        for 15 to 18 words. For a note in Chinese, Japanese or Korean, never write more than 60 \
+        The length limit is a hard ceiling, not a target. Write a single sentence, never a second one \
+        for a next step or an aside. Never write more than 120 characters, which is about 18 words, \
+        and aim for 12 to 16 words. For a note in Chinese, Japanese or Korean, never write more than 60 \
         characters, and aim for 40 to 50. English names and terms use that up fast, because each of \
         their letters counts as one character, so in such a note name at most two of them and leave \
-        out the rest, such as key prefixes, version numbers, IDs and links. When the note says more \
-        than fits, choose its one or two main points and \
-        leave the rest out, instead of going through the note item by item. Only a to-do list names \
+        out the rest, such as key prefixes, version numbers, IDs and links. Only a to-do list names \
         every open item. Write one paragraph with no line breaks.
 
         Reply with the summary itself and nothing else. Never explain your choices, and never comment \
