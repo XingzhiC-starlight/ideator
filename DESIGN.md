@@ -483,6 +483,13 @@ Later changes, after trying the app:
   text. A key from any other service goes to OpenAI and fails with HTTP 401 on hover, in exchange for
   no base-URL field. `Desk` is unchanged except the reason for a card with no key, which no longer
   says Anthropic.
+- 2026-10-28, the prompt's language rule: the first `check-summaries.sh` run with `gpt-6-luna` gave
+  three English cards a Chinese summary, each opening with one of the prompt's Chinese kind labels,
+  and ran a Chinese card full of English terms to 82 characters. The language rule now comes second
+  in `Summary.instructions`, names English as well as Chinese, says the examples never set the
+  language, and ties the Chinese kinds to notes in Chinese; the CJK budget counts every letter,
+  digit, space and mark. The same text goes to both companies, so the rerun with each key is the
+  proof. `Desk` changes only in that text.
 
 ## Tradeoffs accepted
 
