@@ -113,6 +113,11 @@ enum Movable: Hashable {
     case card(CardID)
 }
 
+/// Where a card from an AI tool joins the stack: Settings' "Cards from AI tools go to".
+enum Landing: Equatable {
+    case top, bottom
+}
+
 /// A card on the desktop and where it is.
 struct PoppedCard: Equatable {
     var card: Card
@@ -160,6 +165,10 @@ enum Command {
     case storeSummary(CardID, Summary)
     /// A rescan of the folder found this set of notes (files added, removed or edited outside).
     case syncFiles([CardID: Note])
+    /// An AI tool's `add_card`: a new card joins the stack, never the desktop, with Clarity's state.
+    /// Top puts it on top and shows it, unless `typing` (the user is typing in the stacked card, which
+    /// the controller reads from the windows), which keeps the page. Bottom keeps the page.
+    case addFromTool(Note, at: Date, to: Landing, typing: Bool)
 
     /// The card being typed into, for the summarizer's quiet period.
     var typedCard: CardID? {
@@ -306,6 +315,7 @@ struct Desk: Equatable {
         case .storeSummary(let id, let summary):
             update(id) { card in if summary.source == card.digest { card.summary = summary } }
         case .syncFiles(let notes): syncFiles(notes)
+        case .addFromTool(let note, let date, let landing, let typing): addFromTool(note, at: date, to: landing, typing: typing)
         }
         return nil
     }
@@ -428,6 +438,17 @@ struct Desk: Equatable {
         let known = Set(allCards.map(\.id))
         for (id, note) in notes.sorted(by: { $0.key < $1.key }) where !known.contains(id) {
             insertCard(Card(id: id, note: note, collapsed: clarity), at: stack.count)
+        }
+    }
+
+    private mutating func addFromTool(_ note: Note, at date: Date, to landing: Landing, typing: Bool) {
+        let card = Card(id: freshID(at: date), note: note, collapsed: clarity)
+        switch landing {
+        case .top:
+            insertCard(card, at: 0)
+            if !typing { selection = 0 }
+        case .bottom:
+            insertCard(card, at: stack.count)
         }
     }
 

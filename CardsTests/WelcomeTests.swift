@@ -90,6 +90,25 @@ final class WelcomeTests: XCTestCase {
         XCTAssertEqual(continued, 2)
     }
 
+    func testABackgroundStartShowsTheCardWithoutTakingTheKeyWindow() {
+        let window = WelcomeWindow(copy: copy()) {}
+        defer { window.close() }
+        let keyBefore = NSApp.keyWindow
+
+        window.present(takingFocus: false)
+
+        XCTAssertTrue(window.isVisible, "the welcome card still shows")
+        XCTAssertFalse(window.isKeyWindow, "so a Return typed in the AI tool can never press Continue")
+        XCTAssertTrue(NSApp.keyWindow === keyBefore)
+    }
+
+    func testOnlyAStartByTheHelperShowsTheWelcomeWithoutFocus() {
+        let byHelper = Launch(arguments: [:], build: BuildInfo(info: [:]), environment: [HandOff.backgroundVariable: "1"])
+        let byUser = Launch(arguments: [:], build: BuildInfo(info: [:]), environment: [:])
+        XCTAssertFalse(byHelper.welcomeTakesFocus)
+        XCTAssertTrue(byUser.welcomeTakesFocus)
+    }
+
     private func descendants(of view: NSView) -> [NSView] {
         view.subviews + view.subviews.flatMap(descendants(of:))
     }

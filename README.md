@@ -65,11 +65,12 @@ and verifies the disk image. It also checks that `Sparkle.framework` is embedded
 `Package.resolved` pins, that `ThirdPartyNotices.txt` names it, and the signing policy below. It
 checks the updater's settings in the app's `Info.plist`: the production feed, the release key,
 system profiling and automatic installs off, no `IdeatorUpdateTest` flag and no
-`NSAppTransportSecurity` exception. Then it runs the packaged app once on an empty temporary folder,
-as a scratch run (no preferences, no shortcut, no Keychain, no update check), and stops unless the
-app is still running after 3 seconds with Sparkle loaded. A signature can verify and still belong
-to an app macOS refuses to start. It runs from any folder, and running it again replaces the old
-image.
+`NSAppTransportSecurity` exception. It checks that the AI tools helper, `Contents/Helpers/ideator-mcp`,
+has the hardened runtime, the app's team, no debug entitlement and both slices. Then it runs the
+packaged app once on an empty temporary folder, as a scratch run (no preferences, no shortcut, no
+Keychain, no update check), and stops unless the app is still running after 3 seconds with Sparkle
+loaded and has saved a card the helper handed it. A signature can verify and still belong to an app
+macOS refuses to start. It runs from any folder, and running it again replaces the old image.
 
 The app icon, a card and a spark on an ink plate, is drawn by `scripts/make-icon.swift` from the
 app's own colors.
@@ -275,6 +276,17 @@ quits.
 [PRIVACY.md](PRIVACY.md) lists what Ideator stores and the two things it sends: a card's text to
 Anthropic or OpenAI, whichever company's key you saved, whenever the card has no summary for its text
 as it is now, and a daily update check to GitHub.
+
+## AI tools
+
+Ideator is an MCP server for AI tools such as Claude Code, Codex and Claude Desktop. The server is
+the helper inside the app, `Ideator.app/Contents/Helpers/ideator-mcp`, which an AI tool runs over
+stdio. Its one tool, `add_card`, hands a card to the running Ideator, which saves it to the stack;
+if Ideator is not running, the helper starts it in the background. Settings has "Let AI tools add
+cards" and "Cards from AI tools go to: Top / Bottom". A copy button for each tool's setup comes in a
+later step. To try it without touching your notes, give the helper the same `-CardsFolder` as a
+scratch run: it then reaches, or starts, only the run on that folder. The verify-cards recipe
+[ai-tools.md](.claude/skills/verify-cards/features/ai-tools.md) drives it with a stand-in client.
 
 ## First launch
 

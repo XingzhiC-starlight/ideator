@@ -27,6 +27,8 @@ mkdir -p "$framework/Versions/B/XPCServices/Installer.xpc" "$framework/Versions/
   "$framework/Versions/B/Updater.app"
 touch "$framework/Versions/B/Autoupdate"
 ln -s B "$framework/Versions/Current"
+mkdir -p "$app/Contents/Helpers"
+touch "$app/Contents/Helpers/ideator-mcp"
 
 identity="Developer ID Application: Test Co (ABCDE12345)"
 cat >"$tmp/team-report" <<REPORT
@@ -65,14 +67,15 @@ sign="--force|--options|runtime|--timestamp"
 
 world team
 output="$(run sign_for_release "$app")"
-expect "a Team ID build signs Sparkle's helpers, then the framework, then the app, all with its identity" \
+expect "a Team ID build signs Sparkle's helpers, the framework, the AI tools helper, then the app, all with its identity" \
   "$(calls)" "$sign|--sign|$identity|$nested/XPCServices/Installer.xpc
 $sign|--sign|$identity|$nested/XPCServices/Downloader.xpc
 $sign|--sign|$identity|$nested/Autoupdate
 $sign|--sign|$identity|$nested/Updater.app
 $sign|--sign|$identity|$framework
+$sign|--preserve-metadata=identifier|--sign|$identity|$app/Contents/Helpers/ideator-mcp
 $sign|--preserve-metadata=entitlements|--sign|$identity|$app"
-expect "a Team ID build says what it signed" "$output" "signing: Sparkle's helpers, Sparkle.framework and the app signed with $identity"
+expect "a Team ID build says what it signed" "$output" "signing: Sparkle's helpers, Sparkle.framework, the AI tools helper and the app signed with $identity"
 
 paths=()
 while IFS='|' read -r -a call; do paths+=("${call[${#call[@]}-1]}"); done <"$FAKE_LOG"
@@ -86,7 +89,7 @@ expect "no call signs a path inside one that was signed before it" "$inside" ""
 
 rm -r "$framework/Versions/B/XPCServices"
 run sign_for_release "$app" >/dev/null
-expect "a helper Sparkle no longer ships is skipped" "$(calls | wc -l | tr -d ' ')" "4"
+expect "a helper Sparkle no longer ships is skipped" "$(calls | wc -l | tr -d ' ')" "5"
 mkdir -p "$framework/Versions/B/XPCServices/Installer.xpc" "$framework/Versions/B/XPCServices/Downloader.xpc"
 
 world adhoc

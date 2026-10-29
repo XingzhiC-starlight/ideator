@@ -71,13 +71,15 @@ final class WelcomeWindow: NSWindow {
         return size
     }
 
-    /// Top-right in the stack's home cell, where the stack appears after Continue.
-    func present() {
+    /// Top-right in the stack's home cell, where the stack appears after Continue. Without focus (a
+    /// start by the AI tools helper) it shows in front but leaves the active app and its key window
+    /// alone, so a Return typed in the AI tool never reaches Continue; a click on it takes focus.
+    func present(takingFocus: Bool) {
         let cell = Grid(screen: NSScreen.screens.first)?.frame(of: Slot.stackHome)
             ?? NSRect(x: 100, y: 100, width: 342, height: 267)
         let size = fit(width: max(cell.width, 320))
         setFrameOrigin(NSPoint(x: cell.maxX - size.width, y: cell.maxY - size.height))
-        bringForward()
+        if takingFocus { bringForward() } else { orderFrontRegardless() }
     }
 
     func bringForward() {

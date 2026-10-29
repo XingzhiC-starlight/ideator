@@ -23,4 +23,15 @@ struct Preferences {
     var welcomeSeen: Bool { defaults.map { $0.integer(forKey: "WelcomeSeen") >= WelcomeCopy.version } ?? true }
 
     func markWelcomeSeen() { defaults?.set(WelcomeCopy.version, forKey: "WelcomeSeen") }
+
+    var aiTools: AIToolSettings {
+        get {
+            AIToolSettings(enabled: defaults?.object(forKey: "AIToolsEnabled") as? Bool ?? true,
+                           landing: defaults?.string(forKey: "AIToolsLanding") == "bottom" ? .bottom : .top)
+        }
+        nonmutating set {
+            defaults?.set(newValue.enabled, forKey: "AIToolsEnabled")
+            defaults?.set(newValue.landing == .bottom ? "bottom" : "top", forKey: "AIToolsLanding")
+        }
+    }
 }
