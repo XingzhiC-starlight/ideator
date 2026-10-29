@@ -16,6 +16,11 @@ final class LibraryTests: XCTestCase {
         try? FileManager.default.removeItem(at: folder)
     }
 
+    /// Whether each card the windows would show is collapsed: the popped cards, then the stack's.
+    private func collapsedFaces(_ desk: Desk) -> [Bool] {
+        desk.cardFaces(hasKey: false).map(\.face.collapsed) + (desk.stackFace(hasKey: false).selected.map { [$0.collapsed] } ?? [])
+    }
+
     func testSaveRecreatesADeletedFolderWithEveryFile() async throws {
         let original = "# Groceries\n\n- eggs\n- milk\n"
         try Data(original.utf8).write(to: cardFile)
@@ -112,7 +117,48 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(desk.stack.map(\.id.rawValue), ["a", "b"], "every card is in the stack, in id order")
         XCTAssertEqual(desk.stackPlace, .slot(Slot.stackHome), "the stack is at its home")
         XCTAssertFalse(desk.clarity, "Clarity is off")
-        XCTAssertEqual(desk.allCards.filter(\.collapsed), [], "and nothing is collapsed")
+        XCTAssertEqual(desk.stackFace(hasKey: false).selected?.collapsed, false, "and no card shows collapsed")
+    }
+
+    func testASidecarWithAPerCardCollapsedListStillLoadsAndTheListChangesNothing() async throws {
+        try Data("# A\n".utf8).write(to: folder.appending(path: "a.md"))
+        try Data("# B\n".utf8).write(to: folder.appending(path: "b.md"))
+        let sidecar = folder.appending(path: ".cards.json")
+        func load(clarity: Bool) throws -> Desk {
+            let json = #"{"version":2,"clarity":\#(clarity),"stackSlot":7,"placements":[{"slot":3,"card":"b"}],"stack":["a"],"collapsed":["a"],"summaries":[]}"#
+            try Data(json.utf8).write(to: sidecar)
+            return Library(folder: folder).load()
+        }
+
+        let off = try load(clarity: false)
+        XCTAssertEqual(off.place(of: .card(CardID(rawValue: "b"))), .slot(Slot(index: 3)!), "the places load")
+        XCTAssertEqual(off.stack.map(\.id.rawValue), ["a"], "so does the stack")
+        XCTAssertFalse(off.clarity)
+        XCTAssertEqual(collapsedFaces(off), [false, false], "card a was listed as collapsed, and Clarity off shows it expanded")
+
+        let on = try load(clarity: true)
+        XCTAssertTrue(on.clarity)
+        XCTAssertEqual(collapsedFaces(on), [true, true], "and Clarity on shows card b collapsed, though the list never named it")
+    }
+
+    func testClarityIsWhatTheSidecarSavesAndTheListIsGone() async throws {
+        try Data("# Groceries\n".utf8).write(to: cardFile)
+        let library = Library(folder: folder)
+        var desk = library.load()
+        desk.apply(.setClarity(true))
+        XCTAssertTrue(library.save(desk))
+
+        let reopened = Library(folder: folder).load()
+        XCTAssertTrue(reopened.clarity, "Clarity is on after a relaunch")
+        XCTAssertEqual(reopened.stackFace(hasKey: false).selected?.collapsed, true, "and the card shows collapsed")
+        XCTAssertEqual(reopened, desk)
+
+        desk.apply(.setClarity(false))
+        XCTAssertTrue(library.save(desk))
+        let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appending(path: ".cards.json"))) as? [String: Any]
+        XCTAssertEqual(saved?["clarity"] as? Bool, false, "Clarity off is saved too")
+        XCTAssertNil(saved?["collapsed"], "and no list of collapsed cards is written")
+        XCTAssertEqual(saved?["version"] as? Int, 2, "in the same format version")
     }
 
     func testASidecarANewerIdeatorWritesAfterLaunchIsNotOverwritten() async throws {
@@ -127,7 +173,7 @@ final class LibraryTests: XCTestCase {
         let newer = Data(#"{"version":3,"layout":{"kind":"something this build has never seen"}}"#.utf8)
         try newer.write(to: sidecar)
 
-        desk.apply(.toggleClarity)
+        desk.apply(.setClarity(true))
         desk.apply(.edit(CardID(rawValue: "card"), Note(header: "Groceries", body: [Line(runs: [Run(text: "eggs")])])))
         XCTAssertTrue(library.save(desk), "leaving the newer sidecar alone is not a failed save")
 

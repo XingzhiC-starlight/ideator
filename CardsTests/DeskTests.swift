@@ -37,6 +37,11 @@ final class DeskTests: XCTestCase {
         }
     }
 
+    /// Every card face the windows would show: the popped cards' and the stack's.
+    private func faces(_ desk: Desk) -> [CardFace] {
+        desk.cardFaces(hasKey: false).map(\.face) + [desk.stackFace(hasKey: false).selected].compactMap { $0 }
+    }
+
     /// The stack in its default place and a card in each of the other 19 slots.
     private func fullDesktop(stack: String...) -> Desk {
         let slots = Slot.all.filter { $0 != Slot.stackHome }
@@ -145,7 +150,7 @@ final class DeskTests: XCTestCase {
         var desk = Desk(notes: [:], saved: SavedDesk())
         desk.apply(.writeBlank(note("x"), at: now))
         XCTAssertEqual(desk.selectedCard?.note, note("x"), "the first card shows as soon as it exists")
-        XCTAssertFalse(desk.selectedCard?.collapsed ?? true, "expanded, for the cursor to stay in")
+        XCTAssertEqual(desk.stackFace(hasKey: false).selected?.collapsed, false, "expanded, for the cursor to stay in")
     }
 
     func testWritingIsIgnoredWhenACardShowsOrTheNoteIsBlank() {
@@ -158,39 +163,79 @@ final class DeskTests: XCTestCase {
         XCTAssertEqual(shown(desk), "blank", "and the blank page stays")
     }
 
-    func testClarityOnCollapsesStackedCardsToo() {
+    func testClarityOnCollapsesEveryFaceAndOffExpandsThem() {
         var desk = deskWithStack("a", "b")
         desk.apply(.pop)
-        desk.apply(.toggleClarity)
-        XCTAssertTrue(desk.clarity, "the global flag is on")
-        XCTAssertTrue(desk.allCards.allSatisfy(\.collapsed), "popped and stacked cards collapse")
-        XCTAssertEqual(desk.stackFace(hasKey: false).selected?.collapsed, true, "the stack shows it collapsed")
-        desk.apply(.toggleClarity)
-        XCTAssertTrue(desk.allCards.allSatisfy { !$0.collapsed }, "off expands every card")
+        desk.apply(.setClarity(true))
+        XCTAssertTrue(desk.clarity)
+        XCTAssertEqual(faces(desk).count, 2, "a popped card and the stacked one show")
+        XCTAssertTrue(faces(desk).allSatisfy(\.collapsed), "popped and stacked cards collapse")
+        XCTAssertTrue(desk.stackFace(hasKey: false).clarity, "and the ribbon says so")
+        desk.apply(.setClarity(false))
+        XCTAssertTrue(faces(desk).allSatisfy { !$0.collapsed }, "off expands every card")
+        XCTAssertFalse(desk.stackFace(hasKey: false).clarity)
     }
 
-    func testExpandingOneCardLeavesClarityOn() {
+    func testSettingClarityTwiceToTheSameValueChangesNothingTheSecondTime() {
         var desk = deskWithStack("a", "b")
-        let popped = desk.apply(.pop)
-        desk.apply(.toggleClarity)
-        desk.apply(.setCollapsed(popped!, false))
-        XCTAssertTrue(desk.clarity, "the global flag stays on")
-        XCTAssertFalse(desk.poppedCards[0].collapsed, "the card itself is expanded")
-        XCTAssertTrue(desk.stack[0].collapsed, "the others stay collapsed")
+        desk.apply(.setClarity(true))
+        let on = desk
+        desk.apply(.setClarity(true))
+        XCTAssertEqual(desk, on, "a second On is no toggle back to Off")
+        desk.apply(.setClarity(false))
+        let off = desk
+        desk.apply(.setClarity(false))
+        XCTAssertEqual(desk, off, "nor is a second Off")
     }
 
-    func testAPoppedCardKeepsItsState() {
+    func testAPoppedOrReturnedCardShowsAsClaritySays() {
         var desk = deskWithStack("a", "b", "c")
-        desk.apply(.toggleClarity)
-        desk.apply(.setCollapsed(id("a"), false))
+        desk.apply(.setClarity(true))
+        let popped = desk.apply(.pop)!
+        XCTAssertTrue(faces(desk).allSatisfy(\.collapsed), "a card comes out collapsed while Clarity is on")
+        desk.apply(.returnToStack(popped))
+        XCTAssertTrue(faces(desk).allSatisfy(\.collapsed), "and goes back the same")
+        desk.apply(.setClarity(false))
         desk.apply(.pop)
-        XCTAssertFalse(desk.poppedCards[0].collapsed, "a card expanded on its own stays expanded while clarity is on")
+        XCTAssertTrue(faces(desk).allSatisfy { !$0.collapsed }, "while Clarity is off it comes out expanded")
+    }
+
+    func testNewTurnsClarityOffSoTheNewCardAndEveryOtherCardAreExpanded() {
+        var desk = deskWithStack("a", "b")
         desk.apply(.pop)
-        XCTAssertTrue(desk.poppedCards[1].collapsed, "a card collapsed by clarity comes out collapsed")
-        desk.apply(.toggleClarity)
-        desk.apply(.setCollapsed(id("c"), true))
-        desk.apply(.pop)
-        XCTAssertTrue(desk.poppedCards[2].collapsed, "and one collapsed on its own while clarity is off stays collapsed")
+        desk.apply(.setClarity(true))
+        let new = desk.apply(.new(at: now))
+        XCTAssertNotNil(new, "a card was made")
+        XCTAssertFalse(desk.clarity)
+        XCTAssertEqual(faces(desk).count, 3)
+        XCTAssertTrue(faces(desk).allSatisfy { !$0.collapsed }, "the new card opens expanded and so does every other")
+    }
+
+    func testNewOnAFullDesktopLeavesClarityAlone() {
+        var desk = fullDesktop(stack: "x")
+        desk.apply(.setClarity(true))
+        XCTAssertNil(desk.apply(.new(at: now)), "no card is made")
+        XCTAssertTrue(desk.clarity, "so nothing opens expanded, and the cards stay collapsed")
+    }
+
+    func testWritingOnTheBlankPageTurnsClarityOff() {
+        var desk = deskWithStack("a", "b")
+        desk.apply(.setClarity(true))
+        desk.apply(.flipStack(.previous))
+        desk.apply(.writeBlank(note("x"), at: now))
+        XCTAssertFalse(desk.clarity)
+        XCTAssertEqual(desk.selectedCard?.note, note("x"), "the card typed on shows")
+        XCTAssertTrue(faces(desk).allSatisfy { !$0.collapsed }, "expanded, for the cursor to stay in, and so is every other card")
+    }
+
+    func testTheBlankPageStaysAsItIsWhileClarityIsOn() {
+        var desk = deskWithStack("a")
+        desk.apply(.setClarity(true))
+        desk.apply(.flipStack(.next))
+        XCTAssertEqual(shown(desk), "blank")
+        XCTAssertNil(desk.stackFace(hasKey: false).selected, "the blank page has no face to collapse")
+        desk.apply(.writeBlank(.blank, at: now))
+        XCTAssertTrue(desk.clarity, "a blank note makes no card, so Clarity stays on")
     }
 
     func testNewOnAFullDesktopShowsTheBlankPageAndCreatesNothing() {
@@ -285,14 +330,14 @@ final class DeskTests: XCTestCase {
 
     func testArrangingChangesNothingButTheOrder() {
         var desk = fullDesktop(stack: "x", "y", "z")
-        desk.apply(.toggleClarity)
+        desk.apply(.setClarity(true))
         let before = desk
         desk.apply(.arrange(id("z"), at: 0))
         XCTAssertEqual(desk.popped, before.popped, "the desktop is as it was")
         XCTAssertEqual(desk.stackPlace, before.stackPlace, "so is the stack's place")
         XCTAssertEqual(desk.clarity, before.clarity, "and Clarity")
         XCTAssertEqual(desk.stack.sorted { $0.id < $1.id }, before.stack.sorted { $0.id < $1.id },
-                       "every stacked card keeps its text, state and summary")
+                       "every stacked card keeps its text and summary")
     }
 
     func testTheArrangedOrderIsWhatTheSidecarSavesAndALaunchReads() {
@@ -378,11 +423,13 @@ final class DeskTests: XCTestCase {
         XCTAssertEqual(shown(desk), "blank", "and the blank page when it was the bottom one")
     }
 
-    func testFilesThatJoinWhileClarityIsOnComeInCollapsed() {
+    func testFilesThatJoinWhileClarityIsOnComeInCollapsedAndLeaveItOn() {
         var desk = deskWithStack("a")
-        desk.apply(.toggleClarity)
+        desk.apply(.setClarity(true))
         desk.apply(.syncFiles(notes(["a", "b"])))
-        XCTAssertTrue(desk.allCards.allSatisfy(\.collapsed), "every card follows the global switch")
+        XCTAssertEqual(desk.allCards.count, 2, "the file joined")
+        XCTAssertTrue(desk.clarity, "a rescan does not turn Clarity off")
+        XCTAssertTrue(faces(desk).allSatisfy(\.collapsed), "every card follows the global switch")
     }
 
     func testRebuildDropsMissingFilesAndAppendsUnknownFilesInIdOrder() {

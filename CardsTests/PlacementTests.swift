@@ -118,7 +118,7 @@ final class PlacementTests: XCTestCase {
     func testNonsensePointsAreMadeSane() throws {
         XCTAssertEqual(GridPoint(x: -5, y: .nan), GridPoint(x: -1, y: 0.5), "too far left is capped, not a number is the middle")
         XCTAssertEqual(GridPoint(x: .infinity, y: 9), GridPoint(x: 0.5, y: 2), "infinity is the middle, too far down is capped")
-        let json = #"{"version":2,"clarity":false,"stackFree":{"x":1e300,"y":-1e300},"placements":[{"free":{"x":-1e300,"y":1e300},"card":"a"}],"stack":["b"],"collapsed":[],"summaries":[]}"#
+        let json = #"{"version":2,"clarity":false,"stackFree":{"x":1e300,"y":-1e300},"placements":[{"free":{"x":-1e300,"y":1e300},"card":"a"}],"stack":["b"],"summaries":[]}"#
         let saved = try JSONDecoder().decode(SavedDesk.self, from: Data(json.utf8))
         var desk = Desk(notes: [id("a"): Note(header: "a", body: []), id("b"): Note(header: "b", body: [])], saved: saved)
         for place in [desk.stackPlace, desk.place(of: .card(id("a")))!] {

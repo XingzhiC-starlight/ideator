@@ -14,24 +14,21 @@ struct CardID: RawRepresentable, Hashable, Comparable, Codable {
 }
 
 /// Everything about one card. A `Card` value lives in exactly one place, the desktop or the
-/// stack, and moves between them whole. Its clarity state and summary therefore travel with it
-/// and can never be orphaned or attached to the wrong card.
+/// stack, and moves between them whole. Its summary therefore travels with it and can never be
+/// orphaned or attached to the wrong card.
 struct Card: Equatable {
     let id: CardID
     var note: Note { didSet { digest = note.digest } }
     /// Fingerprint of `note`. Kept in step by `note`'s observer, never assigned anywhere else.
     private(set) var digest: Digest
-    /// The card's own clarity state. It travels with the card, so a popped card keeps it.
-    var collapsed: Bool
     /// The latest summary attempt. It describes the current note only while
     /// `summary.source == digest`; a stale one is simply ignored, never cleared.
     var summary: Summary?
 
-    init(id: CardID, note: Note, collapsed: Bool = false, summary: Summary? = nil) {
+    init(id: CardID, note: Note, summary: Summary? = nil) {
         self.id = id
         self.note = note
         self.digest = note.digest
-        self.collapsed = collapsed
         self.summary = summary
     }
 }
@@ -129,8 +126,9 @@ struct PoppedCard: Equatable {
 /// Every way the state can change. Views, the summarizer and the folder rescan all send these to
 /// `DeskController.send`; nothing else mutates a `Desk`.
 enum Command {
-    /// Stack toolbar "New": a blank card, popped straight out, expanded, focused. On a full
-    /// desktop it creates nothing and the stack shows its blank page instead.
+    /// Stack toolbar "New": a blank card, popped straight out and focused. Clarity turns off, so
+    /// the card opens expanded. On a full desktop it creates nothing and changes nothing else; the
+    /// stack shows its blank page instead.
     case new(at: Date)
     /// The stacked card's "↗ Pop" button: the selected card comes out. Nothing while the blank page shows.
     case pop
@@ -144,7 +142,8 @@ enum Command {
     case arrange(CardID, at: Int)
     /// The arranger's row: the stack shows this stacked card. A card that is not stacked is ignored.
     case showStacked(CardID)
-    /// The first character typed on the stack's blank page. Only meaningful while it shows.
+    /// The first character typed on the stack's blank page, which turns Clarity off like New.
+    /// Only meaningful while it shows.
     case writeBlank(Note, at: Date)
     /// A card's header or the stack's ribbon was dragged and released (`Place.dropped(at:)`).
     /// Onto a slot held by another snapped item, the two swap.
@@ -153,10 +152,9 @@ enum Command {
     case delete(CardID)
     /// Every text change in a card's editor.
     case edit(CardID, Note)
-    /// Per-card clarity button, or a click on a collapsed card's body (`false`).
-    case setCollapsed(CardID, Bool)
-    /// The stack's global Clarity button.
-    case toggleClarity
+    /// The stack ribbon's Clarity button, or a click on a collapsed card's body (`false`). Every
+    /// card, popped or stacked, follows it.
+    case setClarity(Bool)
     /// Per-card refresh button: forget the summary so a new one is requested now.
     case refreshSummary(CardID)
     /// Settings saved or removed the key: forget every failed summary so each card tries again.
@@ -165,7 +163,7 @@ enum Command {
     case storeSummary(CardID, Summary)
     /// A rescan of the folder found this set of notes (files added, removed or edited outside).
     case syncFiles([CardID: Note])
-    /// An AI tool's `add_card`: a new card joins the stack, never the desktop, with Clarity's state.
+    /// An AI tool's `add_card`: a new card joins the stack, never the desktop, and shows as Clarity says.
     /// Top puts it on top and shows it, unless `typing` (the user is typing in the stacked card, which
     /// the controller reads from the windows), which keeps the page. Bottom keeps the page.
     case addFromTool(Note, at: Date, to: Landing, typing: Bool)
@@ -179,7 +177,7 @@ enum Command {
 // MARK: - Desk
 
 /// The single source of truth: where each popped card and the stack are, the stack order, which
-/// stack page shows, global clarity, and (inside each `Card`) content, collapsed state and summary.
+/// stack page shows, Clarity, and (inside each `Card`) content and summary.
 ///
 /// Invariants, all kept by construction in this file:
 /// - every card is in exactly one place (one desktop entry or one stack position);
@@ -200,7 +198,8 @@ struct Desk: Equatable {
     /// `insertCard` / `removeCard`, which keep it on the same page; `arrange` keeps it on the
     /// same card.
     private(set) var selection: Int
-    /// Global clarity (the stack's Clarity button). Per-card state is `Card.collapsed`.
+    /// Whether every card, popped or stacked, shows its summary in place of its body (the stack's
+    /// Clarity button). The only collapse state there is: a card has none of its own.
     private(set) var clarity: Bool
 
     /// Rebuilds the desk from disk. `notes` decides which cards exist; `saved` only places them.
@@ -211,13 +210,12 @@ struct Desk: Equatable {
     /// `Summarizer` asks for it again.
     init(notes: [CardID: Note], saved: SavedDesk) {
         let saved = saved.version < SavedDesk().version ? SavedDesk() : saved
-        let collapsed = Set(saved.collapsed)
         var summaries: [CardID: Summary] = [:]
         for s in saved.summaries where s.prompt == Summary.prompt {
             summaries[s.card] = Summary(source: s.source, outcome: .text(s.text))
         }
         func card(_ id: CardID) -> Card? {
-            notes[id].map { Card(id: id, note: $0, collapsed: collapsed.contains(id), summary: summaries[id]) }
+            notes[id].map { Card(id: id, note: $0, summary: summaries[id]) }
         }
 
         func place(slot: Int?, free: GridPoint?) -> Place? {
@@ -308,8 +306,7 @@ struct Desk: Equatable {
         case .move(let item, let place): move(item, to: place)
         case .delete(let id): delete(id)
         case .edit(let id, let note): update(id) { $0.note = note }
-        case .setCollapsed(let id, let collapsed): update(id) { $0.collapsed = collapsed }
-        case .toggleClarity: toggleClarity()
+        case .setClarity(let on): clarity = on
         case .refreshSummary(let id): update(id) { $0.summary = nil }
         case .forgetFailedSummaries: forgetFailedSummaries()
         case .storeSummary(let id, let summary):
@@ -327,7 +324,8 @@ struct Desk: Equatable {
             selection = stack.count   // New refuses when the desktop is full; the blank page takes over
             return nil
         }
-        let card = Card(id: freshID(at: date), note: .blank, collapsed: false)
+        clarity = false   // a new card opens expanded, so every card does
+        let card = Card(id: freshID(at: date), note: .blank)
         popped.append(PoppedCard(card: card, place: .slot(slot)))
         return card.id
     }
@@ -373,9 +371,11 @@ struct Desk: Equatable {
     }
 
     /// The first character typed on the blank page: it becomes a card at the bottom, in the same
-    /// place in the loop, so the selection stays on it and a fresh blank page follows.
+    /// place in the loop, so the selection stays on it and a fresh blank page follows. Clarity turns
+    /// off, as for New, so the card being typed in is expanded.
     private mutating func writeBlank(_ note: Note, at date: Date) {
         guard selection == stack.count, note != .blank else { return }
+        clarity = false
         insertCard(Card(id: freshID(at: date), note: note), at: selection)
         selection -= 1
     }
@@ -412,14 +412,6 @@ struct Desk: Equatable {
         }
     }
 
-    /// Sets every card, popped and stacked, to `clarity`. A per-card change afterwards never
-    /// touches `clarity`.
-    private mutating func toggleClarity() {
-        clarity.toggle()
-        for i in popped.indices { popped[i].card.collapsed = clarity }
-        for i in stack.indices { stack[i].collapsed = clarity }
-    }
-
     /// Clears the summary of every card, popped and stacked, whose latest attempt failed.
     private mutating func forgetFailedSummaries() {
         func forget(_ card: inout Card) {
@@ -437,12 +429,12 @@ struct Desk: Equatable {
         for (id, note) in notes { update(id) { if $0.note != note { $0.note = note } } }
         let known = Set(allCards.map(\.id))
         for (id, note) in notes.sorted(by: { $0.key < $1.key }) where !known.contains(id) {
-            insertCard(Card(id: id, note: note, collapsed: clarity), at: stack.count)
+            insertCard(Card(id: id, note: note), at: stack.count)
         }
     }
 
     private mutating func addFromTool(_ note: Note, at date: Date, to landing: Landing, typing: Bool) {
-        let card = Card(id: freshID(at: date), note: note, collapsed: clarity)
+        let card = Card(id: freshID(at: date), note: note)
         switch landing {
         case .top:
             insertCard(card, at: 0)
@@ -488,6 +480,7 @@ struct Desk: Equatable {
 struct CardFace: Equatable {
     let id: CardID
     let note: Note
+    /// `Desk.clarity`, the same for every card.
     let collapsed: Bool
     let summary: SummaryFace
 }
@@ -525,18 +518,18 @@ struct StackFace: Equatable {
 extension Desk {
     /// The popped cards and where they are, in the order they arrived.
     func cardFaces(hasKey: Bool) -> [(place: Place, face: CardFace)] {
-        popped.map { ($0.place, Desk.face(of: $0.card, hasKey: hasKey)) }
+        popped.map { ($0.place, face(of: $0.card, hasKey: hasKey)) }
     }
 
     func stackFace(hasKey: Bool) -> StackFace {
         StackFace(stacked: stack.map { StackRow(id: $0.id, title: $0.note.title) },
-                  selected: selectedCard.map { Desk.face(of: $0, hasKey: hasKey) },
+                  selected: selectedCard.map { face(of: $0, hasKey: hasKey) },
                   clarity: clarity, desktopFull: firstFreeSlot == nil)
     }
 
-    private static func face(of card: Card, hasKey: Bool) -> CardFace {
-        CardFace(id: card.id, note: card.note, collapsed: card.collapsed,
-                 summary: summaryFace(of: card, hasKey: hasKey))
+    private func face(of card: Card, hasKey: Bool) -> CardFace {
+        CardFace(id: card.id, note: card.note, collapsed: clarity,
+                 summary: Desk.summaryFace(of: card, hasKey: hasKey))
     }
 
     /// The whole summary lifecycle as seen by the UI, from two facts: the card's latest attempt
@@ -622,7 +615,6 @@ struct SavedDesk: Codable, Equatable {
     var stackFree: GridPoint?
     var placements: [SavedPlacement] = []
     var stack: [CardID] = []
-    var collapsed: [CardID] = []
     /// Successful summaries only: a failure has no `text`, so it cannot be written here. Each is
     /// kept on load only if the current prompt wrote it.
     var summaries: [SavedSummary] = []
@@ -654,7 +646,6 @@ extension Desk {
             stackFree: stackPlace.savedFree,
             placements: popped.map { SavedPlacement(slot: $0.place.savedSlot, free: $0.place.savedFree, card: $0.card.id) },
             stack: stack.map(\.id),
-            collapsed: cards.filter(\.collapsed).map(\.id).sorted(),
             summaries: cards.compactMap { card in
                 guard let summary = card.summary, case .text(let text) = summary.outcome else { return nil }
                 return SavedSummary(card: card.id, source: summary.source, text: text, prompt: Summary.prompt)
