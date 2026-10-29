@@ -37,10 +37,10 @@ final class StackLayoutTests: XCTestCase {
         var card: CardView { view.subviews.compactMap { $0 as? CardView }.first! }
     }
 
-    private func hoverButton(_ title: String, in card: CardView) -> NSButton? {
+    private func hoverButton(_ name: String, in card: CardView) -> NSButton? {
         let row = card.subviews.compactMap { $0 as? NSStackView }
             .first { $0.arrangedSubviews.contains { $0.toolTip == "Delete this card" } }
-        return row?.arrangedSubviews.compactMap { $0 as? NSButton }.first { $0.title == title }
+        return row?.arrangedSubviews.compactMap { $0 as? NSButton }.first { $0.accessibilityLabel() == name }
     }
 
     private func stack(width: CGFloat, _ visibility: Visibility = .all, full: Bool = false,
@@ -179,10 +179,10 @@ final class StackLayoutTests: XCTestCase {
 
     func testTheStackedCardPopsItselfAndADesktopCardReturnsToTheStack() throws {
         let shown = stack(width: wide)
-        let pop = try XCTUnwrap(hoverButton("↗ Pop", in: shown.card))
-        XCTAssertNil(hoverButton("↩ Stack", in: shown.card), "a stacked card is already on the stack")
+        let pop = try XCTUnwrap(hoverButton("Pop this card out", in: shown.card))
+        XCTAssertNil(hoverButton("Return to stack", in: shown.card), "a stacked card is already on the stack")
         XCTAssertTrue(pop.isEnabled)
-        XCTAssertEqual(pop.toolTip, "Bring this card out")
+        XCTAssertEqual(pop.toolTip, "Pop this card out")
         pop.performClick(nil)
         guard case .pop? = shown.sent().last else { return XCTFail("Pop sends .pop, got \(shown.sent())") }
 
@@ -190,21 +190,21 @@ final class StackLayoutTests: XCTestCase {
         let desktop = CardView(home: .desktop(WindowDrag(moved: { _ in }, dropped: { _ in })), send: { sent.append($0) })
         desktop.apply(CardFace(id: CardID(rawValue: "a"), note: Note(header: "Title", body: []), collapsed: false,
                                summary: .body("")))
-        XCTAssertNil(hoverButton("↗ Pop", in: desktop), "a desktop card is already out")
-        let back = try XCTUnwrap(hoverButton("↩ Stack", in: desktop))
-        XCTAssertEqual(back.toolTip, "Return this card to the top of the stack")
+        XCTAssertNil(hoverButton("Pop this card out", in: desktop), "a desktop card is already out")
+        let back = try XCTUnwrap(hoverButton("Return to stack", in: desktop))
+        XCTAssertEqual(back.toolTip, "Return to stack")
         back.performClick(nil)
-        guard case .returnToStack(let id)? = sent.last else { return XCTFail("↩ Stack sends .returnToStack, got \(sent)") }
+        guard case .returnToStack(let id)? = sent.last else { return XCTFail("Return to stack sends .returnToStack, got \(sent)") }
         XCTAssertEqual(id, CardID(rawValue: "a"))
     }
 
     func testPopIsGreyedOnAFullDesktopAndSaysWhy() throws {
         let full = stack(width: wide, full: true)
-        let pop = try XCTUnwrap(hoverButton("↗ Pop", in: full.card))
+        let pop = try XCTUnwrap(hoverButton("Pop this card out", in: full.card))
         XCTAssertFalse(pop.isEnabled)
-        XCTAssertEqual(pop.toolTip, "Desktop full")
+        XCTAssertEqual(pop.toolTip, "Desktop full: no free slot to pop into")
         let roomAgain = stack(width: wide)
-        XCTAssertTrue(try XCTUnwrap(hoverButton("↗ Pop", in: roomAgain.card)).isEnabled)
+        XCTAssertTrue(try XCTUnwrap(hoverButton("Pop this card out", in: roomAgain.card)).isEnabled)
     }
 
     func testTheToggleOffersHideAllWhileCardsShowAndShowAllWhileHidden() throws {
