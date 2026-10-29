@@ -139,7 +139,7 @@ Personal-use macOS prototype. Native Swift app built with Xcode.
 - No summary for empty or one-line bodies.
 - Prompt (revised 2026-10-24): header + body in → one paragraph of at most ~120 characters (about 20 words; about 60 characters for Chinese, Japanese or Korean), no line breaks, no preamble, same language as the card (the kind label too, e.g. 待办清单 for a Chinese to-do list).
   - It reminds the user what the card is: kind and topic first, then the gist if there is room. "To-do list for the Tokyo trip: flights, hotel, charger." "Thoughts on why the drag felt slow, leaning toward input focus."
-  - The model names the kind itself, guided by examples (to-do list, thoughts, plan, meeting notes, draft, question, links, ideas). A card with no clear kind is "Notes on <topic>".
+  - The model names the kind itself, guided by examples (to-do list, thoughts, plan, meeting notes, draft, question, links, ideas). A card with no clear kind is "Notes on <topic>", or "笔记：<topic>" for a Chinese card (revised 2026-10-28).
   - The header is already shown above the summary, so the summary never restates it.
   - To-do lists name only the unchecked items and the count done ("2 of 5 done: hotel, charger, visa"), or say all done.
   - A thin card gets a short summary: infer its intent, never invent details to fill the space.

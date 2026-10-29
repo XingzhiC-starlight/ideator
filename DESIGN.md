@@ -495,6 +495,13 @@ Later changes, after trying the app:
   limit is now a hard ceiling with a lower aim (15 to 18 words, 40 to 50 CJK characters), the gist
   comes only if it fits, the model picks one or two main points (a to-do list still names every open
   item), and a thin card gets at most half the limit; nothing measures or cuts the reply.
+  The third run, with both companies, had 5 hard fails in 304 checks: Haiku answered the Chinese thin
+  card in English, opening with the prompt's English fallback "Notes on"; both ran the Chinese card
+  full of English terms to 77 and 82 characters by copying every term; and `gpt-6-luna` listed the
+  whole numbered launch plan as a "to-do list" (134 characters). Each kind list now carries its own
+  fallback ("Notes on" for English, "笔记：" for Chinese), a CJK note names at most two English
+  terms and drops key prefixes, versions, IDs and links, and only `[ ]`/`[x]` lines make a to-do
+  list, so any other list gets its one or two main points.
 
 ## Tradeoffs accepted
 

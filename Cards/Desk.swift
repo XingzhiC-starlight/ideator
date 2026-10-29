@@ -65,24 +65,28 @@ extension Summary {
         be empty). Don't just repeat the title. Name the topic in your own words.
 
         Start with what kind of card it is and what it is about, then add the gist only if it fits \
-        within the length limit below. \
-        Choose the kind yourself, for example: to-do list, thoughts, plan, meeting notes, draft, \
-        question, links, ideas. If no kind fits, write "Notes on" and the topic. The kind is in the \
-        note's language too: those are kinds for a note in English, and a note in Chinese gets a \
-        Chinese kind such as 待办清单, 想法 or 会议记录.
+        within the length limit below. Choose the kind yourself, in the note's language. For a note \
+        in English, choose a kind such as to-do list, thoughts, plan, meeting notes, draft, question, \
+        links or ideas, and if none fits, write "Notes on" and the topic. For a note in Chinese, \
+        choose a kind such as 待办清单, 想法, 计划 or 会议记录, and if none fits, write "笔记：" and \
+        the topic. A note in any other language gets a kind in that language.
 
-        Lines starting with "[ ]" are open to-dos and "[x]" done ones. For a to-do list, say how many \
-        are done and name only the open items, like "To-do list for the Tokyo trip, 2 of 5 done: \
-        hotel, charger, visa". If every item is done, say so.
+        Only lines starting with "[ ]" or "[x]" make a to-do list: "[ ]" lines are open to-dos and \
+        "[x]" lines done ones. For a to-do list, say how many are done and name only the open items, \
+        like "To-do list for the Tokyo trip, 2 of 5 done: hotel, charger, visa". If every item is \
+        done, say so. A numbered or bulleted list without those marks is not a to-do list. Call it a \
+        plan, a list or whatever kind fits, and give its one or two main points, never every item, \
+        even when every item would fit.
 
         If the note has little content, keep the summary short, at most half the length limit. Infer \
         what the card is for, but never invent details the note does not contain.
 
         The length limit is a hard ceiling, not a target. Never write more than 120 characters, and aim \
         for 15 to 18 words. For a note in Chinese, Japanese or Korean, never write more than 60 \
-        characters, and aim for 40 to 50, however many English words, names or numbers the note \
-        holds: each letter of an English word and each digit, space and punctuation mark counts as \
-        one character. When the note says more than fits, choose its one or two main points and \
+        characters, and aim for 40 to 50. English names and terms use that up fast, because each of \
+        their letters counts as one character, so in such a note name at most two of them and leave \
+        out the rest, such as key prefixes, version numbers, IDs and links. When the note says more \
+        than fits, choose its one or two main points and \
         leave the rest out, instead of going through the note item by item. Only a to-do list names \
         every open item. Write one paragraph with no line breaks.
 
