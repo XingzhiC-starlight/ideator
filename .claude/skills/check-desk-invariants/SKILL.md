@@ -63,7 +63,12 @@ From the repo root:
 
 About 10 seconds. It prints one `ok` line per starting desk and `PASS P1–P7, depth 3, …`, exit 0.
 Use `run.sh 4` for depth 4 before merging a large change to `Desk.swift` (about 2 minutes and a
-million steps, most of them on the 20-card near-full desk). On 2026-10-23 both depths passed.
+million steps, most of them on the 20-card near-full desk).
+
+Last synced with the code at `bf03310` (2026-10-29): depth 3 and depth 4 passed, and 20 of 20
+mutants were caught. Covered code read for that sync: `Desk.swift`, `Grid.swift`, `Note.swift`,
+`Library.load` (how P5 reads back) and `DeskController.send`, the only caller of `Desk.apply`.
+The next sync diffs those from this commit.
 
 A failure prints the property, the starting desk and the shortest command sequence that breaks
 it, then exits 1:
