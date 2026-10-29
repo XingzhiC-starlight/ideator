@@ -12,12 +12,14 @@ AX="$REPO/build/verify-tools/cards-ax"
 CLIP="$REPO/build/verify-tools/cards-clip"
 RUNS="$REPO/build/verify-runs"
 EVIDENCE_ROOT="$REPO/build/verify-evidence"
+# shellcheck disable=SC1091
+source "$SKILL_DIR/scripts/live-lock.sh"
 
 usage() {
   cat <<'EOF'
 cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax
-cards-verify launch [--welcome] [--seed [SIDECAR]]  start an isolated instance on an empty temp folder (--welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from)
-cards-verify doctor                 read-only health check of the current run
+cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from)
+cards-verify doctor                 read-only health check of the current run, and who holds the live-UI lock
 cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, where, mouse, dragat, listen)
 cards-verify shot NAME              screenshot every window + accessibility tree into the evidence folder
 cards-verify files NAME             copy the card folder (*.md and .cards.json) into the evidence folder and print it
@@ -26,7 +28,7 @@ cards-verify clip save              keep the owner's clipboard (every type) unti
 cards-verify clip set TEXT [HTML]   the clipboard holds TEXT as plain text, and HTML as public.html
 cards-verify clip show              the clipboard's types, plain text and HTML (what a copy wrote)
 cards-verify clip restore           put the owner's clipboard back (stop does this too if you forget)
-cards-verify stop                   quit the instance this run started, delete its temp folder, keep evidence
+cards-verify stop                   quit the instance this run started, release the lock this run took, delete its temp folder, keep evidence
 cards-verify env                    print RUN_ID, PID, FOLDER, EVIDENCE of the current run
 EOF
 }
@@ -66,8 +68,9 @@ launch() {
   if [[ -f "$RUNS/current.env" ]]; then
     current
     if ours; then die "run $RUN_ID (pid $PID) is still up; stop it first: cards-verify stop"; fi
+    [[ -z "${LOCK_TOKEN:-}" ]] || live_lock_release "$LOCK_TOKEN" || true
   fi
-  local run_id folder evidence pid="" ready=New env=() mode="$*"
+  local run_id folder evidence pid="" ready=New env=() mode="$*" lock_token
   if [[ "${1:-}" == "--welcome" ]]; then
     # An environment variable, not an argument, so the command line pgrep and ours() match stays as is.
     env=(--env CARDS_SHOW_WELCOME=1)
@@ -75,6 +78,9 @@ launch() {
     shift
   fi
   run_id="$(date '+%Y%m%d-%H%M%S')"
+  lock_token="cards-verify run $run_id in $REPO since $(date '+%H:%M:%S')"
+  live_lock_take "$lock_token" || die "another live Ideator session holds $LIVE_LOCK (holder: $(live_lock_holder)); retry in 30 s"
+  trap 'live_lock_release "$lock_token" || true' EXIT
   # Cards writes here, so keep it out of ~/Desktop and ~/Documents: those trigger a privacy prompt.
   folder="${TMPDIR:-/tmp/}cards-verify/$run_id/folder"
   folder="${folder//\/\//\/}"
@@ -94,7 +100,8 @@ launch() {
     sleep 0.2
   done
   [[ -n "$pid" ]] || die "Cards did not start; see $evidence/app.log"
-  printf 'RUN_ID=%q\nPID=%q\nFOLDER=%q\nEVIDENCE=%q\n' "$run_id" "$pid" "$folder" "$evidence" > "$RUNS/current.env"
+  printf 'RUN_ID=%q\nPID=%q\nFOLDER=%q\nEVIDENCE=%q\nLOCK_TOKEN=%q\n' "$run_id" "$pid" "$folder" "$evidence" "$lock_token" > "$RUNS/current.env"
+  trap - EXIT
   current
   for _ in $(seq 1 50); do
     if "$AX" tree "$PID" 2>/dev/null | grep -q "\"$ready\""; then
@@ -108,8 +115,14 @@ launch() {
 }
 
 doctor() {
-  current
+  LOCK_TOKEN=""
+  [[ -f "$RUNS/current.env" ]] && current
   local ok=1
+  if [[ ! -d "$LIVE_LOCK" ]]; then echo "lock      none: nobody holds $LIVE_LOCK"
+  elif [[ -n "$LOCK_TOKEN" ]] && live_lock_held_by "$LOCK_TOKEN"; then echo "lock      ok: this run holds $LIVE_LOCK ($(live_lock_holder))"
+  elif [[ -n "$LOCK_TOKEN" ]]; then echo "lock      FAIL: this run's lock was replaced; $LIVE_LOCK is held by: $(live_lock_holder)"; ok=0
+  else echo "lock      held by another session: $(live_lock_holder)"; fi
+  [[ -f "$RUNS/current.env" ]] || die "no current run; start one with: cards-verify launch"
   echo "run       $RUN_ID"
   if ours; then echo "process   ok: pid $PID is $BIN on $FOLDER"; else echo "process   FAIL: pid $PID is not this run's Cards (gone, or reused)"; ok=0; fi
   local newest
@@ -199,6 +212,10 @@ stop() {
     log "stopped pid $PID"
   else
     log "pid $PID already gone"
+  fi
+  if [[ -n "${LOCK_TOKEN:-}" ]]; then
+    if live_lock_release "$LOCK_TOKEN"; then log "released $LIVE_LOCK"
+    else log "left $LIVE_LOCK alone: this run does not hold it (holder: $(live_lock_holder))"; fi
   fi
   rm -rf "$(dirname "$FOLDER")"
   rm -f "$RUNS/current.env"

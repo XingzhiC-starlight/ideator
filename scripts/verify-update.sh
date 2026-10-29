@@ -8,11 +8,10 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 domain=com.systemlabs.Ideator.UpdateTest
 sparkle=build/ReleaseDerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
 lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-lock="/tmp/claude-$(id -u)/ideator-live-ui.lock"
 generate_cache="$HOME/Library/Caches/Sparkle_generate_appcast"
 owner_app=/Applications/Ideator.app
 
-work="" ev="" pid="" locked=0 feed_pid="" decoy_pid=""
+work="" ev="" pid="" locked=0 lock_token="" feed_pid="" decoy_pid=""
 [[ -d "$generate_cache" ]] && cache_existed=1 || cache_existed=0
 
 owner_state() {
@@ -38,6 +37,7 @@ die() {
   exit 1
 }
 source scripts/signing.sh
+source .claude/skills/verify-cards/scripts/live-lock.sh
 
 cleanup() {
   local status=$?
@@ -67,7 +67,7 @@ cleanup() {
       status=1
     fi
   fi
-  ((locked)) && rmdir "$lock"
+  ((locked)) && { live_lock_release "$lock_token" || echo "verify-update: $LIVE_LOCK is not held by this run (holder: $(live_lock_holder)); left alone" >&2; }
   exit $status
 }
 trap cleanup EXIT
@@ -87,8 +87,8 @@ for tool in generate_appcast sign_update; do
   [[ -x "$sparkle/$tool" ]] || die "$sparkle/$tool is missing; scripts/package.sh resolves Sparkle"
 done
 
-mkdir -p "$(dirname "$lock")"
-mkdir "$lock" 2>/dev/null || die "another live Ideator session holds $lock"
+lock_token="verify-update.sh pid $$ in $PWD since $(date +%H:%M:%S)"
+live_lock_take "$lock_token" || die "another live Ideator session holds $LIVE_LOCK (holder: $(live_lock_holder))"
 locked=1
 
 work="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/ideator-verify-update.XXXXXX")" && pwd -P)"
