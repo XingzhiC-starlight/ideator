@@ -14,10 +14,11 @@ SOURCES=(Desk.swift Grid.swift Note.swift)
 REVIEWED="$SKILL/reviewed.sha256"
 
 build() {  # build DIR BINARY: compile the three model files from DIR with the checker
-  local dir="$1" bin="$2"
+  local dir="$1" bin="$2" out status=0
   mkdir -p "$(dirname "$bin")"
-  swiftc -O "${SOURCES[@]/#/$dir/}" "$SKILL/check/main.swift" -o "$bin" 2>&1 | grep -E "error|warning: (var|imm)" || true
-  [[ -x "$bin" ]] || { echo "desk-check: did not compile" >&2; exit 2; }
+  out="$(swiftc -O "${SOURCES[@]/#/$dir/}" "$SKILL/check/main.swift" -o "$bin" 2>&1)" || status=$?
+  grep -E "error|warning: (var|imm)" <<< "$out" || true
+  ((status == 0)) || { echo "desk-check: did not compile" >&2; exit 2; }
 }
 
 fingerprint() { (cd "$REPO/Cards" && shasum -a 256 "${SOURCES[@]}"); }
