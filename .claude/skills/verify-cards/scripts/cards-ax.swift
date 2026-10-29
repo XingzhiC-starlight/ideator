@@ -20,6 +20,11 @@
 //   cards-ax dragat PID X Y DX DY        press at screen point X,Y, drag by DX,DY points, release
 //   cards-ax listen PID SECONDS          print each VoiceOver announcement the app posts for SECONDS
 //
+//   cards-ax idle REFFILE LABEL          no PID: HID idle seconds (hidSystemState), and the time since REFFILE's mtime
+//                                        (the last event this helper posted, or the launch); flags an event after it
+//
+// Every event this helper posts touches the file named by $CARDS_AX_STAMP, if set.
+//
 // WINDOW is `stack`, `card=<title>` (the card's first line), or an index `tree` prints (w0, w1;
 // indices follow the z-order and change after any click, so prefer the names). Frames are screen
 // points with the origin top-left, the same space screencapture -R uses.
@@ -115,8 +120,16 @@ func activate(_ pid: pid_t) {
     usleep(250_000)
 }
 
+func stampPostedEvent() {
+    guard let path = ProcessInfo.processInfo.environment["CARDS_AX_STAMP"] else { return }
+    let fm = FileManager.default
+    if !fm.fileExists(atPath: path) { fm.createFile(atPath: path, contents: nil) }
+    try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: path)
+}
+
 func mouse(_ type: CGEventType, _ at: CGPoint) {
     CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: at, mouseButton: .left)?.post(tap: .cghidEventTap)
+    stampPostedEvent()
     usleep(40_000)
 }
 
@@ -140,11 +153,30 @@ func post(_ pid: pid_t, key: CGKeyCode, flags: CGEventFlags = [], unicode: Strin
             e.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
         }
         e.postToPid(pid)
+        stampPostedEvent()
         usleep(12_000)
     }
 }
 
+/// Every event the helper posts, keys included, resets the HID idle counter, so idle alone cannot
+/// tell the helper from the owner. The counter moves in half-second steps and never reads less than
+/// the time since the helper's last event, so a smaller reading means someone else's event came later.
+func idleReport(reference: String?, label: String) {
+    let idle = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+    var line = String(format: "hid idle %.1fs", idle)
+    if let reference, let touched = (try? FileManager.default.attributesOfItem(atPath: reference))?[.modificationDate] as? Date {
+        let quiet = Date().timeIntervalSince(touched)
+        line += String(format: "; %.1fs since %@", quiet, label)
+        if idle + 0.5 < quiet { line += "; INPUT after the \(label)" }
+    }
+    print(line)
+}
+
 let args = Array(CommandLine.arguments.dropFirst())
+if args.first == "idle" {
+    idleReport(reference: args.count > 1 ? args[1] : nil, label: args.count > 2 ? args[2] : "reference")
+    exit(0)
+}
 guard args.count >= 2, let pid = pid_t(args[1]) else { fail("usage: cards-ax COMMAND PID ... (see the header of cards-ax.swift)") }
 guard AXIsProcessTrusted() else { fail("this terminal has no Accessibility permission (System Settings › Privacy & Security › Accessibility)") }
 guard NSRunningApplication(processIdentifier: pid) != nil else { fail("no running app with pid \(pid)") }
@@ -248,6 +280,7 @@ case "scroll":
     let e = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0)
     e?.location = at
     e?.post(tap: .cghidEventTap)
+    stampPostedEvent()
     usleep(400_000)
 
 case "drag":
