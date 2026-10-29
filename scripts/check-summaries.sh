@@ -12,7 +12,8 @@
 #   The keys are read here, before the compile, so the prompt shows at once and nothing pasted during
 #   the compile is echoed. They reach the program only through its environment.
 # Exit status: 0 when every request worked and every hard rule passed (heuristic warnings do not
-#   count), 1 when not, 2 without a usable key or when it did not compile.
+#   count), 1 when not, 2 without a usable key (one pasted twice, or the other company's key at a
+#   prompt) or when it did not compile.
 set -euo pipefail
 
 case "${1:-}" in
@@ -29,9 +30,11 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$REPO/build/check-summaries"
 
 # Sets KEY_RESULT to the key from the variable named $1, else from a hidden read of the terminal
-# (no echo, no length limit), trimmed. Prints one line naming the key's company and its length.
+# (no echo, no length limit), trimmed. $3 is the company the key must be for: a key pasted twice or
+# a key for the other company exits 2 before any request. Prints one line naming the company and
+# the key's length.
 read_key() {
-  local variable="$1" label="$2" value="${!1:-}"
+  local variable="$1" label="$2" company="$3" value="${!1:-}"
   if [[ -z "${value//[[:space:]]/}" ]]; then
     value=""
     if (: </dev/tty) 2>/dev/null; then
@@ -45,20 +48,31 @@ read_key() {
   KEY_RESULT=""
   [[ -n "$value" ]] || return 0
   if [[ "$value" == *[[:space:]]* ]]; then
-    echo "check-summaries.sh: the $label has a space or a line break inside it, so it is not one key. Paste it again, on one line." >&2
+    echo "check-summaries.sh: the $company key has a space or a line break inside it, so it is not one key. Paste it again, on one line." >&2
     exit 2
   fi
-  local company="an OpenAI"
-  [[ "$value" == sk-ant-* ]] && company="an Anthropic"
-  echo "Read $company key, ${#value} characters." >&2
+  local half=$((${#value} / 2))
+  if (( ${#value} % 2 == 0 )) && [[ "${value:0:half}" == "${value:half}" ]]; then
+    echo "check-summaries.sh: the $company key looks pasted twice: its first half is the same as its second half. Run it again and paste the key once." >&2
+    exit 2
+  fi
+  if [[ "$company" == OpenAI && "$value" == sk-ant-* ]]; then
+    echo "check-summaries.sh: the key given as the $company key is an Anthropic key (it starts with sk-ant-). Run it again with your OpenAI key here; an Anthropic key goes at the second prompt, with --anthropic." >&2
+    exit 2
+  fi
+  if [[ "$company" == Anthropic && "$value" != sk-ant-* ]]; then
+    echo "check-summaries.sh: the key given as the $company key does not start with sk-ant-, so it is not an Anthropic key. Run it again with your Anthropic key here, not the OpenAI one." >&2
+    exit 2
+  fi
+  echo "Read an $company key, ${#value} characters." >&2
   KEY_RESULT="$value"
 }
 
-read_key OPENAI_API_KEY "OpenAI key"
+read_key OPENAI_API_KEY "OpenAI key" OpenAI
 OPENAI="$KEY_RESULT"
 ANTHROPIC=""
 if [[ " $* " == *" --anthropic "* ]]; then
-  read_key ANTHROPIC_API_KEY "Anthropic key, for comparison"
+  read_key ANTHROPIC_API_KEY "Anthropic key, for comparison" Anthropic
   ANTHROPIC="$KEY_RESULT"
 fi
 
