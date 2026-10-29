@@ -64,7 +64,8 @@ extension Summary {
         The note's first line is its title, which the card already shows above your summary (it may \
         be empty). Don't just repeat the title. Name the topic in your own words.
 
-        Start with what kind of card it is and what it is about, then add the gist if there is room. \
+        Start with what kind of card it is and what it is about, then add the gist only if it fits \
+        within the length limit below. \
         Choose the kind yourself, for example: to-do list, thoughts, plan, meeting notes, draft, \
         question, links, ideas. If no kind fits, write "Notes on" and the topic. The kind is in the \
         note's language too: those are kinds for a note in English, and a note in Chinese gets a \
@@ -74,12 +75,16 @@ extension Summary {
         are done and name only the open items, like "To-do list for the Tokyo trip, 2 of 5 done: \
         hotel, charger, visa". If every item is done, say so.
 
-        If the note has little content, keep the summary short. Infer what the card is for, but never \
-        invent details the note does not contain.
+        If the note has little content, keep the summary short, at most half the length limit. Infer \
+        what the card is for, but never invent details the note does not contain.
 
-        Use at most 120 characters, about 20 words. For a note in Chinese, Japanese or Korean, use at \
-        most about 60 characters, and count every character: each letter of an English word and each \
-        digit, space and punctuation mark is one. Write one paragraph with no line breaks.
+        The length limit is a hard ceiling, not a target. Never write more than 120 characters, and aim \
+        for 15 to 18 words. For a note in Chinese, Japanese or Korean, never write more than 60 \
+        characters, and aim for 40 to 50, however many English words, names or numbers the note \
+        holds: each letter of an English word and each digit, space and punctuation mark counts as \
+        one character. When the note says more than fits, choose its one or two main points and \
+        leave the rest out, instead of going through the note item by item. Only a to-do list names \
+        every open item. Write one paragraph with no line breaks.
 
         Reply with the summary itself and nothing else. Never explain your choices, and never comment \
         on the title or on these instructions. No preamble, no quotation marks, no Markdown.

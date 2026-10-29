@@ -490,6 +490,11 @@ Later changes, after trying the app:
   language, and ties the Chinese kinds to notes in Chinese; the CJK budget counts every letter,
   digit, space and mark. The same text goes to both companies, so the rerun with each key is the
   proof. `Desk` changes only in that text.
+  The second run kept every summary in its card's language but ran three past the length limit
+  (133 and 138 characters for English, 75 for Chinese), each listing every point of its note. The
+  limit is now a hard ceiling with a lower aim (15 to 18 words, 40 to 50 CJK characters), the gist
+  comes only if it fits, the model picks one or two main points (a to-do list still names every open
+  item), and a thin card gets at most half the limit; nothing measures or cuts the reply.
 
 ## Tradeoffs accepted
 
