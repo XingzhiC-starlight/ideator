@@ -29,6 +29,28 @@ final class SpreadSettingsTests: XCTestCase {
         try (1...20).filter { try cell($0, in: window).state == .on }
     }
 
+    func testTheGridsCellsSitOnAnEvenLatticeAtTheLeftOfTheSection() throws {
+        let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)))
+        let frames = try (1...20).map { n -> NSRect in
+            let button = try cell(n, in: window)
+            return button.superview!.convert(button.alignmentRect(forFrame: button.frame), to: nil)
+        }
+        let columns = Slot.columns
+        let step = SpreadCellPicker.cellSize.width + SpreadCellPicker.spacing
+        for (n, frame) in frames.enumerated() {
+            XCTAssertEqual(frame.size, SpreadCellPicker.cellSize, "cell \(n + 1) keeps its size")
+            if n % columns > 0 {
+                XCTAssertEqual(frame.minX - frames[n - 1].minX, step, accuracy: 0.5, "cell \(n + 1) is one step right of cell \(n)")
+            } else if n > 0 {
+                XCTAssertEqual(frame.minX, frames[0].minX, accuracy: 0.5, "cell \(n + 1) starts its row under cell 1")
+            }
+        }
+        let rowStep = frames[columns].minY - frames[0].minY
+        for row in 1..<Slot.rows {
+            XCTAssertEqual(frames[row * columns].minY - frames[(row - 1) * columns].minY, rowStep, accuracy: 0.5, "row \(row + 1)")
+        }
+    }
+
     func testTheSpreadBlockComesRightAfterTheShortcutAndBeforeTheKey() throws {
         let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)))
         let views = descendants(of: try XCTUnwrap(window.contentView))

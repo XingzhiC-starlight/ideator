@@ -482,6 +482,7 @@ private final class FlippedView: NSView {
 final class SpreadCellPicker: NSView {
     /// About the shape of one cell of a laptop screen.
     static let cellSize = NSSize(width: 30, height: 22)
+    static let spacing: CGFloat = 4
     var onToggle: (Slot) -> Void = { _ in }
     /// In `Slot.all` order.
     private let buttons: [NSButton]
@@ -506,11 +507,16 @@ final class SpreadCellPicker: NSView {
         let grid = NSGridView(views: (0..<Slot.rows).map { row in
             Array(buttons[row * Slot.columns..<(row + 1) * Slot.columns])
         })
-        grid.rowSpacing = 4
-        grid.columnSpacing = 4
+        grid.rowSpacing = Self.spacing
+        grid.columnSpacing = Self.spacing
         grid.translatesAutoresizingMaskIntoConstraints = false
         addSubview(grid)
+        // The picker has no intrinsic size, so the settings stack stretches it to the full width and
+        // the grid hands the extra to one column.
+        let columns = CGFloat(Slot.columns), rows = CGFloat(Slot.rows)
         NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: columns * Self.cellSize.width + (columns - 1) * Self.spacing),
+            heightAnchor.constraint(equalToConstant: rows * Self.cellSize.height + (rows - 1) * Self.spacing),
             grid.topAnchor.constraint(equalTo: topAnchor),
             grid.bottomAnchor.constraint(equalTo: bottomAnchor),
             grid.leadingAnchor.constraint(equalTo: leadingAnchor),
