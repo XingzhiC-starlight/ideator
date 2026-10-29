@@ -347,30 +347,28 @@ final class CardTextView: NSTextView {
 
     // MARK: Copy and paste
 
-    /// Copy, Cut and dragging text out: the card file's Markdown, plus an HTML list when the
-    /// selection crosses a line break.
-    override var writablePasteboardTypes: [NSPasteboard.PasteboardType] { [.html, .string] }
+    /// Copy, Cut and dragging text out: the card file's Markdown, plus an HTML list and the
+    /// Markdown again on Ideator's own type when the selection crosses a line break.
+    override var writablePasteboardTypes: [NSPasteboard.PasteboardType] { ClipboardForm.types }
 
     override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
         guard let copy = Clipboard.copy(note, span: span(of: selectedRange())) else { return false }
-        let html = types.contains(.html) ? copy.html : nil
-        pboard.declareTypes(html == nil ? [.string] : [.html, .string], owner: nil)
-        if let html { pboard.setString(html, forType: .html) }
-        return pboard.setString(copy.markdown, forType: .string)
+        let forms = ClipboardForm.allCases.filter { types.contains($0.type) }
+            .compactMap { form in form.value(in: copy).map { (type: form.type, value: $0) } }
+        guard !forms.isEmpty else { return false }
+        pboard.declareTypes(forms.map(\.type), owner: nil)
+        return forms.map { pboard.setString($0.value, forType: $0.type) }.allSatisfy { $0 }
     }
 
     override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
-        guard let copy = Clipboard.copy(note, span: span(of: selectedRange())) else { return false }
-        switch type {
-        case .html: return copy.html.map { pboard.setString($0, forType: .html) } ?? false
-        case .string: return pboard.setString(copy.markdown, forType: .string)
-        default: return false
-        }
+        guard let copy = Clipboard.copy(note, span: span(of: selectedRange())),
+              let value = ClipboardForm.allCases.first(where: { $0.type == type })?.value(in: copy) else { return false }
+        return pboard.setString(value, forType: type)
     }
 
-    /// Paste and drop: an HTML list first, else the text as Markdown (see `Clipboard.lines`), as
-    /// one undo step. Never goes through `insertText`, so a pasted space can't start a list.
-    override var readablePasteboardTypes: [NSPasteboard.PasteboardType] { [.html, .string] }
+    /// Paste and drop, as one undo step (see `Clipboard.lines`). Never goes through `insertText`,
+    /// so a pasted space can't start a list.
+    override var readablePasteboardTypes: [NSPasteboard.PasteboardType] { ClipboardForm.types }
 
     override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
         guard !hasMarkedText(), let lines = Clipboard.lines(from: pboard.clipboardOffer) else { return false }
@@ -781,14 +779,41 @@ final class CardTextView: NSTextView {
     }
 }
 
+/// Every form a copy puts on the pasteboard, best first.
+private enum ClipboardForm: CaseIterable {
+    /// Ideator's own Markdown, so a paste between cards is exact.
+    case ideator
+    case html
+    case string
+
+    static let types = allCases.map(\.type)
+
+    var type: NSPasteboard.PasteboardType {
+        switch self {
+        case .ideator: NSPasteboard.PasteboardType("com.systemlabs.Ideator.card-lines")
+        case .html: .html
+        case .string: .string
+        }
+    }
+
+    func value(in copy: Clipboard.Copy) -> String? {
+        switch self {
+        case .ideator: copy.ideator
+        case .html: copy.html
+        case .string: copy.markdown
+        }
+    }
+}
+
 private extension NSPasteboard {
-    /// The HTML and text on offer, as strings. HTML arrives as bytes, nearly always UTF-8.
+    /// The HTML, text and Ideator's own Markdown on offer, as strings. HTML arrives as bytes,
+    /// nearly always UTF-8.
     var clipboardOffer: Clipboard.Offer {
         let html = data(forType: .html).map { data in
             data.starts(with: [0xFF, 0xFE]) || data.starts(with: [0xFE, 0xFF])
                 ? String(data: data, encoding: .utf16) ?? "" : String(decoding: data, as: UTF8.self)
         }
-        return Clipboard.Offer(html: html, text: string(forType: .string))
+        return Clipboard.Offer(html: html, text: string(forType: .string), ideator: string(forType: ClipboardForm.ideator.type))
     }
 }
 

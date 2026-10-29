@@ -11,6 +11,9 @@ typed text; several lines keep their kinds and levels, and one ⌘Z takes the wh
 - `clip-copy-lines` A selection across lines copies every touched line with its marker, levels
   counted from the shallowest copied item, as Markdown and HTML.
 - `clip-copy-text` A selection inside one line copies only its text, and no HTML.
+- `clip-own-copy` Lines copied in one card paste into another exactly: blank lines, tabs, an empty
+  parent item and a plain `• x` keep their bytes, because the copy also writes its Markdown on
+  `com.systemlabs.Ideator.card-lines` and a paste reads that first.
 - `clip-paste-html` An HTML list pastes as nested items with kinds, checkboxes, bold and italic.
 - `clip-paste-terminal` Text with `•◦▪` bullets and `1)` numbers pastes as nested items.
 - `clip-paste-one-line` One pasted line is typed text and never starts a list.
@@ -41,6 +44,13 @@ Preconditions:
   older aliases, `Apple HTML pasteboard type` and `NSStringPboardType`), then the Markdown
   `1. Day one` / `    1. flight` / `    2. hotel` and the HTML
   `<meta charset="utf-8"><ol><li>Day one<ol><li>flight</li><li>hotel</li></ol></li></ol>`.
+  A copy that crosses a line break also lists `com.systemlabs.Ideator.card-lines` first; a copy
+  inside one line does not.
+- **Copy between cards.** In a card whose body has a blank line, a tab (Tab on a plain line types
+  one) and an empty parent item over a child, select the whole body (`cv ax key cmd+up`,
+  `cv ax key down`, `cv ax key cmd+left`, `cv ax key shift+cmd+down`) and `cv ax key cmd+c`. In
+  another card's empty body line, `cv ax key cmd+v`. After 1.5 s, `cat -vet` on both files shows
+  the same body bytes, `^I` tabs and the empty `- ` line included.
 - **Levels from the shallowest.** Select only flight (`cv ax key cmd+up`, `cv ax key down` twice,
   `cv ax key cmd+left`, one `shift+down`) and copy: the Markdown is `1. flight`, at the top level,
   and the HTML `<meta charset="utf-8"><ol><li>flight</li></ol>`.

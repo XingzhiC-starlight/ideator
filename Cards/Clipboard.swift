@@ -25,12 +25,16 @@ enum Clipboard {
         var markdown: String
         /// Nil for a selection inside one line, which copies just its text.
         var html: String?
+        /// The Markdown again, for Ideator's own paste to read exactly.
+        var ideator: String? { html == nil ? nil : markdown }
     }
 
     /// What a pasteboard offers, already decoded to strings.
     struct Offer: Equatable {
         var html: String?
         var text: String?
+        /// The Markdown of a copy Ideator made. Like any pasteboard content it can come from anywhere.
+        var ideator: String? = nil
     }
 
     struct Pasted: Equatable {
@@ -132,10 +136,12 @@ enum Clipboard {
     /// Bigger HTML is read as its plain text instead, so a huge web page can't stall a paste.
     private static let htmlLimit = 1_000_000
 
-    /// The pasted run, or nil when the pasteboard holds nothing usable. HTML first when it holds
-    /// a list item; otherwise the text, one line verbatim, several lines as Markdown that also
-    /// accepts `•◦▪·‣` bullets and `1)` numbers; otherwise the HTML's text as plain lines.
+    /// The pasted run, or nil when the pasteboard holds nothing usable. Ideator's own copy first,
+    /// exactly as the card file reads it; otherwise HTML when it holds a list item; otherwise the
+    /// text, one line verbatim, several lines as Markdown that also accepts `•◦▪·‣` bullets and
+    /// `1)` numbers; otherwise the HTML's text as plain lines.
     static func lines(from offer: Offer) -> [Line]? {
+        if let own = offer.ideator, !own.isEmpty { return ownLines(own) }
         let html = offer.html.flatMap { $0.utf8.count <= htmlLimit ? $0 : nil }
         if let html, html.range(of: "<li[\\s/>]", options: [.regularExpression, .caseInsensitive]) != nil {
             let lines = HTMLReader.lines(from: html)
@@ -145,6 +151,15 @@ enum Clipboard {
         guard let html else { return nil }
         let lines = HTMLReader.lines(from: html)
         return lines.isEmpty ? nil : fromTop(lines)
+    }
+
+    /// Every row is a line, a last blank one included. Only a copied header starts with `#`, since
+    /// Note's writer escapes a body line that does.
+    private static func ownLines(_ markdown: String) -> [Line] {
+        var rows = markdown.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+        guard rows.first?.hasPrefix("#") == true else { return Note.bodyLines(rows) }
+        let header = Note(markdown: rows.removeFirst()).header
+        return [Line(runs: [Run(text: header)])] + Note.bodyLines(rows)
     }
 
     private static func textLines(_ text: String) -> [Line] {

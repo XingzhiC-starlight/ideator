@@ -262,6 +262,28 @@ final class EditorTests: XCTestCase {
         board.releaseGlobally()
     }
 
+    func testACopyPastedIntoAnotherCardKeepsEveryLineExactly() {
+        let copied = [line(B(), "milk"), line(B(1), "oat"), line(B(2), "two"), line(T, ""), line(T, "notes\twith tab"),
+                      line(T, "\tindented"), line(B(), ""), line(B(1), "child"), line(T, "• not a bullet"),
+                      line(T, "1) not numbered"), line(N(), "  spaced  out")]
+        let source = Card(Note(header: "Source", body: copied + [line(T, "C:\\Users *x*"), line(T, "end")]))
+        let board = pasteboard()
+        source.select(from: "milk", through: "spaced  out")
+        XCTAssertTrue(source.editor.writeSelection(to: board, types: source.editor.writablePasteboardTypes))
+        let target = Card(Note(header: "Target", body: [line(T, "")]))
+        target.editor.setSelectedRange(NSRange(location: ("Target\n" as NSString).length, length: 0))
+        target.key { XCTAssertTrue($0.readSelection(from: board, type: .string)) }
+        XCTAssertEqual(target.editor.note.body, copied, "blank lines, tabs, an empty parent and plain lines that look like lists")
+
+        source.select(from: "C:", through: "*x*\n")
+        XCTAssertTrue(source.editor.writeSelection(to: board, types: source.editor.writablePasteboardTypes))
+        let typed = Card(Note(header: "Typed", body: [line(T, "")]))
+        typed.editor.setSelectedRange(NSRange(location: ("Typed\n" as NSString).length, length: 0))
+        typed.key { XCTAssertTrue($0.readSelection(from: board, type: .string)) }
+        XCTAssertEqual(typed.texts, ["C:\\Users *x*"], "a whole line copied with its line break pastes its text, not its Markdown")
+        board.releaseGlobally()
+    }
+
     func testChangedParagraphsAreTheSmallestRegion() {
         let a = Note(header: "h", body: [line(B(), "a"), line(B(), "b"), line(B(), "c")])
         let inserted = Note(header: "h", body: [line(B(), "a"), line(B(), "x"), line(B(), "b"), line(B(), "c")])
