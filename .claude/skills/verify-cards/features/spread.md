@@ -69,35 +69,44 @@ Preconditions:
 - **Hide all first.** With the set gathered, run `cv ax press "Hide all" stack`, then `cv ax press
   Spread stack`. `cv ax windows` lists the full-size stack and every card, and the toggle is
   `Hide all` again.
-- **Refused.** Open Settings with `cv ax key cmd+,`. Press every ticked cell (`cv ax press "Spread
-  cell 1"` and so on) until none is ticked; the caption under the grid starts `No cell is ticked`.
+- **Refused.** Open Settings with `cv ax key cmd+,`. Press every ticked cell (`cv ax act "Spread
+  cell 1" AXPress`, and the same for 2, 3, 6, 7 and 8) until none is ticked; the caption under the grid starts `No cell is ticked`.
   With the set gathered, Spread: `cv ax windows` does not change, and the button's tooltip in `cv ax
-  tree` is `Pick Spread cells in Settings`. Now tick only `Spread cell 1`, press New on the stack
+  tree` is `Pick Spread cells in Settings`. Now tick only `Spread cell 1` (the same `act`), press New on the stack
   so a card takes that cell, and Spread with the set gathered: still nothing changes, and the
   tooltip is `Your Spread cells are taken`.
 - **Settings grid.** In the Settings window's `cv ax tree`, a `Spread` heading follows the Shortcut
-  caption, then twenty cells `Spread cell 1` to `Spread cell 20` in reading order. `Spread cell 5`,
+  caption, then twenty cells `AXCheckBox "Spread cell 1"` to `Spread cell 20` in reading order, five
+  columns by four rows at equal steps, 34 points across and 26 down, each 32x24 (measured
+  2026-10-29: x 654, 688, 722, 756, 790 and y 209, 235, 261, 287 on the first run). `cv shot` shows the
+  ticks, which `tree` does not print. `Spread cell 5`,
   the stack's home, is `[disabled]`. Drag the stack to another cell and bring Settings forward
   again: that cell is now the disabled one.
 - **Remap.** Tick only `Spread cell 11` to `Spread cell 13`, close Settings, and Spread with the set gathered: the card
   from the first old place comes out in cell 11, the next in 12 and 13, and the rest stay in the
   stack as ordinary cards (`cv files spread-remap`: `spread.members` has three entries).
-- **Fresh.** With some set cards out, run `cv ax act Spread "New spread" stack`. Those cards go to
+- **Fresh.** With some set cards out, `cv ax tree` prints the Spread line with `actions=[New spread]`.
+  Run `cv ax act Spread "New spread" stack`. Those cards go to
   the bottom of the stack, and new blank cards fill the ticked cells; the sidecar's `spread.members`
   lists only the new ids.
-- **Relaunch.** `cv stop`, then `cv launch --seed <the sidecar from cv files>`: the set is the one
-  saved, and a Spread puts its cards back where the sidecar says.
+- **Relaunch.** Gather the set, note the frames of a first Spread (`cv ax windows`), and run `cv files
+  NAME`. Then `cv stop`, and `cv launch --seed build/verify-evidence/<run>/NAME-files/.cards.json`,
+  which brings the `.md` files beside it. The badge counts every card, the button reads `Spread cards`,
+  and one Spread puts the saved cards back in the same frames, with `spread.members` unchanged.
 
 ## Gotchas
 
 - `cv ax press Spread` matches the button's name exactly, so it never presses a Settings cell,
-  whose names start `Spread cell`. `act` matches by prefix: always give it the `stack` window.
+  whose names start `Spread cell`. `act` matches by prefix: always give it the `stack` window for the
+  button. A Settings cell is an `AXCheckBox`, which `cv ax press` does not reach (it looks for buttons).
+  Press one with `cv ax act "Spread cell N" AXPress`, no window: the prefix `Spread cell 1` finds cell 1
+  before cell 10, and `Spread cell 2` finds cell 2 before cell 20.
 - Blank cards have no first line, so `card=<first line>` cannot address them. Type a header into
   the card with the cursor right after the first Spread, as above.
 - The beep that comes with a refused click is not observable here; the tooltip is.
 - Opening the ⋯ menu and pressing New Spread inside it was not proved possible with `cards-ax`.
   Prove the fresh path with the `New spread` action, and report the menu item as not driven.
-- A Settings cell's role and value in `cv ax tree` were not seen in a live run when this entry was
-  written: check how the first `tree` prints a ticked and an unticked cell, and fix this entry.
+- `cv ax tree` prints a Settings cell with no ticked state, because `cards-ax` reads only string values.
+  Read it from `cv shot` (a check mark in the cell), or from what a Spread does.
 - Each Spread can write up to six `.md` files (`# ` and a line break) into the scratch folder,
   never the owner's.
