@@ -5,6 +5,7 @@
 #   run.sh --mutants      break the code forty known ways; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
+#   run.sh --inputs-key   print a hash of everything the search and the mutants read (CI skips them on a pass of it)
 set -euo pipefail
 
 SKILL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +23,10 @@ build() {  # build DIR BINARY: compile the three model files from DIR with the c
 }
 
 fingerprint() { (cd "$REPO/Cards" && shasum -a 256 "${SOURCES[@]}"); }
+
+inputs_key() {  # the model sources, the checker, this script (its MUTANTS) and the compiler
+  { fingerprint; (cd "$SKILL" && shasum -a 256 check/main.swift run.sh); swiftc --version 2>&1; } | shasum -a 256 | cut -d' ' -f1
+}
 
 staleness() {
   if [[ ! -f "$REVIEWED" ]] || ! diff -q <(fingerprint) "$REVIEWED" >/dev/null; then
@@ -108,6 +113,7 @@ case "${1:-}" in
   --mutants) mutants ;;
   --reviewed) fingerprint > "$REVIEWED"; echo "recorded $(wc -l < "$REVIEWED" | tr -d ' ') sources as reviewed" ;;
   --require-reviewed) note="$(staleness)"; [[ -z "$note" ]] || { echo "$note"; exit 1; } ;;
+  --inputs-key) inputs_key ;;
   *)
     staleness
     build "$REPO/Cards" "$OUT/desk-check"

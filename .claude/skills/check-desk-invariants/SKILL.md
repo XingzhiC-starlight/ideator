@@ -119,8 +119,21 @@ unless the user asked for a fix.
     it are merged) and, if it is saved, to `layout()` in P5.
   - A changed rule? Update the property that states it, in the spec's words.
   - Then run `run.sh`, then `run.sh --mutants`, and only then `run.sh --reviewed`.
-  - CI runs `run.sh --require-reviewed` and fails until `reviewed.sha256` is recorded again, so
-    commit it with the change.
+  - CI runs `run.sh --require-reviewed` on every push and fails until `reviewed.sha256` is recorded
+    again, so commit it with the change.
+- CI's `Desk invariants` job then runs the depth-3 search and the mutants only if these exact inputs
+  have not passed in CI yet. `run.sh --inputs-key` hashes the inputs: `Desk.swift`, `Grid.swift`,
+  `Note.swift`, `check/main.swift`, `run.sh` and the `swiftc` version. After a pass the job saves a
+  marker under that key in the Actions cache, and a later run that finds the marker skips both steps
+  and still reports success. So a pull request that touches none of them finishes in about a minute,
+  and one that does runs them even with `reviewed.sha256` re-recorded, because that file is not part
+  of the key.
+  - A pull request sees main's markers and its own. The marker a pull request saves doesn't reach
+    main, so the push to main after a merge runs both steps once more and saves main's marker.
+  - A marker the cache has dropped (after 7 days unused) means one more full run, never a skipped
+    check. Run the workflow by hand (`gh workflow run CI --ref <branch>`) to force both steps.
+  - A new file the checker compiles or reads must go into `inputs_key` in `run.sh`, or a change to it
+    won't rerun them.
 - `run.sh --mutants` breaks `Desk.swift` forty known ways in a scratch copy under
   `build/desk-check/` (never the real file) and needs every property to catch its break. If a
   mutant's text no longer exists in `Desk.swift`, update that line in `MUTANTS` in `run.sh` to an
