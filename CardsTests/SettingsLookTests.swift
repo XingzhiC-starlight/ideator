@@ -256,24 +256,28 @@ final class SettingsLookTests: XCTestCase {
         let appearance = NSApp.appearance
         NSApp.appearance = NSAppearance(named: .darkAqua)
         defer { NSApp.appearance = appearance }
-        let window = settings()
+        let window = settings(maxContentHeight: SettingsStyle.windowSize.height)
         let content = try XCTUnwrap(window.contentView)
         content.layoutSubtreeIfNeeded()
-        let height = content.bounds.height
-        let selectedRow = height - SettingsStyle.contentTop - SettingsStyle.sidebarRowHeight / 2
+        XCTAssertEqual(content.bounds.size, SettingsStyle.windowSize, "the screen's room doesn't shrink it")
+        let sidebar = try XCTUnwrap(content.subviews.first { $0 is SettingsSidebar })
+        let pane = try XCTUnwrap(content.subviews.first { $0 is PaneHost })
+        let selectedRow = sidebar.bounds.height - SettingsStyle.contentTop - SettingsStyle.sidebarRowHeight / 2
 
         XCTAssertEqual(window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]), .aqua)
-        assertColor(pixel(of: content, at: NSPoint(x: 84, y: 40)), palette.inverse, "the sidebar")
-        assertColor(pixel(of: content, at: NSPoint(x: 150, y: selectedRow)), palette.canvas, "the selected row")
-        assertColor(pixel(of: content, at: NSPoint(x: SettingsStyle.sidebarWidth - 1, y: selectedRow - 40)), palette.inverse,
+        assertColor(pixel(of: sidebar, at: NSPoint(x: 84, y: 40)), palette.inverse, "the sidebar")
+        assertColor(pixel(of: sidebar, at: NSPoint(x: 150, y: selectedRow)), palette.canvas, "the selected row")
+        assertColor(pixel(of: sidebar, at: NSPoint(x: SettingsStyle.sidebarWidth - 1, y: selectedRow - 40)), palette.inverse,
                     "no separator at the sidebar's edge")
-        assertColor(pixel(of: content, at: NSPoint(x: SettingsStyle.sidebarWidth, y: 40)), palette.canvas, "the pane")
+        assertColor(pixel(of: pane, at: NSPoint(x: 0, y: 40)), palette.canvas, "the pane")
     }
 
     private func settings(keys: KeyStore = KeyStore(inKeychain: false),
-                          aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil))) -> SettingsWindow {
+                          aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
+                          maxContentHeight: CGFloat? = nil) -> SettingsWindow {
         SettingsWindow(keys: keys, hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
-                       updates: Updates(build: .current, isScratch: false), aiTools: aiTools) {}
+                       updates: Updates(build: .current, isScratch: false), aiTools: aiTools,
+                       maxContentHeight: maxContentHeight) {}
     }
 
     private func button(_ title: String, in view: NSView) throws -> NSButton {
@@ -293,6 +297,7 @@ final class SettingsLookTests: XCTestCase {
     /// The color `view` draws at `point`, a point in its own coordinates, drawn into an sRGB bitmap at 2x.
     private func pixel(of view: NSView, at point: NSPoint) -> [CGFloat] {
         view.layoutSubtreeIfNeeded()
+        guard view.bounds.contains(point) else { return [] }
         let scale: CGFloat = 2
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(data: nil, width: Int(view.bounds.width * scale), height: Int(view.bounds.height * scale),
