@@ -24,6 +24,16 @@ enum SettingsStyle {
     /// The focus ring, and the focus and error borders of the input wells.
     static let focusWidth: CGFloat = 2
     static let focusOffset: CGFloat = 2
+    /// Spread cells sit 4 apart, so their ring sits 1 out (§3.2).
+    static let cellFocusOffset: CGFloat = 1
+    /// WCAG 2.5.8's smallest target, and a checkbox's height.
+    static let minTarget: CGFloat = 24
+    static let boxSize: CGFloat = 16
+    static let segmentMinWidth: CGFloat = 72
+    static let recorderMinWidth: CGFloat = 120
+    /// SF Symbol point sizes: a button's leading glyph, and the check in a box or a Spread cell.
+    static let symbolSize: CGFloat = 14
+    static let checkSize: CGFloat = 11
 
     enum TextRole { case title, display, lead, label, term, body, caption, mono, monoInput }
     /// `inverse` and `inverseMuted` are for text on the slate sidebar and the Privacy card.
@@ -71,18 +81,29 @@ enum SettingsStyle {
         }
     }
 
+    static func attributed(_ text: String, as role: TextRole, tone: Tone, underline: Bool = false) -> NSAttributedString {
+        var attributes = textAttributes(role)
+        attributes[.foregroundColor] = color(tone)
+        if underline { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+        return NSAttributedString(string: text, attributes: attributes)
+    }
+
+    /// The font and the line height of `role`, for a label or for what is typed in the editor.
     /// AppKit puts all of a taller line's extra height above the text, so the baseline rises by half
     /// of it: the text sits in the middle of its line, as "16 / 24" means in the brief.
-    static func attributed(_ text: String, as role: TextRole, tone: Tone) -> NSAttributedString {
+    static func textAttributes(_ role: TextRole) -> [NSAttributedString.Key: Any] {
         let font = font(role)
         let line = lineHeight(role)
         let paragraph = NSMutableParagraphStyle()
         paragraph.minimumLineHeight = line
         paragraph.maximumLineHeight = line
-        return NSAttributedString(string: text, attributes: [
-            .font: font, .foregroundColor: color(tone), .paragraphStyle: paragraph,
-            .baselineOffset: (line - (font.ascender - font.descender)) / 2,
-        ])
+        return [.font: font, .paragraphStyle: paragraph, .baselineOffset: (line - (font.ascender - font.descender)) / 2]
+    }
+
+    /// The caret and selected text in `ink` and slate, where macOS would use the accent color.
+    static func styleEditing(_ textView: NSTextView) {
+        textView.insertionPointColor = Palette.Settings.ink
+        textView.selectedTextAttributes = [.backgroundColor: Palette.Settings.inverse, .foregroundColor: Palette.Settings.inkInverse]
     }
 
     private static func serif(_ size: CGFloat) -> NSFont {
@@ -93,85 +114,85 @@ enum SettingsStyle {
 
 /// A label in one of the type roles.
 final class SettingsText: NSTextField {
-    var role = SettingsStyle.TextRole.body
-    var tone = SettingsStyle.Tone.ink { didSet { stringValue = stringValue } }
+    var role = SettingsStyle.TextRole.body { didSet { restyle() } }
+    var tone = SettingsStyle.Tone.ink { didSet { restyle() } }
+    var underline = false { didSet { restyle() } }
 
     override var stringValue: String {
         get { super.stringValue }
-        set { attributedStringValue = SettingsStyle.attributed(newValue, as: role, tone: tone) }
+        set { attributedStringValue = SettingsStyle.attributed(newValue, as: role, tone: tone, underline: underline) }
     }
+
+    /// Sets the colors again, as after a change to Increase Contrast.
+    func restyle() { stringValue = stringValue }
 }
 
-/// A pane asks for a control by its job, and this decides the class, the size and the type, so the
-/// look can change here without touching a pane.
+/// A pane asks for a control by its job, and this decides the class, the cell, the size and the type,
+/// so the look changes here without touching a pane. Every button is a `SettingsButton` whose cell
+/// draws one of §3.1's looks.
 enum SettingsControl {
     enum RowAlignment { case leading, trailing, apart }
 
-    static func text(_ string: String, as role: SettingsStyle.TextRole,
+    /// Captions and the version line are muted unless `tone` says otherwise.
+    static func text(_ string: String, as role: SettingsStyle.TextRole, tone: SettingsStyle.Tone? = nil,
                      width: CGFloat = SettingsStyle.contentWidth) -> SettingsText {
         let label = SettingsText(wrappingLabelWithString: "")
         label.role = role
         label.font = SettingsStyle.font(role)
-        label.tone = role == .caption || role == .mono ? .muted : .ink
+        label.tone = tone ?? (role == .caption || role == .mono ? .muted : .ink)
         label.preferredMaxLayoutWidth = width
+        label.focusRingType = .none
         label.cell?.truncatesLastVisibleLine = false
         label.stringValue = string
         return label
     }
 
+    /// `widestOf` holds the button at the widest of those titles, so "Copied" doesn't move its row.
     static func button(_ title: String, symbol: String? = nil, widestOf titles: [String] = [],
                        target: AnyObject, action: Selector) -> NSButton {
-        let button = NSButton(title: title, target: target, action: action)
-        button.bezelStyle = .rounded
-        button.controlSize = .large
-        button.font = SettingsStyle.font(.label)
-        if let symbol {
-            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-            button.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-            button.imagePosition = .imageLeading
-        }
+        let button = SettingsButton(.button, title: title, target: target, action: action)
+        button.image = symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
         let widest = titles.map { other -> CGFloat in
             button.title = other
-            return button.fittingSize.width
+            return button.intrinsicContentSize.width
         }.max()
         button.title = title
         if let widest { button.widthAnchor.constraint(greaterThanOrEqualToConstant: widest).isActive = true }
         return button
     }
 
-    /// The window's default button. AppKit skips the key equivalents of a hidden pane, so Return
-    /// reaches it only while its pane shows.
+    /// Save, the one primary button and the window's default button. AppKit skips the key equivalents
+    /// of a hidden pane, so Return reaches it only while its pane shows.
     static func primaryButton(_ title: String, target: AnyObject, action: Selector) -> NSButton {
-        let primary = button(title, target: target, action: action)
+        let primary = SettingsButton(.primary, title: title, target: target, action: action)
         primary.keyEquivalent = "\r"
         return primary
     }
 
     static func checkbox(_ title: String, target: AnyObject, action: Selector) -> NSButton {
-        let box = NSButton(checkboxWithTitle: title, target: target, action: action)
-        box.controlSize = .large
-        box.font = SettingsStyle.font(.body)
-        return box
+        SettingsButton(.checkbox, title: title, target: target, action: action)
     }
 
-    /// Radios in one superview with one action, so AppKit groups them and VoiceOver says "1 of 2".
+    /// Radios in one superview with one action, so AppKit groups them and VoiceOver says "1 of 2",
+    /// drawn as joined segments.
     static func segments(_ titles: [String], target: AnyObject, action: Selector) -> (row: NSStackView, buttons: [NSButton]) {
-        let buttons = titles.map { title in
-            let radio = NSButton(radioButtonWithTitle: title, target: target, action: action)
-            radio.controlSize = .large
-            radio.font = SettingsStyle.font(.body)
-            return radio
+        let buttons = titles.enumerated().map { i, title in
+            SettingsButton(.segment(i == 0 ? .leading : .trailing), title: title, target: target, action: action)
         }
         let row = NSStackView(views: buttons)
-        row.spacing = SettingsStyle.s2
+        row.spacing = 0
         return (row, buttons)
     }
 
-    static func secureField(placeholder: String) -> NSSecureTextField {
-        let field = NSSecureTextField()
-        field.controlSize = .large
+    static func secureField(placeholder: String) -> SettingsKeyField {
+        let field = SettingsKeyField()
+        field.isBezeled = false
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
         field.font = SettingsStyle.font(.monoInput)
-        field.placeholderString = placeholder
+        field.textColor = Palette.Settings.ink
+        field.placeholder = placeholder
         field.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             field.widthAnchor.constraint(equalToConstant: SettingsStyle.contentWidth),
@@ -180,7 +201,7 @@ enum SettingsControl {
         return field
     }
 
-    static func editor() -> (scroll: NSScrollView, textView: NSTextView) {
+    static func editor() -> (scroll: SettingsEditorWell, textView: NSTextView) {
         let size = SettingsStyle.editorSize
         let textView = NSTextView(frame: NSRect(origin: .zero, size: size))
         textView.minSize = NSSize(width: 0, height: size.height)
@@ -191,7 +212,14 @@ enum SettingsControl {
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.lineFragmentPadding = 0
         textView.textContainerInset = NSSize(width: SettingsStyle.s2, height: SettingsStyle.s2)
+        var typing = SettingsStyle.textAttributes(.body)
+        typing[.foregroundColor] = Palette.Settings.ink
         textView.font = SettingsStyle.font(.body)
+        textView.textColor = Palette.Settings.ink
+        textView.defaultParagraphStyle = typing[.paragraphStyle] as? NSParagraphStyle
+        textView.typingAttributes = typing
+        SettingsStyle.styleEditing(textView)
+        textView.focusRingType = .none
         textView.drawsBackground = false
         textView.isRichText = false
         textView.allowsUndo = true
@@ -199,10 +227,9 @@ enum SettingsControl {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
-        let scroll = NSScrollView()
-        scroll.borderType = .bezelBorder
+        let scroll = SettingsEditorWell()
+        scroll.focusRingType = .none
         scroll.hasVerticalScroller = true
-        scroll.drawsBackground = false
         scroll.documentView = textView
         scroll.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -293,7 +320,7 @@ final class StatusLine: NSStackView {
 /// stack, dimmed" and can't be ticked, whatever is stored for it.
 ///
 /// One tab stop: the cells refuse focus, and the picker tracks `focusedCell`, moves it with the arrow
-/// keys past the stack's cell, and ticks it with Space. The system ring is masked to that cell.
+/// keys past the stack's cell, and ticks it with Space. That cell draws the focus ring.
 final class SpreadCellPicker: NSView {
     /// About the shape of one cell of a laptop screen, and at least 24 × 24 to click.
     static let cellSize = NSSize(width: 32, height: 24)
@@ -305,10 +332,7 @@ final class SpreadCellPicker: NSView {
 
     init() {
         buttons = Slot.all.map { slot in
-            let button = SpreadCellButton(title: "", target: nil, action: nil)
-            button.setButtonType(.pushOnPushOff)
-            button.bezelStyle = .smallSquare
-            button.imagePosition = .imageOnly
+            let button = SpreadCellButton()
             button.refusesFirstResponder = true
             button.setAccessibilityLabel(SettingsCopy.Spread.cell(slot.index + 1))
             button.translatesAutoresizingMaskIntoConstraints = false
@@ -317,9 +341,11 @@ final class SpreadCellPicker: NSView {
             return button
         }
         super.init(frame: .zero)
+        focusRingType = .none
         for button in buttons {
             button.target = self
             button.action = #selector(toggle)
+            button.picker = self
         }
         let grid = NSGridView(views: (0..<Slot.rows).map { row in
             Array(buttons[row * Slot.columns..<(row + 1) * Slot.columns])
@@ -376,14 +402,8 @@ final class SpreadCellPicker: NSView {
     /// A tab stop only where buttons are: with Full Keyboard Access on.
     override var acceptsFirstResponder: Bool { NSApp.isFullKeyboardAccessEnabled }
 
-    override func becomeFirstResponder() -> Bool {
-        noteFocusRingMaskChanged()
-        return true
-    }
-
-    override func resignFirstResponder() -> Bool {
-        noteFocusRingMaskChanged()
-        return true
+    func showsFocus(on button: SpreadCellButton) -> Bool {
+        buttons[focusedCell.index] === button && SettingsFocusRing.shows(self)
     }
 
     override func keyDown(with event: NSEvent) {
@@ -397,18 +417,10 @@ final class SpreadCellPicker: NSView {
         }
     }
 
-    override var focusRingMaskBounds: NSRect { frame(of: focusedCell) }
-
-    override func drawFocusRingMask() { frame(of: focusedCell).fill() }
-
     private func moveFocus(to cell: Slot) {
+        buttons[focusedCell.index].needsDisplay = true
         focusedCell = cell
-        noteFocusRingMaskChanged()
-    }
-
-    private func frame(of cell: Slot) -> NSRect {
-        let button = buttons[cell.index]
-        return convert(button.bounds, from: button)
+        buttons[focusedCell.index].needsDisplay = true
     }
 
     @objc private func toggle(_ sender: NSButton) {
@@ -417,8 +429,15 @@ final class SpreadCellPicker: NSView {
     }
 }
 
-final class SpreadCellButton: NSButton {
+final class SpreadCellButton: SettingsButton {
     var isStack = false
+    weak var picker: SpreadCellPicker?
+
+    init() { super.init(.spreadCell) }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    var showsFocus: Bool { picker?.showsFocus(on: self) == true }
 
     override func accessibilityRole() -> NSAccessibility.Role? { .checkBox }
     override func accessibilityValue() -> Any? { NSNumber(value: state == .on ? 1 : 0) }
@@ -430,7 +449,7 @@ final class SpreadCellButton: NSButton {
 /// every key first, so ⌘, ⌘Q, ⌘W and Return never reach the menu, the window or the default button.
 /// Its title is the glyphs, which the harness presses; VoiceOver hears "Shortcut" and the spelled-out
 /// combination.
-final class ShortcutField: NSButton {
+final class ShortcutField: SettingsButton {
     var shortcut: Shortcut = .standard { didSet { if monitor == nil { title = shortcut.display } } }
     var onReject: (String) -> Void = { _ in }
     var onRecordingStart: () -> Void = {}
@@ -440,18 +459,16 @@ final class ShortcutField: NSButton {
     private var monitor: Any?
 
     init() {
-        super.init(frame: .zero)
-        bezelStyle = .rounded
-        controlSize = .large
-        font = SettingsStyle.font(.label)
+        super.init(.recorder)
         target = self
         action = #selector(beginRecording)
         title = shortcut.display
         setAccessibilityLabel(SettingsSection.shortcut.title)
-        widthAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    var isRecording: Bool { monitor != nil }
 
     override func accessibilityValue() -> Any? { monitor == nil ? shortcut.spoken : SettingsCopy.Shortcut.prompt }
 

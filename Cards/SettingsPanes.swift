@@ -191,6 +191,7 @@ final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     override func refresh() {
         save.isEnabled = !typedKey.isEmpty
         remove.isEnabled = keys.provider != nil
+        field.showsError = keychainRefused
         status.show(SettingsCopy.AISummary.status(provider: keys.provider, inKeychain: keys.inKeychain,
                                                   keychainRefused: keychainRefused))
     }
@@ -269,6 +270,7 @@ final class MCPPane: SettingsPane, NSTextViewDelegate {
         }
         if editor.textView.string != settings.instruction.text { editor.textView.string = settings.instruction.text }
         reset.isEnabled = !settings.instruction.isStandard
+        editor.scroll.showsError = instructionRefused
         instructionStatus.show(SettingsCopy.MCP.instructionStatus(refused: instructionRefused))
     }
 
