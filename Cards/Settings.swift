@@ -350,7 +350,7 @@ final class SidebarCell: NSTableCellView {
 /// The document is as tall as the shown pane or the window, whichever is taller, so a pane taller
 /// than the window scrolls here and the sidebar never does.
 final class PaneHost: NSScrollView {
-    private let document = FlippedView()
+    private let document = PaneDocument()
     private var panes: [SettingsPane] = []
     private var fit: NSLayoutConstraint?
 
@@ -400,7 +400,13 @@ final class PaneHost: NSScrollView {
     }
 }
 
-/// A view whose origin is its top left, so a scroll view opens on its first row.
-private final class FlippedView: NSView {
+/// The panes' ivory, drawn like the sidebar's slate. The scroll view's own background only shows past
+/// the ends while it bounces. Its origin is its top left, so a pane opens on its first row.
+private final class PaneDocument: NSView {
     override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        Palette.Settings.canvas.setFill()
+        dirtyRect.fill()
+    }
 }
