@@ -84,12 +84,13 @@ whenever a step fails or anything looks off. It must print `healthy` before any 
 | `cv ax text [WINDOW]` | The text of each text area, one JSON string per line |
 | `cv ax focus WINDOW` | A real click into that card's text (activates Ideator) |
 | `cv ax type 'TEXT'` | Key events to the app; `\n` is Return |
-| `cv ax key COMBO` | One key: `cmd+b`, `cmd+z`, `cmd+q`, `tab`, `shift+tab`, `return`, `delete`, arrows (`shift+down`, `cmd+left`)…; a `cmd+` combo activates Ideator first, since menu shortcuts need it |
+| `cv ax key COMBO` | One key: `cmd+b`, `cmd+z`, `cmd+q`, `cmd+w`, `tab`, `shift+tab`, `return`, `delete`, arrows (`shift+down`, `cmd+left`)…; a `cmd+` combo activates Ideator first, since menu shortcuts need it |
 | `cv ax click WINDOW FX FY` | A real mouse click at a fraction of the window (0..1 from top-left) |
 | `cv ax scroll WINDOW DX DY` | One scroll-wheel event over the window |
 | `cv ax drag WINDOW FX FY DX DY` | Press at a fraction of the window, drag by DX,DY points, release |
 | `cv ax windows` | Window ids and frames, for `screencapture -l` |
 | `cv ax act LABEL ACTION [WINDOW]` | Run an accessibility action (`AXPress`, or a custom one such as `Move up`) on the first element whose title, description or help starts with LABEL |
+| `cv ax section TITLE [WINDOW]` | Show a Settings section: press the sidebar row named exactly TITLE (`Shortcut`, `Spread`, `AI Summary`, `MCP`, `Updates`, `Privacy`) in the table `Settings sections`, and fail unless that row is then selected |
 | `cv ax where LABEL` | Screen `x y` of the center of the first element whose name starts with LABEL |
 | `cv ax mouse down\|drag\|up\|move X Y` | One raw mouse event at a screen point, for a drag you want to stop partway |
 | `cv ax dragat X Y DX DY` | Press at a screen point, drag by DX,DY, release |
@@ -129,6 +130,12 @@ Stable handles in this app, all from the code:
   to the popover, which is the key window while it is open. The grip is the right 30 points of a row:
   its center is `where "<title>"` plus 118 on x.
 - "Desktop full": static text `Desktop full` in the ribbon, only while it applies.
+- Settings: `cv ax key cmd+,` opens it on Shortcut, with the sidebar focused, and `cv ax key cmd+w`
+  closes it. Only the shown section is in `tree`, so `press` and `act` reach another section's
+  controls after `cv ax section <Title>`, which stays chosen until Settings closes. The section names
+  are exact, so `section Spread` never hits the ribbon's Spread button. AppKit answers a sidebar
+  row's press with error -25205 even though the press ran, so `section` checks the row it selected
+  instead.
 - Edge bands: the outer 5% of the stack window. `cv ax click stack 0.985 0.6` = next,
   `cv ax click stack 0.015 0.6` = previous.
 - Swipe: `cv ax scroll stack -40 0` = next, `cv ax scroll stack 40 0` = previous (a wheel event

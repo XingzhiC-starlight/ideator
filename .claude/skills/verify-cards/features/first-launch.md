@@ -5,19 +5,21 @@ the notes folder. The card says where the app is (no Dock icon, the menu bar ico
 shortcut hides and shows the cards, that notes are Markdown files in `~/Documents/Ideator`, that
 macOS asks for the Documents folder after Continue, that summaries are optional, that Ideator asks
 GitHub once a day for updates, and that nothing else leaves the Mac. Continue, or Return, closes
-the card and opens the stack. Settings has the shortcut recorder, the update controls and a line on
-what leaves the Mac.
+the card and opens the stack. Settings has the shortcut recorder, the update controls and a card on
+what leaves the Mac, each in its own section.
 
 ## Sub-features
 
 - `welcome-card` The card shows its text and Continue, and no stack.
 - `welcome-gate` The notes folder stays closed until Continue; Continue and Return both open it.
 - `welcome-scratch` A scratch run shows no welcome on its own, and a forced one saves nothing.
+- `settings-sections` Settings opens on Shortcut, shows one section at a time from the sidebar,
+  closes with ⌘W, and opens on Shortcut again.
 - `settings-shortcut` The shortcut button records a new combination, refuses an illegal one by name,
   and goes back to the default.
 - `settings-updates` The update controls are dimmed in a build that never checks, and the caption
   says why.
-- `settings-privacy` The privacy line is the last row of Settings, under the Privacy heading.
+- `settings-privacy` The Privacy section's card says the two things that leave the Mac, and nothing else does.
 
 ## How to get to it (user POV)
 
@@ -49,26 +51,33 @@ Preconditions:
 - **welcome-scratch.** Run `defaults export com.systemlabs.Ideator - 2>/dev/null | shasum` (empty output when the domain is absent, so the hash is stable). Run `cv launch
   --welcome`, `cv ax press Continue`, `cv stop`, then plain `cv launch` (it waits for `New`, so it
   fails if a welcome shows), then `cv stop`. Run the `shasum` again: equal.
-- **settings-shortcut.** From any run, `cv ax key cmd+,` then `cv shot settings`: the shortcut row
-  (`⌃⌥I`, Use Default dimmed), the caption, the Updates rows, the privacy line, and a window that
-  fits its rows.
+- **settings-sections.** `cv ax key cmd+,`, then `cv ax section Updates`: in `cv ax tree` the sidebar's
+  `AXRow [selected]` holds `AXCell "Updates"`, and the window has one `AXGroup`, named `Updates`, with
+  `Check Now` and no `⌃⌥I`. `cv ax key cmd+w`: `cv ax windows` lists the stack alone. `cv ax key cmd+,`
+  again: the group is `Shortcut` and the selected cell `Shortcut`.
+- **settings-shortcut.** From any run, `cv ax key cmd+,` then `cv shot settings`: a 640 × 640 window
+  on its Shortcut section, with the six sections in the sidebar (`AXTable "Settings sections"`), the
+  title `Shortcut` and its lead, the shortcut row (`⌃⌥I`, Use Default dimmed) and the caption.
+  `cv ax tree` names the recorder `"⌃⌥I" | "Shortcut"` with `value="Control-Option-I"`.
   `cv ax press "⌃⌥I"` starts recording (the button reads `Type shortcut…`). `cv ax key
   ctrl+cmd+h`: the button reads `⌃⌘H` and Use Default is enabled; a scratch run saves nothing, so a
   relaunch is back to `⌃⌥I`. Press the button again, by its new title (`cv ax press "⌃⌘H"`;
-  `press "⌃⌥I"` now fails), and `cv ax key cmd+k`: the caption reads
+  `press "⌃⌥I"` now fails), and `cv ax key cmd+k`: a status line under the caption reads
   "⌘K can't be the shortcut. Use ⌃ or ⌘ with at least one other modifier key, so typing never
   triggers it." and the button is still recording. `cv ax key escape` cancels. `cv ax press "Use
   Default"` after a change restores `⌃⌥I`.
 - **settings-updates.** Take the `shasum` of the owner's preferences as in `welcome-scratch`. Open
-  Settings with `cv ax key cmd+,`. `cv ax tree` shows `AXCheckBox "Check for updates automatically"`
-  and `AXButton "Check Now"`, both `[disabled]`, and the static text "Version 0.9 (1), a development
-  build. Only builds made by scripts/package.sh check for updates." `cv shot settings-updates` is
-  the proof image. After `cv stop` the `shasum` is unchanged.
-- **settings-privacy.** `cv ax tree` of the Settings window has, after the Privacy heading, the
-  static text beginning "With a key saved, Ideator sends a card's text to Anthropic or OpenAI,
-  whichever your key is for" (with a key saved it names that one company instead). Its end,
-  "Nothing else leaves your Mac: no analytics, no crash reports.", is past `tree`'s 120
-  characters, so read it in `cv shot settings`.
+  Settings with `cv ax key cmd+,`, then `cv ax section Updates`. `cv ax tree` shows `AXCheckBox "Check
+  for updates automatically"` and `AXButton "Check Now"`, both `[disabled]`, then the static text
+  "Version 0.9 (1), a development build" and, under it, "Only builds made by scripts/package.sh check
+  for updates." `cv shot settings-updates` is the proof image. After `cv stop` the `shasum` is
+  unchanged.
+- **settings-privacy.** `cv ax section Privacy`. `cv ax tree` of the Settings window has the
+  headline "Two things leave your Mac. Nothing else does.", then the terms `Card text`, `Update
+  checks`, `Your key` and `Nothing else`, each over its text. The first text begins "With a key saved,
+  Ideator sends a card's text to Anthropic or OpenAI, whichever your key is for" (with a key saved it
+  names that one company instead), and the last is "No analytics, no crash reports." The first is
+  past `tree`'s 120 characters, so read its end in `cv shot settings-privacy`.
 
 ## Gotchas
 

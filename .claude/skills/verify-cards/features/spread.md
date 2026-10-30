@@ -69,16 +69,18 @@ Preconditions:
 - **Hide all first.** With the set gathered, run `cv ax press "Hide all" stack`, then `cv ax press
   Spread stack`. `cv ax windows` lists the full-size stack and every card, and the toggle is
   `Hide all` again.
-- **Refused.** Open Settings with `cv ax key cmd+,`. Press every ticked cell (`cv ax act "Spread
-  cell 1" AXPress`, and the same for 2, 3, 6, 7 and 8) until none is ticked; the caption under the grid starts `No cell is ticked`.
+- **Refused.** Open Settings with `cv ax key cmd+,`, then `cv ax section Spread`. Press every ticked cell (`cv ax act "Spread
+  cell 1" AXPress`, and the same for 2, 3, 6, 7 and 8) until none is ticked; a line under the caption reads `No cell is ticked,
+  so Spread makes no card. Tick the cells it should fill.`
   With the set gathered, Spread: `cv ax windows` does not change, and the button's tooltip in `cv ax
   tree` is `Pick Spread cells in Settings › Spread`. Now tick only `Spread cell 1` (the same `act`), press New on the stack
   so a card takes that cell, and Spread with the set gathered: still nothing changes, and the
   tooltip is `Your Spread cells are taken`.
-- **Settings grid.** In the Settings window's `cv ax tree`, a `Spread` heading follows the Shortcut
-  caption, then twenty cells `AXCheckBox "Spread cell 1"` to `Spread cell 20` in reading order, five
-  columns by four rows at equal steps, 34 points across and 26 down, each 32x24 (measured
-  2026-10-29: x 654, 688, 722, 756, 790 and y 209, 235, 261, 287 on the first run). `cv shot` shows the
+- **Settings grid.** After `cv ax section Spread`, the Settings window's `cv ax tree` has the title `Spread`
+  and its lead, then twenty cells `AXCheckBox "Spread cell 1"` to `Spread cell 20` in reading order, five
+  columns by four rows at equal steps, 36 points across and 28 down, each 34x26 in `tree` for a
+  32 × 24 cell (measured 2026-10-30: x 734, 770, 806, 842, 878 and y 306, 334, 362, 390 on the first
+  run). `cv shot` shows the
   ticks, which `tree` does not print. `Spread cell 5`,
   the stack's home, is `[disabled]`. Drag the stack to another cell and bring Settings forward
   again: that cell is now the disabled one.
@@ -97,7 +99,7 @@ Preconditions:
 ## Gotchas
 
 - `cv ax press Spread` matches the button's name exactly, so it never presses a Settings cell,
-  whose names start `Spread cell`. `act` matches by prefix: always give it the `stack` window for the
+  whose names start `Spread cell`, and `cv ax section Spread` presses only the Settings sidebar's row. `act` matches by prefix: always give it the `stack` window for the
   button. A Settings cell is an `AXCheckBox`, which `cv ax press` does not reach (it looks for buttons).
   Press one with `cv ax act "Spread cell N" AXPress`, no window: the prefix `Spread cell 1` finds cell 1
   before cell 10, and `Spread cell 2` finds cell 2 before cell 20.
