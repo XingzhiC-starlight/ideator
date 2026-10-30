@@ -1,12 +1,10 @@
 import AppKit
 
-/// §3.2's focus ring: a 2 pt square line `focusOffset` outside a control, in `ink`, shown only while the
+/// §3.2's focus ring: a 2 pt line `focusOffset` outside a control, in `ink`, shown only while the
 /// control has focus in the key window. AppKit's ring is off everywhere (`focusRingType = .none`), so
-/// no system blue shows. Every focusable control sits on canvas, so the ring is never on slate.
+/// no system blue shows.
 ///
-/// Each control draws its own ring, inside a frame that alignment insets make larger than the control,
-/// so the ring moves, hides and dims with its control. `SettingsWindow.makeFirstResponder` redraws
-/// the controls that gain and lose focus.
+/// `SettingsWindow.makeFirstResponder` redraws the controls that gain and lose focus.
 enum SettingsFocusRing {
     /// The view a responder stands for: a text field for its field editor, the instruction editor's
     /// well for its text view.
@@ -141,7 +139,6 @@ final class SettingsButtonCell: NSButtonCell {
         /// Save, the one primary button.
         case primary
         case checkbox
-        /// Top or Bottom: two radios drawn as joined segments, the leading one holding the shared line.
         case segment(Edge)
         case spreadCell
         case recorder
@@ -157,7 +154,6 @@ final class SettingsButtonCell: NSButtonCell {
             }
         }
 
-        /// Spread cells sit 4 apart, so their ring hugs them closer.
         var ringReach: CGFloat {
             SettingsFocusRing.reach(offset: self == .spreadCell ? SettingsStyle.cellFocusOffset : SettingsStyle.focusOffset)
         }
@@ -194,7 +190,7 @@ final class SettingsButtonCell: NSButtonCell {
         case .checkbox: drawCheckbox(rect, hovered: hovered, in: controlView)
         case .segment(let edge):
             drawSegment(rect, edge: edge, hovered: hovered, in: controlView)
-            return   // it draws the pair's ring itself
+            return
         case .spreadCell: drawSpreadCell(rect, hovered: hovered, in: controlView)
         case .recorder: drawRecorder(rect, hovered: hovered, in: controlView)
         }
@@ -227,7 +223,6 @@ final class SettingsButtonCell: NSButtonCell {
         drawContent(in: rect, role: .term, color: isEnabled ? P.inkInverse : P.inkDisabled, underline: hovered, in: view)
     }
 
-    /// A 16 × 16 box, then the label, both centered on the row; the label is part of the target.
     private func drawCheckbox(_ rect: NSRect, hovered: Bool, in view: NSView) {
         let size = SettingsStyle.boxSize
         let box = view.backingAlignedRect(NSRect(x: rect.minX, y: rect.midY - size / 2, width: size, height: size),
@@ -278,7 +273,6 @@ final class SettingsButtonCell: NSButtonCell {
         }
     }
 
-    /// The stack's cell is the disabled one: it shows the stack and can't be ticked.
     private func drawSpreadCell(_ rect: NSRect, hovered: Bool, in view: NSView) {
         let ticked = state == .on
         fill(rect, isEnabled && ticked ? P.accent : P.canvas)
@@ -303,7 +297,6 @@ final class SettingsButtonCell: NSButtonCell {
         drawTitle(in: rect, role: .label, color: recording ? P.inkInverse : P.ink, underline: false, centered: true, in: view)
     }
 
-    /// An optional leading glyph, 8 before the label, the pair centered in `rect`.
     private func drawContent(in rect: NSRect, role: SettingsStyle.TextRole, color: NSColor, underline: Bool, in view: NSView) {
         guard let image else {
             drawTitle(in: rect, role: role, color: color, underline: underline, centered: true, in: view)
@@ -376,7 +369,6 @@ final class SettingsKeyField: NSSecureTextField {
     /// The well is the whole control, so it lines up with the column; a label's 2 pt insets don't apply.
     override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
-    /// Kept as words, so a change to Increase Contrast can set its color again.
     var placeholder = "" {
         didSet { restyle() }
     }
@@ -453,8 +445,6 @@ final class SettingsEditorWell: NSScrollView {
     }
 }
 
-/// An input well's edge, inside `rect` so the layout never moves: 2 pt `dangerStrong` while its pane
-/// says it refused, 2 pt `ink` while you type in it, otherwise 1 pt `border`.
 private func drawWellEdge(_ rect: NSRect, error: Bool, focused: Bool) {
     let p = Palette.Settings.self
     (error ? p.dangerStrong : focused ? p.ink : p.border).setFill()

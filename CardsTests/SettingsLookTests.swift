@@ -1,7 +1,6 @@
 import XCTest
 @testable import Ideator
 
-/// SETTINGS-DESIGN.md's look: the palette's contrast (A1).
 final class SettingsLookTests: XCTestCase {
     private let palette = Palette.Settings.self
 

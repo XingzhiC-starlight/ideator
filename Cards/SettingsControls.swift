@@ -21,12 +21,11 @@ enum SettingsStyle {
     static let contentTop = titleBar + s5
     /// Save's bottom corners; every other corner in the window is square.
     static let ctaRadius: CGFloat = 8
-    /// The focus ring, and the focus and error borders of the input wells.
     static let focusWidth: CGFloat = 2
     static let focusOffset: CGFloat = 2
     /// Spread cells sit 4 apart, so their ring sits 1 out (§3.2).
     static let cellFocusOffset: CGFloat = 1
-    /// WCAG 2.5.8's smallest target, and a checkbox's height.
+    /// WCAG 2.5.8's smallest target.
     static let minTarget: CGFloat = 24
     static let boxSize: CGFloat = 16
     static let segmentMinWidth: CGFloat = 72
@@ -201,8 +200,8 @@ enum SettingsControl {
         return field
     }
 
-    /// TextKit 1, because TextKit 2 ignores the paragraph's minimum and maximum line height, and the
-    /// editor's lines are 14/20 (measured 18.24 pt apart under TextKit 2).
+    /// TextKit 1, because under TextKit 2 the `.baselineOffset` in `textAttributes` sets the editor's
+    /// 14/20 lines 18.24 pt apart.
     static func editor() -> (scroll: SettingsEditorWell, textView: NSTextView) {
         let size = SettingsStyle.editorSize
         let textView = NSTextView(usingTextLayoutManager: false)

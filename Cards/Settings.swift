@@ -288,9 +288,6 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
 
 /// A sidebar row's content. NSTableView wraps every cell in its own accessibility cell and forwards
 /// this view's label and press to it, so the view must not be an element too (see `ArrangerCell`).
-///
-/// The name is muted ivory on slate, full ivory and underlined under the pointer, and 600 `ink` on the
-/// selected row's canvas, which `SidebarRowView` reports through `backgroundStyle`.
 final class SidebarCell: NSTableCellView {
     private let section: SettingsSection
     private let name: SettingsText
