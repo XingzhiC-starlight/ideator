@@ -100,7 +100,7 @@ enum SettingsStyle {
         return [.font: font, .paragraphStyle: paragraph, .baselineOffset: (line - (font.ascender - font.descender)) / 2]
     }
 
-    /// The caret and selected text in `ink` and slate, where macOS would use the accent color.
+    /// The caret and selected text in `ink` and slate, never the system's blue.
     static func styleEditing(_ textView: NSTextView) {
         textView.insertionPointColor = Palette.Settings.ink
         textView.selectedTextAttributes = [.backgroundColor: Palette.Settings.inverse, .foregroundColor: Palette.Settings.inkInverse]

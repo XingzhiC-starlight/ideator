@@ -392,13 +392,8 @@ final class SettingsFieldCell: NSSecureTextFieldCell {
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
         Palette.Settings.surface.setFill()
         cellFrame.fill()
-        let showsError = (controlView as? SettingsKeyField)?.showsError == true
-        let (color, width): (NSColor, CGFloat) =
-            showsError ? (Palette.Settings.dangerStrong, SettingsStyle.focusWidth)
-            : SettingsFocusRing.shows(controlView) ? (Palette.Settings.ink, SettingsStyle.focusWidth)
-            : (Palette.Settings.border, 1)
-        color.setFill()
-        cellFrame.frame(withWidth: width)
+        drawWellEdge(cellFrame, error: (controlView as? SettingsKeyField)?.showsError == true,
+                     focused: SettingsFocusRing.shows(controlView))
         drawInterior(withFrame: cellFrame, in: controlView)
     }
 
@@ -453,14 +448,17 @@ final class SettingsEditorWell: NSScrollView {
 
         override func draw(_ dirtyRect: NSRect) {
             guard let well = superview as? SettingsEditorWell else { return }
-            let (color, width): (NSColor, CGFloat) =
-                well.showsError ? (Palette.Settings.dangerStrong, SettingsStyle.focusWidth)
-                : SettingsFocusRing.shows(well) ? (Palette.Settings.ink, SettingsStyle.focusWidth)
-                : (Palette.Settings.border, 1)
-            color.setFill()
-            bounds.frame(withWidth: width)
+            drawWellEdge(bounds, error: well.showsError, focused: SettingsFocusRing.shows(well))
         }
     }
+}
+
+/// An input well's edge, inside `rect` so the layout never moves: 2 pt `dangerStrong` while its pane
+/// says it refused, 2 pt `ink` while you type in it, otherwise 1 pt `border`.
+private func drawWellEdge(_ rect: NSRect, error: Bool, focused: Bool) {
+    let p = Palette.Settings.self
+    (error ? p.dangerStrong : focused ? p.ink : p.border).setFill()
+    rect.frame(withWidth: error || focused ? SettingsStyle.focusWidth : 1)
 }
 
 /// A sidebar row (§3.1): the selected one is a `canvas` block running to the sidebar's right edge, so
