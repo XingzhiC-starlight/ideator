@@ -61,6 +61,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertEqual(preferences.shortcut, .standard)
         XCTAssertNil(owners.object(forKey: "Shortcut"))
         XCTAssertNil(owners.object(forKey: "WelcomeSeen"))
+        XCTAssertNil(owners.object(forKey: "TourSeen"))
     }
 
     func testAScratchRunGetsAnEmptyKeyStoreThatNeverTouchesTheKeychain() {
@@ -97,119 +98,237 @@ final class LaunchTests: XCTestCase {
         XCTAssertEqual(Preferences(defaults: owners).shortcut, .standard)
     }
 
-    func testAFreshOwnerSeesTheWelcomeUntilItIsAcknowledged() {
-        let owners = suites.make()
-        let launch = launch()
+    // MARK: Which welcome a launch shows
 
-        XCTAssertTrue(launch.showsWelcome(seen: launch.preferences(standard: owners).welcomeSeen))
+    private let forced = ["CARDS_SHOW_WELCOME": "1"]
+    private let background = [HandOff.backgroundVariable: "1"]
 
-        launch.preferences(standard: owners).markWelcomeSeen()
-
-        XCTAssertFalse(launch.showsWelcome(seen: launch.preferences(standard: owners).welcomeSeen))
+    /// Preferences as an owner's Mac holds them: the disclosure version they acknowledged (nil: never)
+    /// and whether the tour was offered.
+    private func owner(disclosure: Int? = nil, tour: Bool = false) -> (preferences: Preferences, defaults: UserDefaults) {
+        let defaults = suites.make()
+        if let disclosure { defaults.set(disclosure, forKey: "WelcomeSeen") }
+        if tour { defaults.set(true, forKey: "TourSeen") }
+        return (Preferences(defaults: defaults), defaults)
     }
 
-    func testAnOwnerWhoSawAnOlderWelcomeSeesTheCurrentOneOnce() {
-        let owners = suites.make()
-        owners.set(true, forKey: "WelcomeSeen")   // what every build before the card was versioned wrote
-        var shown = 0
-        var opened = 0
-
-        launch().run(preferences: launch().preferences(standard: owners),
-                     welcome: { onContinue in shown += 1; onContinue() }, openNotes: { opened += 1 })
-        XCTAssertEqual([shown, opened], [1, 1], "the old flag is not consent to what the card says now")
-
-        launch().run(preferences: launch().preferences(standard: owners),
-                     welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
-        XCTAssertEqual([shown, opened], [1, 2], "Continue is remembered")
+    /// What a launch did, in order, and the welcome's button. Bind it to a `let` before asserting on
+    /// it: a main-actor object released inside an assertion crashes the test host.
+    private final class Run {
+        var steps: [String] = []
+        var kind: WelcomeKind?
+        var choose: ((WelcomeChoice) -> Void)?
     }
 
-    func testAnOwnerWhoSawAWelcomeWithMoreInItIsNotAskedAgain() {
-        let owners = suites.make()
-        owners.set(99, forKey: "WelcomeSeen")
-        var shown = 0
-        var opened = 0
-
-        launch().run(preferences: launch().preferences(standard: owners),
-                     welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
-
-        XCTAssertEqual([shown, opened], [0, 1], "an older build run after a newer one stays quiet")
+    private func run(_ launch: Launch, _ preferences: Preferences) -> Run {
+        let run = Run()
+        launch.run(preferences: preferences,
+                   welcome: { kind, choose in
+                       run.steps.append("welcome")
+                       run.kind = kind
+                       run.choose = { choice in
+                           run.steps.append("button")
+                           choose(choice)
+                       }
+                   },
+                   openNotes: { run.steps.append("openNotes") },
+                   startTour: { run.steps.append("tour \($0)") })
+        return run
     }
 
-    func testAScratchRunShowsNoWelcome() {
+    func testAFreshMacGetsTheFullTourWelcome() {
+        let fresh = owner()
+
+        XCTAssertEqual(launch().welcome(for: fresh.preferences.records), .fullTour)
+    }
+
+    func testAnOwnerOfAnEarlierBuildGetsTheFullTourOnceEvenWithTheCurrentDisclosureAcknowledged() {
+        let earlier = owner(disclosure: WelcomeCopy.version)
+        XCTAssertEqual(launch().welcome(for: earlier.preferences.records), .fullTour,
+                       "the tour flag is absent on every owner's first launch of the build that has the tour")
+
+        let first = run(launch(), earlier.preferences)
+        first.choose?(.start)
+        XCTAssertEqual(first.kind, .fullTour)
+        let second = run(launch(), earlier.preferences)
+        XCTAssertEqual(second.steps, ["openNotes"], "offered once, then quiet")
+    }
+
+    func testAnOwnerWhoSawAnOlderWelcomeIsAskedAgainOnce() {
+        let old = owner()
+        old.defaults.set(true, forKey: "WelcomeSeen")   // what every build before the card was versioned wrote
+
+        let first = run(launch(), old.preferences)
+        XCTAssertEqual(first.kind, .fullTour, "the old flag is not consent to what the welcome says now")
+        first.choose?(.skip)
+        let second = run(launch(), old.preferences)
+        XCTAssertEqual(second.steps, ["openNotes"], "Skip is remembered")
+    }
+
+    func testAnOwnerWhoSawTheTourButAnOlderDisclosureGetsTheContinueOnlyWelcomeAndNoTour() {
+        let owners = owner(disclosure: 1, tour: true)
+        XCTAssertEqual(launch().welcome(for: owners.preferences.records), .noTour)
+
+        let shown = run(launch(), owners.preferences)
+        shown.choose?(.proceed)
+
+        XCTAssertEqual(shown.kind, .noTour)
+        XCTAssertEqual(shown.steps, ["welcome", "button", "openNotes"], "no tour follows")
+        XCTAssertEqual(owners.defaults.integer(forKey: "WelcomeSeen"), WelcomeCopy.version, "Continue is remembered")
+        let again = run(launch(), owners.preferences)
+        XCTAssertEqual(again.steps, ["openNotes"])
+    }
+
+    func testAnOwnerWithBothRecordsCurrentSeesNothing() {
+        let current = owner(disclosure: WelcomeCopy.version, tour: true)
+
+        XCTAssertNil(launch().welcome(for: current.preferences.records))
+        let opened = run(launch(), current.preferences)
+        XCTAssertEqual(opened.steps, ["openNotes"], "the notes open at once")
+    }
+
+    func testBothRecordsNewerThanThisBuildsShowNothingAndStayNewer() {
+        let newer = owner(disclosure: 99, tour: true)
+
+        let quiet = run(launch(), newer.preferences)
+        XCTAssertEqual(quiet.steps, ["openNotes"], "an older build run after a newer one stays quiet")
+        XCTAssertEqual(newer.defaults.integer(forKey: "WelcomeSeen"), 99)
+
+        let forcedRun = run(launch(environment: forced), newer.preferences)
+        forcedRun.choose?(.start)
+        XCTAssertEqual(newer.defaults.integer(forKey: "WelcomeSeen"), 99, "a forced welcome never lowers the acknowledged version")
+    }
+
+    func testABackgroundStartWhileTheTourIsDueShowsContinueAloneAndEndsOnTheLastPage() {
+        let fresh = owner()
+        let helper = launch(environment: background)
+        XCTAssertEqual(helper.welcome(for: fresh.preferences.records), .endOnly)
+
+        let shown = run(helper, fresh.preferences)
+        shown.choose?(.proceed)
+
+        XCTAssertEqual(shown.steps, ["welcome", "button", "openNotes", "tour lastPage"])
+        XCTAssertFalse(helper.welcomeTakesFocus, "a Return typed in the AI tool never presses Continue")
+        XCTAssertTrue(fresh.defaults.bool(forKey: "TourSeen"), "and the tour is not offered again")
+    }
+
+    func testABackgroundStartForAnOwnerWhoOnlyNeedsTheNewDisclosureHasNoTourAndSomeoneUpToDateSeesNothing() {
+        let stale = owner(disclosure: 1, tour: true)
+        XCTAssertEqual(launch(environment: background).welcome(for: stale.preferences.records), .noTour)
+
+        let current = owner(disclosure: WelcomeCopy.version, tour: true)
+        XCTAssertNil(launch(environment: background).welcome(for: current.preferences.records))
+    }
+
+    func testAScratchRunShowsNoWelcomeAndNoTour() {
         let scratch = launch(folder: "/tmp/scratch-folder")
+        let preferences = scratch.preferences(standard: suites.make())
 
-        XCTAssertFalse(scratch.showsWelcome(seen: scratch.preferences(standard: suites.make()).welcomeSeen))
+        XCTAssertEqual(preferences.records, LaunchRecords(disclosureCurrent: true, tourSeen: true))
+        XCTAssertNil(scratch.welcome(for: preferences.records))
+        let opened = run(scratch, preferences)
+        XCTAssertEqual(opened.steps, ["openNotes"])
     }
 
-    func testTheEnvironmentForcesTheWelcomeEvenInAScratchRunAndEvenAfterItWasSeen() {
+    func testTheEnvironmentForcesTheFullTourEvenInAScratchRunAndRecordsNothing() {
         let owners = suites.make()
-        let forced = launch(folder: "/tmp/scratch-folder", environment: ["CARDS_SHOW_WELCOME": "1"])
-        var shown = 0
-        var opened = 0
+        let scratch = launch(folder: "/tmp/scratch-folder", environment: forced)
+        let preferences = scratch.preferences(standard: owners)
 
-        forced.run(preferences: forced.preferences(standard: owners),
-                   welcome: { onContinue in shown += 1; onContinue() }, openNotes: { opened += 1 })
+        let shown = run(scratch, preferences)
+        XCTAssertEqual(shown.kind, .fullTour)
+        shown.choose?(.start)
 
-        XCTAssertEqual([shown, opened], [1, 1])
-        XCTAssertNil(owners.object(forKey: "WelcomeSeen"), "Continue in a scratch run writes nothing")
-
-        let seen = Preferences(defaults: suites.make())
-        seen.markWelcomeSeen()
-        launch(environment: ["CARDS_SHOW_WELCOME": "1"]).run(preferences: seen,
-                                                              welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
-        XCTAssertEqual([shown, opened], [2, 1], "an owner who has seen it sees it again on request")
+        XCTAssertEqual(shown.steps, ["welcome", "button", "openNotes", "tour firstPage"])
+        XCTAssertNil(owners.object(forKey: "WelcomeSeen"), "a scratch run writes nothing")
+        XCTAssertNil(owners.object(forKey: "TourSeen"))
     }
 
-    func testTheFolderStaysClosedUntilContinueAndOpensOnce() {
-        let preferences = Preferences(defaults: suites.make())
-        var onContinue: (() -> Void)?
-        var opened = 0
+    func testAnOwnerWhoHasSeenEverythingSeesTheFullTourAgainOnRequest() {
+        let current = owner(disclosure: WelcomeCopy.version, tour: true)
 
-        launch().run(preferences: preferences, welcome: { onContinue = $0 }, openNotes: { opened += 1 })
-        XCTAssertNotNil(onContinue, "the welcome is shown first")
-        XCTAssertEqual(opened, 0, "nothing opens the folder before Continue")
+        let shown = run(launch(environment: forced), current.preferences)
+        shown.choose?(.start)
 
-        onContinue?()
-        onContinue?()
-        XCTAssertEqual(opened, 1, "Return and a click on Continue open it once")
+        XCTAssertEqual(shown.kind, .fullTour)
+        XCTAssertEqual(shown.steps, ["welcome", "button", "openNotes", "tour firstPage"])
     }
 
-    func testTheFlagIsSetAfterTheNotesOpenAndNotBeforeContinue() {
-        let preferences = Preferences(defaults: suites.make())
-        var onContinue: (() -> Void)?
-        var seenWhileOpening: Bool?
+    func testAForcedBackgroundStartStillEndsOnTheLastPage() {
+        let current = owner(disclosure: WelcomeCopy.version, tour: true)
+        let helper = launch(environment: forced.merging(background) { $1 })
 
-        launch().run(preferences: preferences, welcome: { onContinue = $0 },
-                     openNotes: { seenWhileOpening = preferences.welcomeSeen })
-        XCTAssertFalse(preferences.welcomeSeen, "showing the welcome acknowledges nothing")
+        XCTAssertEqual(helper.welcome(for: current.preferences.records), .endOnly)
+    }
 
-        onContinue?()
+    func testEachButtonSaysWhereTheTourStarts() {
+        XCTAssertEqual(WelcomeKind.fullTour.tourStart(after: .start), .firstPage)
+        XCTAssertEqual(WelcomeKind.fullTour.tourStart(after: .skip), .lastPage)
+        XCTAssertEqual(WelcomeKind.endOnly.tourStart(after: .proceed), .lastPage)
+        XCTAssertNil(WelcomeKind.noTour.tourStart(after: .proceed))
+    }
 
-        XCTAssertEqual(seenWhileOpening, false, "a launch killed in the Documents prompt shows the welcome again")
-        XCTAssertTrue(preferences.welcomeSeen)
+    func testTheFolderStaysClosedUntilAButtonAndOpensOnceWhicheverButtonsArePressed() {
+        let fresh = owner()
+        let shown = run(launch(), fresh.preferences)
+        XCTAssertEqual(shown.steps, ["welcome"], "the welcome is shown first, and nothing opens the folder before a button")
+
+        shown.choose?(.start)
+        shown.choose?(.skip)
+        shown.choose?(.start)
+
+        XCTAssertEqual(shown.steps.filter { $0 == "openNotes" }.count, 1, "Return and a click open it once")
+        XCTAssertEqual(shown.steps.filter { $0.hasPrefix("tour") }, ["tour firstPage"], "and the first button's tour is the one that starts")
+    }
+
+    func testBothRecordsAreWrittenAfterTheNotesOpenAndBeforeTheTourStarts() {
+        let fresh = owner()
+        var recordsWhile: [String: Bool] = [:]
+        var choose: ((WelcomeChoice) -> Void)?
+
+        launch().run(preferences: fresh.preferences, welcome: { _, button in choose = button },
+                     openNotes: {
+                         recordsWhile["disclosure while opening"] = fresh.preferences.welcomeSeen
+                         recordsWhile["tour while opening"] = fresh.preferences.tourSeen
+                     },
+                     startTour: { _ in
+                         recordsWhile["disclosure at the tour"] = fresh.preferences.welcomeSeen
+                         recordsWhile["tour at the tour"] = fresh.preferences.tourSeen
+                     })
+        XCTAssertFalse(fresh.preferences.welcomeSeen, "showing the welcome acknowledges nothing")
+        XCTAssertFalse(fresh.preferences.tourSeen)
+
+        choose?(.start)
+
+        XCTAssertEqual(recordsWhile, ["disclosure while opening": false, "tour while opening": false,
+                                      "disclosure at the tour": true, "tour at the tour": true],
+                       "a launch killed in the Documents prompt shows the welcome again, and a run that quits mid-tour does not replay it")
     }
 
     func testAnOwnerWhoQuitDuringTheWelcomeSeesItAgainAndNothingWasOpened() {
-        let owners = suites.make()
+        let fresh = owner()
         var shown = 0
-        var opened = 0
 
         for _ in 1...2 {
-            launch().run(preferences: launch().preferences(standard: owners),
-                         welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
+            let attempt = run(launch(), fresh.preferences)
+            if attempt.kind == .fullTour { shown += 1 }
+            XCTAssertEqual(attempt.steps, ["welcome"])
         }
 
-        XCTAssertEqual([shown, opened], [2, 0])
+        XCTAssertEqual(shown, 2)
     }
 
-    func testNoWelcomeOpensTheNotesStraightAway() {
-        let preferences = Preferences(defaults: suites.make())
-        preferences.markWelcomeSeen()
-        var shown = 0
-        var opened = 0
+    func testMarkingTheWelcomeSeenNeverLowersTheAcknowledgedVersionAndWritesTheTourFlag() {
+        let newer = owner(disclosure: 99)
+        newer.preferences.markWelcomeSeen()
 
-        launch().run(preferences: preferences, welcome: { _ in shown += 1 }, openNotes: { opened += 1 })
+        XCTAssertEqual(newer.defaults.integer(forKey: "WelcomeSeen"), 99)
+        XCTAssertTrue(newer.defaults.bool(forKey: "TourSeen"))
 
-        XCTAssertEqual([shown, opened], [0, 1])
+        let fresh = owner()
+        fresh.preferences.markWelcomeSeen()
+        XCTAssertEqual(fresh.defaults.integer(forKey: "WelcomeSeen"), WelcomeCopy.version)
+        XCTAssertEqual(fresh.preferences.records, LaunchRecords(disclosureCurrent: true, tourSeen: true))
     }
 }
+

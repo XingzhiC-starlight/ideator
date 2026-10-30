@@ -34,26 +34,9 @@ struct Launch {
         KeyStore(inKeychain: !isScratch)
     }
 
-    func showsWelcome(seen: Bool) -> Bool { forcesWelcome || !seen }
-
+    /// A background start shows its welcome without taking focus, so a Return typed in the AI tool
+    /// never presses the welcome's button.
     var welcomeTakesFocus: Bool { !inBackground }
-
-    /// The launch order, with both effects passed in so a test can watch the order:
-    /// - welcome due: `welcome` shows it and hands back `onContinue`. `openNotes` runs only when
-    ///   that is called, once however many times it is called, and the "seen" flag is set after it
-    ///   returns, so a launch killed on the way in shows the welcome again, not a bare prompt;
-    /// - otherwise: `openNotes` runs now.
-    func run(preferences: Preferences, welcome: (_ onContinue: @escaping () -> Void) -> Void,
-             openNotes: @escaping () -> Void) {
-        guard showsWelcome(seen: preferences.welcomeSeen) else { return openNotes() }
-        var opened = false
-        welcome {
-            guard !opened else { return }
-            opened = true
-            openNotes()
-            preferences.markWelcomeSeen()
-        }
-    }
 
     // MARK: The welcome and the tour
 
