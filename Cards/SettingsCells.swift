@@ -368,6 +368,9 @@ final class SettingsKeyField: NSSecureTextField {
         didSet { if showsError != oldValue { needsDisplay = true } }
     }
 
+    /// The well is the whole control, so it lines up with the column; a label's 2 pt insets don't apply.
+    override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
+
     /// Kept as words, so a change to Increase Contrast can set its color again.
     var placeholder = "" {
         didSet { restyle() }
@@ -394,10 +397,13 @@ final class SettingsFieldCell: NSSecureTextFieldCell {
         drawInterior(withFrame: cellFrame, in: controlView)
     }
 
-    /// 8 from each side, and one line high in the middle, for the text and the field editor alike.
+    /// The text system pads each line by 2 pt on both sides.
+    private static let linePadding: CGFloat = 2
+
+    /// Text 8 from each side, one line high in the middle, for the drawn text and the field editor alike.
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
         let line = ceil(font.map { $0.ascender - $0.descender + $0.leading } ?? rect.height)
-        let inset = rect.insetBy(dx: SettingsStyle.s2, dy: 0)
+        let inset = rect.insetBy(dx: SettingsStyle.s2 - Self.linePadding, dy: 0)
         return NSRect(x: inset.minX, y: (rect.midY - line / 2).rounded(), width: inset.width, height: line)
     }
 }

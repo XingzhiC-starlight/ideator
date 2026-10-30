@@ -201,9 +201,12 @@ enum SettingsControl {
         return field
     }
 
+    /// TextKit 1, because TextKit 2 ignores the paragraph's minimum and maximum line height, and the
+    /// editor's lines are 14/20 (measured 18.24 pt apart under TextKit 2).
     static func editor() -> (scroll: SettingsEditorWell, textView: NSTextView) {
         let size = SettingsStyle.editorSize
-        let textView = NSTextView(frame: NSRect(origin: .zero, size: size))
+        let textView = NSTextView(usingTextLayoutManager: false)
+        textView.frame = NSRect(origin: .zero, size: size)
         textView.minSize = NSSize(width: 0, height: size.height)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true

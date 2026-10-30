@@ -165,6 +165,30 @@ final class SettingsLookTests: XCTestCase {
         assertColor(pixel(of: well, at: NSPoint(x: 1.5, y: 50)), palette.dangerStrong)
     }
 
+    /// Measured on screen rects, which reads the editor's own text system without switching it.
+    func testTheInstructionEditorsLinesAreTwentyPointsApart() throws {
+        let window = settings()
+        window.select(.mcp)
+        let editor = try XCTUnwrap(descendants(of: window.pane(.mcp)).compactMap { $0 as? NSTextView }.first)
+        editor.string = "one\ntwo\nthree"
+        window.contentView?.layoutSubtreeIfNeeded()
+        let tops = [0, 4, 8].map { editor.firstRect(forCharacterRange: NSRange(location: $0, length: 1), actualRange: nil).maxY }
+
+        XCTAssertEqual(tops[0] - tops[1], SettingsStyle.lineHeight(.body))
+        XCTAssertEqual(tops[1] - tops[2], SettingsStyle.lineHeight(.body))
+    }
+
+    func testTheKeyFieldsWellLinesUpWithItsLabelAndTheColumn() throws {
+        let window = settings()
+        window.contentView?.layoutSubtreeIfNeeded()
+        let pane = window.pane(.aiSummary)
+        let field = try XCTUnwrap(descendants(of: pane).compactMap { $0 as? SettingsKeyField }.first)
+        let label = try XCTUnwrap(descendants(of: pane).compactMap { $0 as? NSTextField }.first { $0.stringValue == "API key" })
+
+        XCTAssertEqual(field.frame.minX, label.alignmentRect(forFrame: label.frame).minX)
+        XCTAssertEqual(field.frame.width, SettingsStyle.contentWidth)
+    }
+
     func testTheWindowKeepsItsLightLookWhenTheAppIsDark() throws {
         let appearance = NSApp.appearance
         NSApp.appearance = NSAppearance(named: .darkAqua)
