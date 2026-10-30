@@ -190,22 +190,39 @@ enum TourPhase: CaseIterable {
     static var pageCount: Int { Set(allCases.map(\.page)).count }
 }
 
-// MARK: The table and the walks (Core workstream fills the walks in)
+// MARK: The table and the walks
 
 enum TourScript {
     static let table: [TourPhase: PhaseScript] = Dictionary(uniqueKeysWithValues: TourPhase.allCases.map { ($0, make($0)) })
 
-    /// The first admitted phase of `page`.
-    static func entry(of page: Int, in world: TourWorld) -> TourPhase { fatalError("not implemented") }
+    private static func phases(of page: Int) -> [TourPhase] { TourPhase.allCases.filter { $0.page == page } }
+
+    /// The first admitted phase of `page`. A page always admits one: a test pins it in every world.
+    static func entry(of page: Int, in world: TourWorld) -> TourPhase {
+        let phases = phases(of: page)
+        return phases.first { $0.script.gate.admits(world) } ?? phases[0]
+    }
 
     /// Back's landing: the last admitted phase of `page`, its finished, non-waiting phase.
-    static func landing(of page: Int, in world: TourWorld) -> TourPhase { fatalError("not implemented") }
+    static func landing(of page: Int, in world: TourWorld) -> TourPhase {
+        let phases = phases(of: page)
+        return phases.last { $0.script.gate.admits(world) } ?? phases[0]
+    }
 
-    /// Next: the first admitted phase after `phase` in declaration order, crossing pages; nil after the last.
-    static func following(_ phase: TourPhase, in world: TourWorld) -> TourPhase? { fatalError("not implemented") }
+    /// Next: the first admitted phase of a later page; nil after the last. Next leaves the page: the
+    /// phases after a finished one on its own page are waits it never walks, or page 6's other
+    /// opening, which `followsWorld` chooses between and Next must not step into.
+    static func following(_ phase: TourPhase, in world: TourWorld) -> TourPhase? {
+        TourPhase.allCases.first { $0.page > phase.page && $0.script.gate.admits(world) }
+    }
 
-    /// A wait ended: the next declared phase, unconditionally.
-    static func after(_ phase: TourPhase) -> TourPhase { fatalError("not implemented") }
+    /// A wait ended: the next declared phase, unconditionally, so a finished wait always proceeds
+    /// whatever the world has become. The last phase has no wait; it answers itself.
+    static func after(_ phase: TourPhase) -> TourPhase {
+        let all = TourPhase.allCases
+        guard let index = all.firstIndex(of: phase), index + 1 < all.count else { return phase }
+        return all[index + 1]
+    }
 
     // The prototype's STEPS copy, exact. Straight apostrophes; curly quotes only where the prototype
     // has them (pages 7 and 8).
