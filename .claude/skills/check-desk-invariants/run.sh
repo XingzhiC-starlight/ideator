@@ -2,7 +2,7 @@
 # Bounded exhaustive check of the real Desk rules. See SKILL.md.
 #
 #   run.sh [DEPTH]        build against the current Cards/*.swift and check (default depth 3, ~10 s)
-#   run.sh --mutants      break the code 54 known ways; each must be caught by its property
+#   run.sh --mutants      break the code every way in MUTANTS; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
 #   run.sh --inputs-key   print a hash of everything the search and the mutants read (CI skips them on a pass of it)
@@ -84,10 +84,10 @@ MUTANTS=(
   "P8 spread|return .gather(deletes: allCards.allSatisfy|return .gather(deletes: poppedCards.allSatisfy"
   "P1 conservation|for id in set.homes.keys { delete(id) }|for id in popped.map(\\.card.id).filter(set.contains) { delete(id) }"
   "P8 spread|spreadButton: spreadButton)|spreadButton: spreadButton.isOut ? .gather(deletes: false) : .spread)"
-  "P6 clarity|for id in set.homes.keys { delete(id) }   // the last one ends the set|for id in set.homes.keys { delete(id) }; clarity = false"
-  "P1 conservation|for id in set.homes.keys { delete(id) }   // the last one ends the set|for id in set.homes.keys { delete(id) }; for card in allCards where card.note.isBlank { delete(card.id) }"
-  "P3 stack page|for id in set.homes.keys { delete(id) }   // the last one ends the set|for id in set.homes.keys { delete(id) }; selection = 0"
-  "P1 conservation|for id in set.homes.keys { delete(id) }   // the last one ends the set|for id in set.homes.keys { delete(id) }; _ = layOut(cells, at: date)"
+  "P6 clarity|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; clarity = false"
+  "P1 conservation|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; for card in allCards where card.note.isBlank { delete(card.id) }"
+  "P3 stack page|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; selection = 0"
+  "P1 conservation|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; _ = layOut(cells, at: date)"
   "P8 spread|if fresh { next.dropSpreadSet() }|if fresh { if case .gather(deletes: true) = spreadButton, let set = spreadSet { for id in set.homes.keys { next.delete(id) } } else { next.dropSpreadSet() } }"
   "P8 spread|var isBlank: Bool { header.allSatisfy(\\.isWhitespace) && body.allSatisfy(\\.isBlank) }|var isBlank: Bool { body.allSatisfy(\\.isBlank) }|Note.swift"
   "P8 spread|var isBlank: Bool { header.allSatisfy(\\.isWhitespace) && body.allSatisfy(\\.isBlank) }|var isBlank: Bool { header.allSatisfy(\\.isWhitespace) }|Note.swift"

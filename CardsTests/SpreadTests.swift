@@ -271,8 +271,6 @@ final class SpreadTests: XCTestCase {
         XCTAssertEqual(desk.popped.map(\.place), [slot(0), slot(1)])
     }
 
-    // MARK: A set with no text is deleted at Gather
-
     func testAClickOnASetWithNothingWrittenDeletesEveryCardAndEndsTheSet() {
         var desk = desk(stack: ["x"])
         spread(&desk, cells(0, 1, 2))
@@ -289,12 +287,12 @@ final class SpreadTests: XCTestCase {
     }
 
     func testOneWrittenCardAnywhereInTheSetKeepsEveryEmptyOneAndGathersAsToday() {
-        for written in [0, 1] {
+        for inStack in [false, true] {
             var desk = desk(stack: ["x"])
             spread(&desk, cells(0, 1, 2))
             let made = [0, 1, 2].map { card(in: $0, of: desk) }
             write(made[1], in: &desk)
-            if written == 1 { desk.apply(.returnToStack(made[1])) }   // the text is in the stack
+            if inStack { desk.apply(.returnToStack(made[1])) }
             XCTAssertNil(spread(&desk))
             XCTAssertEqual(desk.popped, [], "the set's desktop cards are gathered")
             XCTAssertEqual(Set(desk.stack.map(\.id)), Set([id("x")] + made), "and every empty card is kept")

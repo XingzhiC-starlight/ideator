@@ -18,15 +18,13 @@ func note(_ header: String, _ body: String...) -> Note {
 
 func cid(_ name: String) -> CardID { CardID(rawValue: name) }
 
-/// The notes a Spread click may delete: no character shows. These are all the empty notes the search
-/// can write, a new card, an ideographic space over a line of spaces and a ticked checkbox with
-/// nothing in it. This list, not `Note.isBlank`, is the oracle, so a wrong rule in `Note` is caught;
-/// every other shape (`NoteTests` has them) would never be written, so it is not here.
+/// The notes a Spread click may delete: no character shows. This list, not `Note.isBlank`, is the
+/// oracle, so a wrong rule in `Note` is caught. It holds only what the search writes; `NoteTests`
+/// covers the other shapes.
 let blankNotes: [Note] = [
     .blank, note("\u{3000}", "  "), Note(header: "", body: [Line(kind: .todo(done: true), runs: [])]),
 ]
 
-/// Whether `desk` has a set and every card of it, on the desktop or in the stack, is on that list.
 func setIsBlank(_ desk: Desk) -> Bool {
     guard let set = desk.spreadSet else { return false }
     return desk.allCards.filter { set.contains($0.id) }.allSatisfy { blankNotes.contains($0.note) }
@@ -205,9 +203,8 @@ func commands(_ desk: Desk) -> [Command] {
     list += [.spread(.standard, fresh: true, at: now), .spread(.empty, fresh: true, at: now)]
 
     // Clearing a card of the Spread set by hand to each empty note, and the one edit that is not a
-    // clearing, text below an empty header. Only a card of
-    // the set can change what a click does, and clearing every named card made the search 1.9 times as
-    // long. Last, so the older mutants keep the counterexample they had.
+    // clearing, text below an empty header. Only a card of the set can change what a click does.
+    // Last, so the older mutants keep the counterexample they had.
     for id in cards where desk.spreadSet?.contains(id) ?? false {
         list += blankNotes.map { Command.edit(id, $0) } + [.edit(id, note("", "text"))]
     }
@@ -236,8 +233,8 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
 
     // P1 No card is lost, duplicated or changed by a command that is not about it. A card missing
     // from the desk is a file the next save moves to the Trash. Spread never removes a card, except a
-    // plain click on a set with no text, which removes exactly that set (a named exception, the one
-    // way a click deletes). Duplicates first: everything below keys cards by id.
+    // plain click on a set with no text, which removes exactly that set. Duplicates
+    // first: everything below keys cards by id.
     if ids(after).count != afterIDs.count { try fail("P1 conservation", "a card is in two places: \(ids(after).map(\.rawValue))") }
     let beforeNotes = Dictionary(uniqueKeysWithValues: before.allCards.map { ($0.id, $0.note) })
     let afterNotes = Dictionary(uniqueKeysWithValues: after.allCards.map { ($0.id, $0.note) })
@@ -636,8 +633,7 @@ extension Command {
 // MARK: - Breadth-first search over every sequence
 
 /// What makes two desks different, for skipping desks already explored. A note counts by its digest,
-/// since two empty notes can differ in what shows nothing, which its header and line count would
-/// miss; a summary counts by whether it is current, since that is all the app shows.
+/// since two empty notes can differ only in what shows nothing; a summary counts by whether it is current, since that is all the app shows.
 func key(_ desk: Desk) -> String {
     func card(_ c: Card) -> String {
         let summary: String = switch c.summary {
