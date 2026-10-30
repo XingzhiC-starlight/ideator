@@ -158,6 +158,10 @@ extension Note {
 
     var digest: Digest { Digest(of: markdown) }
 
+    /// Whether no character shows. Not `self == .blank`: a card cleared by hand can keep empty lines
+    /// and list markers.
+    var isBlank: Bool { header.allSatisfy(\.isWhitespace) && body.allSatisfy(\.isBlank) }
+
     /// Summaries exist only for bodies with at least two non-blank lines (spec: "no summary for
     /// empty or one-line bodies").
     var wantsSummary: Bool { body.filter { !$0.isBlank }.count >= 2 }
