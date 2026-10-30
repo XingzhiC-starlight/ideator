@@ -72,6 +72,9 @@ final class SettingsWindow: NSWindow {
         select(.opening)
         refresh()
         fitScreen()
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(displayOptionsChanged),
+                                                          name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+                                                          object: nil)
     }
 
     /// Shows `section`'s pane from its top, selects its row and links Tab through it. Focus stays where
@@ -101,12 +104,60 @@ final class SettingsWindow: NSWindow {
         super.becomeKey()
         fitScreen()
         refresh()
+        if let owner = SettingsFocusRing.owner(of: firstResponder) { Self.redrawFocus(owner) }
     }
 
     /// ⌘-Tab or closing the window ends a recording, so the shortcut never stays released.
     override func resignKey() {
         super.resignKey()
         for pane in panes { pane.windowDidResignKey() }
+        if let owner = SettingsFocusRing.owner(of: firstResponder) { Self.redrawFocus(owner) }
+    }
+
+    /// Every focus change comes through here, so this is where the controls that gain and lose focus
+    /// redraw their ring, and where a control focused below the fold scrolls fully into view (A4).
+    @discardableResult
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let before = SettingsFocusRing.owner(of: firstResponder)
+        let made = super.makeFirstResponder(responder)
+        let after = SettingsFocusRing.owner(of: firstResponder)
+        if before !== after {
+            if let before { Self.redrawFocus(before) }
+            if let after {
+                Self.redrawFocus(after)
+                let reach = SettingsFocusRing.reach()
+                after.scrollToVisible(after.bounds.insetBy(dx: -reach, dy: -reach))
+            }
+        }
+        return made
+    }
+
+    override func fieldEditor(_ createFlag: Bool, for object: Any?) -> NSText? {
+        let editor = super.fieldEditor(createFlag, for: object)
+        if let editor = editor as? NSTextView { SettingsStyle.styleEditing(editor) }
+        return editor
+    }
+
+    /// A segment's ring crosses onto its partner and a Spread cell draws its picker's, so the view's
+    /// neighbors redraw with it.
+    private static func redrawFocus(_ view: NSView) {
+        func mark(_ view: NSView) {
+            view.needsDisplay = true
+            view.subviews.forEach(mark)
+        }
+        mark(view.superview ?? view)
+    }
+
+    /// Increase Contrast changes `border`, `inkMuted` and `inkInverseMuted`, which labels hold in
+    /// their text and everything else reads when it draws.
+    @objc private func displayOptionsChanged() {
+        func restyle(_ view: NSView) {
+            (view as? SettingsText)?.restyle()
+            (view as? SettingsKeyField)?.restyle()
+            view.needsDisplay = true
+            view.subviews.forEach(restyle)
+        }
+        contentView.map(restyle)
     }
 
     override func close() {

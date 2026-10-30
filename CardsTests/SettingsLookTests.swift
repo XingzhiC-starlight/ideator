@@ -189,6 +189,52 @@ final class SettingsLookTests: XCTestCase {
         XCTAssertEqual(field.frame.width, SettingsStyle.contentWidth)
     }
 
+    func testAControlFocusedBelowTheFoldScrollsFullyIntoView() throws {
+        let window = SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
+                                    updates: Updates(build: .current, isScratch: false), maxContentHeight: 300) {}
+        window.select(.mcp)
+        window.contentView?.layoutSubtreeIfNeeded()
+        let scroll = try XCTUnwrap(window.pane(.mcp).enclosingScrollView)
+        let well = try XCTUnwrap(descendants(of: window.pane(.mcp)).compactMap { $0 as? SettingsEditorWell }.first)
+        let editor = try XCTUnwrap(well.documentView)
+        let shown = { scroll.documentVisibleRect.contains(well.convert(well.bounds, to: scroll.documentView)) }
+        XCTAssertFalse(shown(), "the editor starts below the fold")
+
+        XCTAssertTrue(window.makeFirstResponder(editor))
+
+        XCTAssertTrue(shown())
+    }
+
+    func testTypingShowsAnInkCaretAndSlateSelectionNeverTheAccentColor() throws {
+        let window = settings()
+        let field = try XCTUnwrap(descendants(of: window.pane(.aiSummary)).compactMap { $0 as? SettingsKeyField }.first)
+        let editor = try XCTUnwrap(descendants(of: window.pane(.mcp)).compactMap { $0 as? NSTextView }.first)
+        window.select(.aiSummary)
+        window.makeFirstResponder(field)
+        let fieldEditor = try XCTUnwrap(field.currentEditor() as? NSTextView)
+
+        for text in [fieldEditor, editor] {
+            assertColor(srgb(text.insertionPointColor), palette.ink)
+            assertColor(srgb(try XCTUnwrap(text.selectedTextAttributes[.backgroundColor] as? NSColor)), palette.inverse)
+            assertColor(srgb(try XCTUnwrap(text.selectedTextAttributes[.foregroundColor] as? NSColor)), palette.inkInverse)
+        }
+    }
+
+    func testTurningOnIncreaseContrastRedrawsCaptionsInInk() throws {
+        let window = settings()
+        let caption = try XCTUnwrap(descendants(of: window.pane(.shortcut)).compactMap { $0 as? SettingsText }
+            .first { $0.stringValue == SettingsCopy.Shortcut.caption })
+        let color = { self.srgb(caption.attributedStringValue.attribute(.foregroundColor, at: 0, effectiveRange: nil) as! NSColor) }
+        Palette.Settings.increaseContrastOverride = false
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+        assertColor(color(), palette.inkMuted)
+
+        Palette.Settings.increaseContrastOverride = true
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+
+        assertColor(color(), palette.ink)
+    }
+
     func testTheWindowKeepsItsLightLookWhenTheAppIsDark() throws {
         let appearance = NSApp.appearance
         NSApp.appearance = NSAppearance(named: .darkAqua)

@@ -188,18 +188,18 @@ final class SettingsButtonCell: NSButtonCell {
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
         let rect = cellFrame.insetBy(dx: look.ringReach, dy: look.ringReach)
         let hovered = isEnabled && (controlView as? SettingsButton)?.isHovered == true
-        let focused = isEnabled && SettingsFocusRing.shows(controlView)
-        let flipped = controlView.isFlipped
         switch look {
         case .button: drawButton(rect, hovered: hovered, in: controlView)
         case .primary: drawPrimary(rect, hovered: hovered, in: controlView)
         case .checkbox: drawCheckbox(rect, hovered: hovered, in: controlView)
-        case .segment(let edge): drawSegment(rect, edge: edge, hovered: hovered, in: controlView)
+        case .segment(let edge):
+            drawSegment(rect, edge: edge, hovered: hovered, in: controlView)
+            return   // it draws the pair's ring itself
         case .spreadCell: drawSpreadCell(rect, hovered: hovered, in: controlView)
         case .recorder: drawRecorder(rect, hovered: hovered, in: controlView)
         }
-        if focused {
-            SettingsFocusRing.draw(around: rect, shape: look == .primary ? .cta : .square, flipped: flipped)
+        if isEnabled, SettingsFocusRing.shows(controlView) {
+            SettingsFocusRing.draw(around: rect, shape: look == .primary ? .cta : .square, flipped: controlView.isFlipped)
         }
     }
 
@@ -245,7 +245,8 @@ final class SettingsButtonCell: NSButtonCell {
     }
 
     /// The leading segment draws the shared middle line as its right edge; the trailing one leaves its
-    /// left edge open. A segment's ring crosses onto its partner, so each also draws its partner's.
+    /// left edge open. While either has focus the ring goes around the selected one (§3.1), so it
+    /// crosses onto the other, canvas segment and never onto slate; each segment draws the part on it.
     private func drawSegment(_ rect: NSRect, edge: Look.Edge, hovered: Bool, in view: NSView) {
         let selected = state == .on
         let fillColor: NSColor = switch (isEnabled, selected) {
@@ -267,8 +268,12 @@ final class SettingsButtonCell: NSButtonCell {
         case (false, false): P.inkDisabled
         }
         drawTitle(in: rect, role: selected ? .term : .body, color: label, underline: false, centered: true, in: view)
-        if let partner = view.superview?.subviews.first(where: { $0 !== view && $0 is SettingsButton }) as? SettingsButton,
-           partner.isEnabled, SettingsFocusRing.shows(partner) {
+        let partner = view.superview?.subviews.first { $0 !== view && $0 is SettingsButton } as? SettingsButton
+        let pairFocused = SettingsFocusRing.shows(view) || partner.map { SettingsFocusRing.shows($0) } == true
+        guard isEnabled, pairFocused else { return }
+        if selected {
+            SettingsFocusRing.draw(around: rect, flipped: view.isFlipped)
+        } else if let partner, partner.state == .on {
             SettingsFocusRing.draw(around: view.convert(partner.controlRect, from: partner), flipped: view.isFlipped)
         }
     }
@@ -405,6 +410,17 @@ final class SettingsFieldCell: NSSecureTextFieldCell {
         let line = ceil(font.map { $0.ascender - $0.descender + $0.leading } ?? rect.height)
         let inset = rect.insetBy(dx: SettingsStyle.s2 - Self.linePadding, dy: 0)
         return NSRect(x: inset.minX, y: (rect.midY - line / 2).rounded(), width: inset.width, height: line)
+    }
+
+    /// The field editor goes where it is told, not where `drawingRect` says, so it is told the same.
+    override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?,
+                         start selStart: Int, length selLength: Int) {
+        super.select(withFrame: drawingRect(forBounds: rect), in: controlView, editor: textObj, delegate: delegate,
+                     start: selStart, length: selLength)
+    }
+
+    override func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, event: NSEvent?) {
+        super.edit(withFrame: drawingRect(forBounds: rect), in: controlView, editor: textObj, delegate: delegate, event: event)
     }
 }
 
