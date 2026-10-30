@@ -28,6 +28,7 @@ final class SettingsWindow: NSWindow {
         super.init(contentRect: NSRect(origin: .zero, size: SettingsStyle.windowSize),
                    styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
         title = SettingsCopy.windowTitle
+        appearance = NSAppearance(named: .aqua)
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isReleasedWhenClosed = false
@@ -204,11 +205,10 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// The edge it shares with the pane. Drawn, not a view: a separator view has a height of its own,
-    /// and the window would shrink to it.
+    /// Slate, with no line at its edge: the ivory ↔ slate edge alone parts it from the pane (§2.4).
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.separatorColor.setFill()
-        NSRect(x: bounds.maxX - 1, y: bounds.minY, width: 1, height: bounds.height).fill()
+        Palette.Settings.inverse.setFill()
+        bounds.fill()
     }
 
     /// Selects the row without calling `onSelect`.
@@ -218,6 +218,8 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { SettingsSection.allCases.count }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { SidebarRowView() }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let section = SettingsSection(rawValue: row) else { return nil }
@@ -235,14 +237,21 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
 
 /// A sidebar row's content. NSTableView wraps every cell in its own accessibility cell and forwards
 /// this view's label and press to it, so the view must not be an element too (see `ArrangerCell`).
+///
+/// The name is muted ivory on slate, full ivory and underlined under the pointer, and 600 `ink` on the
+/// selected row's canvas, which `SidebarRowView` reports through `backgroundStyle`.
 final class SidebarCell: NSTableCellView {
     private let section: SettingsSection
+    private let name: SettingsText
+    private var hover: NSTrackingArea?
+    private var isHovered = false { didSet { restyle() } }
     var onPress: () -> Void = {}
 
     init(_ section: SettingsSection) {
         self.section = section
+        name = SettingsControl.text(section.title, as: .label, tone: .inverseMuted,
+                                    width: SettingsStyle.sidebarWidth - 2 * SettingsStyle.s4)
         super.init(frame: .zero)
-        let name = SettingsControl.text(section.title, as: .label, width: SettingsStyle.sidebarWidth - 2 * SettingsStyle.s4)
         name.setAccessibilityElement(false)
         name.translatesAutoresizingMaskIntoConstraints = false
         addSubview(name)
@@ -254,6 +263,29 @@ final class SidebarCell: NSTableCellView {
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { restyle() }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hover { removeTrackingArea(hover) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp], owner: self)
+        addTrackingArea(area)
+        hover = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovered = true }
+
+    override func mouseExited(with event: NSEvent) { isHovered = false }
+
+    private func restyle() {
+        let selected = backgroundStyle == .emphasized
+        name.role = selected ? .term : .label
+        name.tone = selected ? .ink : isHovered ? .inverse : .inverseMuted
+        name.underline = isHovered && !selected
+    }
 
     override func isAccessibilityElement() -> Bool { false }
     override func accessibilityRole() -> NSAccessibility.Role? { .cell }
@@ -276,7 +308,7 @@ final class PaneHost: NSScrollView {
 
     init() {
         super.init(frame: .zero)
-        drawsBackground = false
+        backgroundColor = Palette.Settings.canvas
         hasVerticalScroller = true
         autohidesScrollers = true
         automaticallyAdjustsContentInsets = false

@@ -440,3 +440,20 @@ final class SettingsEditorWell: NSScrollView {
         }
     }
 }
+
+/// A sidebar row (§3.1): the selected one is a `canvas` block running to the sidebar's right edge, so
+/// it joins the pane, with a 2 pt `ink` ring 4 inside it while the table has focus in the key window.
+/// Never the system's blue.
+final class SidebarRowView: NSTableRowView {
+    override func drawSelection(in dirtyRect: NSRect) {
+        Palette.Settings.canvas.setFill()
+        bounds.fill()
+        if let table = superview as? NSTableView, SettingsFocusRing.shows(table) {
+            Palette.Settings.ink.setFill()
+            bounds.insetBy(dx: SettingsStyle.s1, dy: SettingsStyle.s1).frame(withWidth: SettingsStyle.focusWidth)
+        }
+    }
+
+    /// Tells the row's cell it sits on canvas, focused or not, so its label turns to `ink`.
+    override var interiorBackgroundStyle: NSView.BackgroundStyle { isSelected ? .emphasized : .normal }
+}

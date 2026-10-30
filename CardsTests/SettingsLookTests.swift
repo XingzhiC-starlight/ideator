@@ -165,6 +165,24 @@ final class SettingsLookTests: XCTestCase {
         assertColor(pixel(of: well, at: NSPoint(x: 1.5, y: 50)), palette.dangerStrong)
     }
 
+    func testTheWindowKeepsItsLightLookWhenTheAppIsDark() throws {
+        let appearance = NSApp.appearance
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+        defer { NSApp.appearance = appearance }
+        let window = settings()
+        let content = try XCTUnwrap(window.contentView)
+        content.layoutSubtreeIfNeeded()
+        let height = content.bounds.height
+        let selectedRow = height - SettingsStyle.contentTop - SettingsStyle.sidebarRowHeight / 2
+
+        XCTAssertEqual(window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]), .aqua)
+        assertColor(pixel(of: content, at: NSPoint(x: 84, y: 40)), palette.inverse, "the sidebar")
+        assertColor(pixel(of: content, at: NSPoint(x: 150, y: selectedRow)), palette.canvas, "the selected row")
+        assertColor(pixel(of: content, at: NSPoint(x: SettingsStyle.sidebarWidth - 1, y: selectedRow - 40)), palette.inverse,
+                    "no separator at the sidebar's edge")
+        assertColor(pixel(of: content, at: NSPoint(x: SettingsStyle.sidebarWidth, y: 40)), palette.canvas, "the pane")
+    }
+
     private func settings(keys: KeyStore = KeyStore(inKeychain: false),
                           aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil))) -> SettingsWindow {
         SettingsWindow(keys: keys, hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
