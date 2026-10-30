@@ -324,7 +324,8 @@ final class SettingsTests: XCTestCase {
     func testTheShortcutFieldShowsThatItIsRecordingEvenWhenTheHandlerRefreshesTheShortcut() {
         let field = ShortcutField()
         field.shortcut = .standard
-        field.onRecordingChange = { [unowned field] _ in field.shortcut = .standard }
+        field.onRecordingStart = { [unowned field] in field.shortcut = .standard }
+        field.onRecordingEnd = { [unowned field] _ in field.shortcut = .standard }
 
         field.performClick(nil)
         XCTAssertEqual(field.title, "Type shortcut…")

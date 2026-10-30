@@ -85,10 +85,10 @@ enum SettingsStyle {
 /// A label in one of the type roles.
 final class SettingsText: NSTextField {
     var role = SettingsStyle.TextRole.body
-    var tone = SettingsStyle.Tone.ink { didSet { text = text } }
+    var tone = SettingsStyle.Tone.ink { didSet { stringValue = stringValue } }
 
-    var text: String {
-        get { stringValue }
+    override var stringValue: String {
+        get { super.stringValue }
         set { attributedStringValue = SettingsStyle.attributed(newValue, as: role, tone: tone) }
     }
 }
@@ -106,7 +106,7 @@ enum SettingsControl {
         label.tone = role == .caption || role == .mono ? .muted : .ink
         label.preferredMaxLayoutWidth = width
         label.cell?.truncatesLastVisibleLine = false
-        label.text = string
+        label.stringValue = string
         return label
     }
 
@@ -130,8 +130,12 @@ enum SettingsControl {
         return button
     }
 
+    /// The window's default button. AppKit skips the key equivalents of a hidden pane, so Return
+    /// reaches it only while its pane shows.
     static func primaryButton(_ title: String, target: AnyObject, action: Selector) -> NSButton {
-        button(title, target: target, action: action)
+        let primary = button(title, target: target, action: action)
+        primary.keyEquivalent = "\r"
+        return primary
     }
 
     static func checkbox(_ title: String, target: AnyObject, action: Selector) -> NSButton {
@@ -270,7 +274,7 @@ final class StatusLine: NSStackView {
         glyph.isHidden = symbol == nil
         label.preferredMaxLayoutWidth = SettingsStyle.contentWidth - (symbol == nil ? 0 : Self.glyphSize.width + spacing)
         label.tone = status == nil ? .muted : .ink
-        label.text = status?.text ?? resting ?? ""
+        label.stringValue = status?.text ?? resting ?? ""
         isHidden = status == nil && resting == nil
     }
 }
@@ -338,8 +342,14 @@ final class SpreadCellPicker: NSView {
                 : ticked ? NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) : nil
             button.isStack = slot == stackCell
         }
-        if focusedCell == stackCell { moveFocus(to: Self.step(from: focusedCell, dx: 1, dy: 0, skipping: stackCell)) }
-        if focusedCell == stackCell { moveFocus(to: Self.step(from: focusedCell, dx: -1, dy: 0, skipping: stackCell)) }
+        moveFocusOffStack()
+    }
+
+    /// The stack moved onto the focused cell: step right, or left at the grid's right edge.
+    private func moveFocusOffStack() {
+        guard focusedCell == stackCell else { return }
+        let right = Self.step(from: focusedCell, dx: 1, dy: 0, skipping: stackCell)
+        moveFocus(to: right != focusedCell ? right : Self.step(from: focusedCell, dx: -1, dy: 0, skipping: stackCell))
     }
 
     /// Where an arrow lands from `cell`: the next cell that way, past the stack's, or `cell` itself
@@ -406,16 +416,18 @@ final class SpreadCellButton: NSButton {
     override func accessibilityValueDescription() -> String? { isStack ? SettingsCopy.Spread.stackCell : nil }
 }
 
-/// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the
+/// While it records, the live hotkey is released (`onRecordingStart`), so pressing the
 /// current combination reaches the recorder instead of hiding every card. A local monitor sees
 /// every key first, so ⌘, ⌘Q, ⌘W and Return never reach the menu, the window or the default button.
 /// Its title is the glyphs, which the harness presses; VoiceOver hears "Shortcut" and the spelled-out
 /// combination.
 final class ShortcutField: NSButton {
     var shortcut: Shortcut = .standard { didSet { if monitor == nil { title = shortcut.display } } }
-    var onPick: (Shortcut) -> Void = { _ in }
     var onReject: (String) -> Void = { _ in }
-    var onRecordingChange: (Bool) -> Void = { _ in }
+    var onRecordingStart: () -> Void = {}
+    /// Runs with the pick while the old shortcut is still released, so `HotKey.choose` claims the
+    /// new one before the old is taken back.
+    var onRecordingEnd: (Shortcut?) -> Void = { _ in }
     private var monitor: Any?
 
     init() {
@@ -459,7 +471,7 @@ final class ShortcutField: NSButton {
             }
         }
         title = SettingsCopy.Shortcut.prompt
-        onRecordingChange(true)
+        onRecordingStart()
     }
 
     func cancelRecording() {
@@ -470,8 +482,7 @@ final class ShortcutField: NSButton {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
         title = shortcut.display
-        if let picked { onPick(picked) }
-        onRecordingChange(false)
+        onRecordingEnd(picked)
     }
 }
 
@@ -511,7 +522,7 @@ final class PrivacyCardView: NSView {
     }
 
     func show(_ card: PrivacyCard) {
-        headline.text = card.headline
+        headline.stringValue = card.headline
         while items.count < card.items.count {
             let item = (term: SettingsControl.text("", as: .term, width: Self.inner),
                         text: SettingsControl.text("", as: .body, width: Self.inner))
@@ -523,8 +534,8 @@ final class PrivacyCardView: NSView {
             items.append(item)
         }
         for (shown, item) in zip(items, card.items) {
-            shown.term.text = item.term
-            shown.text.text = item.text
+            shown.term.stringValue = item.term
+            shown.text.stringValue = item.text
         }
     }
 }

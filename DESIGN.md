@@ -765,11 +765,11 @@ Later changes, after trying the app:
     app switch. ⌘W is the window's own key equivalent, since a Close item in the main menu would
     reach card windows too.
   - Tab runs from the sidebar through the shown pane in reading order and back, linked on every
-    section change. AppKit's own loop goes by position and would weave the sidebar into the pane.
-    After a section change focus is in the sidebar or the shown pane: when a pane that had focus
+    section change, so §4 A2's order holds by construction. After a section change focus is in the sidebar or the shown pane: when a pane that had focus
     hides, as after a VoiceOver press on a row, AppKit gives focus to the window itself.
-  - Save keeps Return only while AI Summary shows. As the default button of a hidden pane it would
-    take Return from every other section.
+  - Save is the window's default button, and Return reaches it only while AI Summary shows: AppKit
+    skips the key equivalents of a hidden view (measured 2026-10-30 with a probe window: 0 fires
+    hidden, 1 shown).
   - A status line announces its own changes to VoiceOver, never the first fill and never on a
     hidden pane, so no pane has to remember to.
   - Measured with the real fonts, the panes are 224 (Shortcut), 344 (Spread), 328 (AI Summary), 630

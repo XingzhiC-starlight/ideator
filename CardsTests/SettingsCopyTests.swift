@@ -31,12 +31,12 @@ final class SettingsCopyTests: XCTestCase {
                        ["checkmark.circle", "exclamationmark.triangle", "xmark.octagon"])
     }
 
-    private func shortcut(problem: HotKey.Problem? = nil, usedByMacOS: Bool = false, rejected: String? = nil) -> SettingsStatus? {
-        SettingsCopy.Shortcut.status(shortcut: .standard, problem: problem, usedByMacOS: usedByMacOS, rejected: rejected)
+    private func shortcut(problem: HotKey.Problem? = nil, usedByMacOS: Bool = false, refusal: String? = nil) -> SettingsStatus? {
+        SettingsCopy.Shortcut.status(shortcut: .standard, problem: problem, usedByMacOS: usedByMacOS, refusal: refusal)
     }
 
     func testTheShortcutStatusSaysTheLastVerdictFirstThenWhyThereIsNoShortcutThenTheMacOSNoteElseNothing() {
-        XCTAssertEqual(shortcut(problem: .taken, usedByMacOS: true, rejected: "⌘K can't be the shortcut."),
+        XCTAssertEqual(shortcut(problem: .taken, usedByMacOS: true, refusal: "⌘K can't be the shortcut."),
                        .error("⌘K can't be the shortcut."))
         XCTAssertEqual(shortcut(problem: .taken, usedByMacOS: true),
                        .error("⌃⌥I is already taken. There is no shortcut until you pick another."))
@@ -146,5 +146,12 @@ final class SettingsCopyTests: XCTestCase {
             XCTAssertTrue(text.contains("GitHub sees your IP address and which version you have"))
             XCTAssertTrue(text.hasSuffix("No analytics, no crash reports."), "the promise comes after both services")
         }
+    }
+}
+
+extension PrivacyCard {
+    /// The headline, then each term and its text, one per line: what the card says, for assertions.
+    var allText: String {
+        ([headline] + items.flatMap { [$0.term, $0.text] }).joined(separator: "\n")
     }
 }

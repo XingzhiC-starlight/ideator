@@ -77,10 +77,6 @@ struct PrivacyCard: Equatable {
 
     let headline: String
     let items: [Item]
-
-    var allText: String {
-        ([headline] + items.flatMap { [$0.term, $0.text] }).joined(separator: "\n")
-    }
 }
 
 /// Every string Settings shows, one nested enum per section in sidebar order, as constants and pure
@@ -99,8 +95,8 @@ enum SettingsCopy {
         static let recording = "Recording. Press the new keys, or Escape to cancel."
 
         static func status(shortcut: Ideator.Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
-                           rejected: String?) -> SettingsStatus? {
-            if let rejected { return .error(rejected) }
+                           refusal: String?) -> SettingsStatus? {
+            if let refusal { return .error(refusal) }
             if let problem { return .error(problem.text(for: shortcut) + " There is no shortcut until you pick another.") }
             if usedByMacOS {
                 return .warning("macOS also has a shortcut on \(shortcut.display) (System Settings › Keyboard › Keyboard "

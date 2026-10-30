@@ -89,23 +89,25 @@ final class ShortcutPane: SettingsPane {
     private lazy var useDefault = SettingsControl.button(SettingsCopy.Shortcut.useDefault, target: self,
                                                          action: #selector(useDefaultShortcut))
     private lazy var status = statusLine()
-    private var rejected: String?
+    private var refusal: String?
     private var releasedForRecording = false
 
     init(hotKey: HotKey, refreshAll: @escaping () -> Void, announce: @escaping (String) -> Void) {
         self.hotKey = hotKey
         super.init(section: .shortcut, refreshAll: refreshAll, announce: announce)
-        recorder.onPick = { [unowned self] picked in pick(picked) }
-        recorder.onReject = { [unowned self] refusal in
-            rejected = refusal
+        recorder.onReject = { [unowned self] refused in
+            refusal = refused
             refresh()
         }
-        recorder.onRecordingChange = { [unowned self] recording in
-            if recording {
-                releasedForRecording = hotKey.unregister()
-                rejected = nil
-                announce(SettingsCopy.Shortcut.recording)
-            } else if releasedForRecording {
+        recorder.onRecordingStart = { [unowned self] in
+            releasedForRecording = hotKey.unregister()
+            refusal = nil
+            announce(SettingsCopy.Shortcut.recording)
+            refresh()
+        }
+        recorder.onRecordingEnd = { [unowned self] picked in
+            if let picked { pick(picked) }
+            if releasedForRecording {
                 releasedForRecording = false
                 hotKey.register()
             }
@@ -122,7 +124,7 @@ final class ShortcutPane: SettingsPane {
         recorder.shortcut = hotKey.shortcut
         useDefault.isEnabled = hotKey.shortcut != .standard
         status.show(SettingsCopy.Shortcut.status(shortcut: hotKey.shortcut, problem: hotKey.problem,
-                                                 usedByMacOS: hotKey.shortcut.isUsedByMacOS(), rejected: rejected))
+                                                 usedByMacOS: hotKey.shortcut.isUsedByMacOS(), refusal: refusal))
     }
 
     override func windowDidResignKey() { recorder.cancelRecording() }
@@ -133,7 +135,7 @@ final class ShortcutPane: SettingsPane {
     }
 
     private func pick(_ shortcut: Shortcut) {
-        rejected = hotKey.choose(shortcut).map { SettingsCopy.Shortcut.rejection($0, wanted: shortcut, kept: hotKey.shortcut) }
+        refusal = hotKey.choose(shortcut).map { SettingsCopy.Shortcut.rejection($0, wanted: shortcut, kept: hotKey.shortcut) }
     }
 }
 
@@ -196,16 +198,6 @@ final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     func controlTextDidChange(_ notification: Notification) { refresh() }
 
     private var typedKey: String { field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    override func viewDidUnhide() {
-        super.viewDidUnhide()
-        save.keyEquivalent = "\r"
-    }
-
-    override func viewDidHide() {
-        super.viewDidHide()
-        save.keyEquivalent = ""
-    }
 
     @objc private func saveKey() {
         guard !typedKey.isEmpty else { return }
