@@ -2,7 +2,6 @@ import Carbon.HIToolbox
 import XCTest
 @testable import Ideator
 
-/// Settings › Spread: the grid of cells, its keys, its caption, and where the ticked cells are kept.
 final class SpreadSettingsTests: XCTestCase {
     private let suites = TestDefaults()
 

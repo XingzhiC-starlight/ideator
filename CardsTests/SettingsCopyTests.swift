@@ -1,7 +1,6 @@
 import XCTest
 @testable import Ideator
 
-/// What Settings says, apart from the window that shows it.
 final class SettingsCopyTests: XCTestCase {
     func testTheSectionsAreSixInTheSidebarOrderAndTheWindowOpensOnTheFirst() {
         XCTAssertEqual(SettingsSection.allCases.map(\.title), ["Shortcut", "Spread", "AI Summary", "MCP", "Updates", "Privacy"])

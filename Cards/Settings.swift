@@ -1,6 +1,6 @@
 import AppKit
 
-/// Settings: a sidebar of the six sections and one pane per section, 640 × 640 and not resizable.
+/// Settings: a sidebar of the six sections and one pane per section.
 /// The window holds no control and no model of its own. It picks which pane shows, keeps the panes
 /// fresh and owns the window's lifecycle; each pane owns its controls (SettingsPanes.swift).
 ///
@@ -8,7 +8,6 @@ import AppKit
 ///   so the accessibility tree and the key view loop see one pane while tests can reach every control.
 /// - It opens on Shortcut every time: `close()` goes back to it. `becomeKey` fires on every app
 ///   switch, so it never touches the selection, and the chosen section stays while the window is open.
-/// - `refresh()` refreshes every pane, shown or not: `Updates` has no change callback.
 final class SettingsWindow: NSWindow {
     private let sidebar = SettingsSidebar()
     private let host = PaneHost()
@@ -89,10 +88,8 @@ final class SettingsWindow: NSWindow {
         }
     }
 
-    /// The pane for a section, shown or not.
     func pane(_ section: SettingsSection) -> SettingsPane { panes[section.rawValue] }
 
-    /// Every pane reads its model again. Idempotent.
     func refresh() {
         for pane in panes { pane.refresh() }
     }
@@ -116,8 +113,6 @@ final class SettingsWindow: NSWindow {
         select(.opening)
     }
 
-    /// The main menu has no Close item, so ⌘W is this window's alone and never reaches a card. While
-    /// the recorder records, its monitor takes ⌘W first and refuses it as a shortcut.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
            event.charactersIgnoringModifiers == "w" {
@@ -127,9 +122,8 @@ final class SettingsWindow: NSWindow {
         return super.performKeyEquivalent(with: event)
     }
 
-    /// Tab goes from the sidebar through the shown pane's controls in reading order, then back. AppKit's
-    /// own loop is by position and would weave the sidebar in. Disabled and hidden controls stay in the
-    /// chain and Tab skips them, so a control that becomes enabled needs no relink.
+    /// Disabled and hidden controls stay in the chain and Tab skips them, so a control that becomes
+    /// enabled needs no relink.
     private func linkKeyViews() {
         var previous: NSView = sidebar.table
         for view in Self.keyViews(in: pane(selected)) {
@@ -151,7 +145,6 @@ final class SettingsWindow: NSWindow {
         }
     }
 
-    /// 640 tall, or what the screen has left below the title bar with a margin; the pane scrolls then.
     private func fitScreen() {
         let room: CGFloat
         if let maxContentHeight {
@@ -169,11 +162,8 @@ final class SettingsWindow: NSWindow {
     }
 }
 
-/// The six sections, one 32-point row each, from 52 down. ↑ and ↓ change the section at once.
-///
 /// Each row is an accessibility cell named exactly the section's title, with a press, so VoiceOver
-/// says "Spread, 2 of 6" and the harness's `section Spread` can never hit the ribbon's Spread button
-/// or "Spread cell 1", as matching by prefix would.
+/// says "Spread, 2 of 6".
 final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate {
     let table = NSTableView()
     var onSelect: (SettingsSection) -> Void = { _ in }
@@ -319,7 +309,6 @@ final class PaneHost: NSScrollView {
         }
     }
 
-    /// Idempotent.
     func show(_ section: SettingsSection) {
         for pane in panes { pane.isHidden = pane.section != section }
         fit?.isActive = false

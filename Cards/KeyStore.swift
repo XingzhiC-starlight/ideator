@@ -1,10 +1,9 @@
 import Foundation
 import Security
 
-/// The API key, an Anthropic key or an OpenAI key. Lives in the login Keychain (generic password,
-/// service "Ideator", account "api-key"): never in code, in the card folder, or in user defaults.
-/// One item holds the last key pasted; the "anthropic-api-key" item that earlier builds wrote is
-/// not read. Read once at launch and cached; `set` is the only writer.
+/// The API key, an Anthropic key or an OpenAI key. Lives in the login Keychain: never in code, in
+/// the card folder, or in user defaults. One item holds the last key pasted. Read once at launch and
+/// cached; `set` is the only writer.
 ///
 /// A scratch run gets `inKeychain: false`: the key lives in memory for that run only, starts empty,
 /// and no Keychain call is ever made, so a verify run can't trigger macOS's access prompt for the
@@ -13,7 +12,6 @@ class KeyStore {
     private static let service = "Ideator"
     private static let account = "api-key"
 
-    /// nil = no key: the app works fully, it just never requests summaries.
     private(set) var apiKey: String?
 
     var provider: Provider? { apiKey.map { Provider(key: $0) } }

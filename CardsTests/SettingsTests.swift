@@ -349,7 +349,6 @@ final class SettingsTests: XCTestCase {
         SettingsSection.allCases.filter { !window.pane($0).isHidden }
     }
 
-    /// What Tab visits after `start`, in order, until it comes back.
     private func keyLoop(from start: NSView) -> [NSView] {
         var loop: [NSView] = []
         var view = start.nextValidKeyView
@@ -365,12 +364,10 @@ final class SettingsTests: XCTestCase {
         try XCTUnwrap(descendants(of: view).compactMap { $0 as? NSButton }.first { $0.title == title }, title)
     }
 
-    /// Every label's text under `view`, in reading order.
     private func texts(in view: NSView) -> [String] {
         descendants(of: view).compactMap { ($0 as? NSTextField)?.stringValue }.filter { !$0.isEmpty }
     }
 
-    /// Every view under `view` in reading order: each view, then what it holds.
     private func descendants(of view: NSView) -> [NSView] {
         view.subviews.flatMap { [$0] + descendants(of: $0) }
     }

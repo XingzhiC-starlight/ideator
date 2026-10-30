@@ -1,7 +1,6 @@
 import AppKit
 
-/// One section's page (§3.13): the title, the lead 8 under it, then groups 24 apart, in a 408 column
-/// with 32 at the sides and the bottom. The pane is a group labelled with the section's name (A12).
+/// One section's page (§3.13).
 ///
 /// A pane is the only view that reads or writes its model, and the only holder of its passing state
 /// (a refused combination, a refused Keychain write, which setup was copied). `refresh()` sets every
@@ -50,17 +49,12 @@ class SettingsPane: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Reads the model and sets every control. Subclasses override it.
     func refresh() {}
 
-    /// The window stopped being key: ⌘-Tab, or closing it.
     func windowDidResignKey() {}
 
-    /// A status line that speaks through this pane's announcer.
     final func statusLine(resting: String? = nil) -> StatusLine { StatusLine(resting: resting, announce: announce) }
 
-    /// Label → its caption s1; between rows s3; anything else s2: control → its caption, label →
-    /// its control, caption → the control it explains.
     final func addGroup(_ items: [Item]) {
         let group = NSStackView()
         group.orientation = .vertical
@@ -89,16 +83,13 @@ class SettingsPane: NSView {
     }
 }
 
-/// 1 · Shortcut: the recorder, Use Default, the caption, and a status line for a clash or a refusal.
 final class ShortcutPane: SettingsPane {
     private let hotKey: HotKey
     private let recorder = ShortcutField()
     private lazy var useDefault = SettingsControl.button(SettingsCopy.Shortcut.useDefault, target: self,
                                                          action: #selector(useDefaultShortcut))
     private lazy var status = statusLine()
-    /// The last refused combination, or the pick macOS refused. Cleared when a recording starts.
     private var rejected: String?
-    /// Whether this recording released a live hotkey: a scratch run never registered one.
     private var releasedForRecording = false
 
     init(hotKey: HotKey, refreshAll: @escaping () -> Void, announce: @escaping (String) -> Void) {
@@ -146,8 +137,6 @@ final class ShortcutPane: SettingsPane {
     }
 }
 
-/// 2 · Spread: the cell picker, the caption, and a status line while no cell is ticked. The stack's
-/// cell is read again on every refresh, because the stack moves while the window is closed.
 final class SpreadPane: SettingsPane {
     private let spread: SpreadChoice
     private let stackCell: () -> Slot
@@ -174,9 +163,6 @@ final class SpreadPane: SettingsPane {
     }
 }
 
-/// 3 · AI Summary: the key field, the key's status, then Remove Key and Save. `keyChanged` tells the
-/// desk, and runs only after the Keychain took the change. Save is dimmed while the field is empty,
-/// and Remove Key while no key is saved: neither would do anything.
 final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     private let keys: KeyStore
     private let keyChanged: () -> Void
@@ -184,7 +170,6 @@ final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     private lazy var status = statusLine()
     private lazy var remove = SettingsControl.button(SettingsCopy.AISummary.remove, target: self, action: #selector(removeKey))
     private lazy var save = SettingsControl.primaryButton(SettingsCopy.AISummary.save, target: self, action: #selector(saveKey))
-    /// The last Save or Remove Key the Keychain refused. Cleared by the next one it takes.
     private var keychainRefused = false
 
     init(keys: KeyStore, keyChanged: @escaping () -> Void, refreshAll: @escaping () -> Void,
@@ -212,8 +197,6 @@ final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
 
     private var typedKey: String { field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    /// Return saves only while this pane shows: Save is the window's default button, and a hidden one
-    /// would take Return from every other pane.
     override func viewDidUnhide() {
         super.viewDidUnhide()
         save.keyEquivalent = "\r"
@@ -240,7 +223,6 @@ final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     }
 }
 
-/// 4 · MCP: the Connect buttons first, then the switch and where cards land, then the instruction.
 final class MCPPane: SettingsPane, NSTextViewDelegate {
     private let aiTools: AIToolsChoice
     private let connect: HelperCommand
@@ -347,8 +329,6 @@ final class MCPPane: SettingsPane, NSTextViewDelegate {
     }
 }
 
-/// 5 · Updates: the checkbox and Check Now, the version line, and whether this run checks. `Updates`
-/// says nothing when it changes, so this pane is as fresh as the last refresh: every key and click.
 final class UpdatesPane: SettingsPane {
     private let updates: Updates
     private lazy var autoCheck = SettingsControl.checkbox(SettingsCopy.Updates.autoCheck, target: self,
@@ -384,7 +364,6 @@ final class UpdatesPane: SettingsPane {
     }
 }
 
-/// 6 · Privacy: the card, whose company follows the saved key.
 final class PrivacyPane: SettingsPane {
     private let keys: KeyStore
     private let card = PrivacyCardView()

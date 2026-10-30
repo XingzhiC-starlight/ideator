@@ -18,7 +18,6 @@ enum SettingsStyle {
     static let contentWidth: CGFloat = 408
     static let controlHeight: CGFloat = 28
     static let editorSize = NSSize(width: 408, height: 112)
-    /// The first sidebar row and every pane's title start here: under the title bar, plus s5.
     static let contentTop = titleBar + s5
 
     enum TextRole { case title, display, lead, label, term, body, caption, mono, monoInput }
@@ -83,7 +82,7 @@ enum SettingsStyle {
     }
 }
 
-/// A label in one of the type roles. Set `text`, not `stringValue`, so the role's line height stays.
+/// A label in one of the type roles.
 final class SettingsText: NSTextField {
     var role = SettingsStyle.TextRole.body
     var tone = SettingsStyle.Tone.ink { didSet { text = text } }
@@ -94,12 +93,11 @@ final class SettingsText: NSTextField {
     }
 }
 
-/// The one place Settings makes an AppKit control. A pane asks for a control by its job, and this
-/// decides the class, the size and the type, so the look can change here without touching a pane.
+/// A pane asks for a control by its job, and this decides the class, the size and the type, so the
+/// look can change here without touching a pane.
 enum SettingsControl {
     enum RowAlignment { case leading, trailing, apart }
 
-    /// Wraps within `width` and never truncates. Captions and the version line are muted.
     static func text(_ string: String, as role: SettingsStyle.TextRole,
                      width: CGFloat = SettingsStyle.contentWidth) -> SettingsText {
         let label = SettingsText(wrappingLabelWithString: "")
@@ -112,7 +110,6 @@ enum SettingsControl {
         return label
     }
 
-    /// Sizes to its label. A button whose title swaps keeps the width of the widest of `titles`.
     static func button(_ title: String, symbol: String? = nil, widestOf titles: [String] = [],
                        target: AnyObject, action: Selector) -> NSButton {
         let button = NSButton(title: title, target: target, action: action)
@@ -133,7 +130,6 @@ enum SettingsControl {
         return button
     }
 
-    /// Save, the only primary button.
     static func primaryButton(_ title: String, target: AnyObject, action: Selector) -> NSButton {
         button(title, target: target, action: action)
     }
@@ -171,7 +167,6 @@ enum SettingsControl {
         return field
     }
 
-    /// Plain text that scrolls inside itself, with smart quotes, dashes and replacements off, and Undo.
     static func editor() -> (scroll: NSScrollView, textView: NSTextView) {
         let size = SettingsStyle.editorSize
         let textView = NSTextView(frame: NSRect(origin: .zero, size: size))
@@ -204,8 +199,6 @@ enum SettingsControl {
         return (scroll, textView)
     }
 
-    /// Views side by side, s2 apart. `trailing` right-aligns the row to the column, and `apart` puts
-    /// the first view at the left and the rest at the right.
     static func row(_ views: [NSView], _ alignment: RowAlignment = .leading) -> NSStackView {
         let row = NSStackView()
         row.orientation = .horizontal
@@ -262,7 +255,6 @@ final class StatusLine: NSStackView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Idempotent: the same status twice draws once and says nothing.
     func show(_ status: SettingsStatus?) {
         let changed = seeded && status != self.status
         seeded = true
@@ -294,7 +286,6 @@ final class SpreadCellPicker: NSView {
     static let cellSize = NSSize(width: 32, height: 24)
     static let spacing: CGFloat = 4
     var onToggle: (Slot) -> Void = { _ in }
-    /// In `Slot.all` order.
     private let buttons: [SpreadCellButton]
     private var stackCell = Slot.stackHome
     private(set) var focusedCell = Slot.all[0]
@@ -337,7 +328,6 @@ final class SpreadCellPicker: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Idempotent. Moves the focus off the stack's cell when the stack has moved onto it.
     func show(_ cells: SpreadCells, stackCell: Slot) {
         self.stackCell = stackCell
         for (slot, button) in zip(Slot.all, buttons) {
@@ -408,7 +398,6 @@ final class SpreadCellPicker: NSView {
     }
 }
 
-/// One Spread cell: a checkbox to VoiceOver, ticked or not, and the stack's cell says what it is.
 final class SpreadCellButton: NSButton {
     var isStack = false
 
@@ -477,8 +466,6 @@ final class ShortcutField: NSButton {
         if monitor != nil { finish(nil) }
     }
 
-    /// `onPick` runs while the old shortcut is still released, so `choose` claims the new one
-    /// before `onRecordingChange(false)` would retake the old.
     private func finish(_ picked: Shortcut?) {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
@@ -488,8 +475,7 @@ final class ShortcutField: NSButton {
     }
 }
 
-/// The Privacy card (§3.11): a headline, then each term on its own line over its text. Padding s5,
-/// s4 under the headline, s3 between items.
+/// The Privacy card (§3.11): a headline, then each term on its own line over its text.
 final class PrivacyCardView: NSView {
     private static let inner = SettingsStyle.contentWidth - 2 * SettingsStyle.s5
     private let headline = SettingsControl.text("", as: .display, width: inner)
@@ -524,7 +510,6 @@ final class PrivacyCardView: NSView {
         bounds.fill()
     }
 
-    /// Idempotent.
     func show(_ card: PrivacyCard) {
         headline.text = card.headline
         while items.count < card.items.count {

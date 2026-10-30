@@ -7,8 +7,6 @@ import Foundation
 enum SettingsSection: Int, CaseIterable {
     case shortcut, spread, aiSummary, mcp, updates, privacy
 
-    /// The sidebar row's text, the pane's title and its accessibility label. Must fit the sidebar's
-    /// 136 pt in `label` type: rename a section rather than wrap it.
     var title: String {
         switch self {
         case .shortcut: "Shortcut"
@@ -20,7 +18,6 @@ enum SettingsSection: Int, CaseIterable {
         }
     }
 
-    /// The one-line summary under the title. Privacy has none: its card opens with a headline.
     var lead: String? {
         switch self {
         case .shortcut: "Hides or shows every card, from any app."
@@ -33,7 +30,6 @@ enum SettingsSection: Int, CaseIterable {
         }
     }
 
-    /// The window opens here every time. `SettingsWindow.close()` goes back to it.
     static let opening: SettingsSection = .shortcut
 }
 
@@ -43,7 +39,6 @@ struct SettingsStatus: Equatable {
     enum Kind: Equatable {
         case neutral, success, warning, error
 
-        /// The 12 pt SF Symbol, or nil for a neutral line.
         var glyph: String? {
             switch self {
             case .neutral: nil
@@ -53,7 +48,6 @@ struct SettingsStatus: Equatable {
             }
         }
 
-        /// The glyph's accessibility description: read, never shown.
         var spokenPrefix: String? {
             switch self {
             case .neutral: nil
@@ -67,7 +61,6 @@ struct SettingsStatus: Equatable {
     let kind: Kind
     let text: String
 
-    /// What VoiceOver hears when the line changes: the prefix, a space, the text.
     var spoken: String { kind.spokenPrefix.map { "\($0) \(text)" } ?? text }
 
     static func neutral(_ text: String) -> SettingsStatus { SettingsStatus(kind: .neutral, text: text) }
@@ -76,7 +69,6 @@ struct SettingsStatus: Equatable {
     static func error(_ text: String) -> SettingsStatus { SettingsStatus(kind: .error, text: text) }
 }
 
-/// The Privacy card: a headline, then a term and its text per item.
 struct PrivacyCard: Equatable {
     struct Item: Equatable {
         let term: String
@@ -86,7 +78,6 @@ struct PrivacyCard: Equatable {
     let headline: String
     let items: [Item]
 
-    /// Everything the card says, one line each, for tests and for the docs that quote it.
     var allText: String {
         ([headline] + items.flatMap { [$0.term, $0.text] }).joined(separator: "\n")
     }
@@ -97,7 +88,6 @@ struct PrivacyCard: Equatable {
 /// `SettingsStatus` or `String`, so a pane's `refresh()` has no wording logic. Tests assert here, and
 /// the docs quote from here.
 enum SettingsCopy {
-    /// Hidden in the title bar, but VoiceOver still reads it.
     static let windowTitle = "Ideator Settings"
     /// The sidebar's accessibility label, which the harness's `section` verb looks for.
     static let sections = "Settings sections"
@@ -105,12 +95,9 @@ enum SettingsCopy {
     enum Shortcut {
         static let useDefault = "Use Default"
         static let caption = "Click the shortcut, then press the new keys."
-        /// The recorder's title while it records.
         static let prompt = "Type shortcut…"
-        /// What VoiceOver hears when recording starts.
         static let recording = "Recording. Press the new keys, or Escape to cancel."
 
-        /// The last verdict first, then why there is no shortcut, then the macOS note, else nothing.
         static func status(shortcut: Ideator.Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
                            rejected: String?) -> SettingsStatus? {
             if let rejected { return .error(rejected) }
@@ -122,7 +109,6 @@ enum SettingsCopy {
             return nil
         }
 
-        /// What the pane keeps after `HotKey.choose` refuses `wanted`.
         static func rejection(_ problem: HotKey.Problem, wanted: Ideator.Shortcut, kept: Ideator.Shortcut) -> String {
             "\(problem.text(for: wanted)) Still using \(kept.display)."
         }
@@ -131,7 +117,6 @@ enum SettingsCopy {
     enum Spread {
         static let caption = "Its next click gathers them into the stack, and the one after puts them back. "
             + "Option-click starts a new set. The dimmed cell is the stack's."
-        /// The stack's cell reads this as its value.
         static let stackCell = "The stack, dimmed"
 
         /// What VoiceOver, the tests and the recipes call cell `n`, 1 to 20 in reading order.
@@ -149,8 +134,6 @@ enum SettingsCopy {
         static let remove = "Remove Key"
         static let keychainRefused = "The Keychain refused the change."
 
-        /// Success with a key saved, neutral without, and an error with the refusal in front while the
-        /// last Save or Remove Key was refused.
         static func status(provider: Provider?, inKeychain: Bool, keychainRefused refused: Bool) -> SettingsStatus {
             let line: String
             if let provider {
@@ -180,8 +163,6 @@ enum SettingsCopy {
 
         static func copyLabel(for tool: AITool) -> String { "Copy setup for \(tool.name)" }
 
-        /// A warning while Ideator runs from a temporary place, a success after a copy, else nothing:
-        /// the caption shows then.
         static func connectStatus(isTemporary: Bool, copied: AITool?) -> SettingsStatus? {
             if isTemporary {
                 return .warning("Ideator is running from a disk image, another volume or a quarantined download, so a "
@@ -191,7 +172,6 @@ enum SettingsCopy {
             return copied.map { .success("Copied for \($0.name). \($0.pasteNote)") }
         }
 
-        /// An error until the next accepted edit, else nothing.
         static func instructionStatus(refused: Bool) -> SettingsStatus? {
             refused ? .error("That change would pass the \(limitName) limit, so Ideator did not make it.") : nil
         }
@@ -200,10 +180,8 @@ enum SettingsCopy {
     enum Updates {
         static let autoCheck = "Check for updates automatically"
         static let checkNow = "Check Now"
-        /// The caption under the version line while this run checks.
         static let asksBeforeInstalling = "Ideator asks before it installs an update."
 
-        /// Why this run does not check, or nothing while it does: the caption shows then.
         static func status(plan: UpdatePlan) -> SettingsStatus? {
             switch plan {
             case .check: nil
@@ -214,7 +192,6 @@ enum SettingsCopy {
     }
 
     enum Privacy {
-        /// ‹who› follows the saved key: "Anthropic", "OpenAI", or both while no key is saved.
         static func card(for provider: Provider?) -> PrivacyCard {
             let who = provider?.name ?? "Anthropic or OpenAI, whichever your key is for"
             return PrivacyCard(headline: "Two things leave your Mac. Nothing else does.", items: [
