@@ -269,7 +269,10 @@ final class SettingsLookTests: XCTestCase {
         assertColor(pixel(of: sidebar, at: NSPoint(x: 150, y: selectedRow)), palette.canvas, "the selected row")
         assertColor(pixel(of: sidebar, at: NSPoint(x: SettingsStyle.sidebarWidth - 1, y: selectedRow - 40)), palette.inverse,
                     "no separator at the sidebar's edge")
-        assertColor(pixel(of: pane, at: NSPoint(x: 0, y: 40)), palette.canvas, "the pane")
+        let page = try XCTUnwrap((pane as? NSScrollView)?.documentView)
+        let shown = try XCTUnwrap(pane as? NSScrollView).contentView.bounds
+        XCTAssertTrue(page.frame.contains(shown), "the page covers all the pane shows")
+        assertColor(pixel(of: page, at: NSPoint(x: 1, y: 40)), palette.canvas, "the pane")
     }
 
     private func settings(keys: KeyStore = KeyStore(inKeychain: false),
