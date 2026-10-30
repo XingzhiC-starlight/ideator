@@ -126,7 +126,18 @@ final class DeskController {
     /// only the one card `reveal` admits.
     func spread(fresh: Bool) {
         if visibility.isHidden { setHidden(false) }
+        commitComposition()
         send(.spread(spreadCells(), fresh: fresh, at: Date()))
+    }
+
+    /// The desk hears of an edit only once an input method has committed it, so a card being composed
+    /// in reads as empty, and a click that deletes empty cards would delete the composition. The text
+    /// view that holds marked text is its window's first responder, so no forwarding is needed.
+    private func commitComposition() {
+        let windows: [NSWindow] = [stackWindow] + Array(cardWindows.values)
+        for case let editor as CardTextView in windows.map(\.firstResponder) where editor.hasMarkedText() {
+            editor.unmarkText()
+        }
     }
 
     func openStack() {
