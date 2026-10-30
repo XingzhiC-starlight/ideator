@@ -36,15 +36,36 @@ final class TourWorld {
     var readerCard: CardID? { facts.loose.first }
 
     /// The cells a Spread click would put blank cards into right now, from a dry run of the desk's
-    /// own rule on a copy. Empty while a set card is out: the button then gathers.
-    lazy var spreadPreview: [Slot] = { fatalError("not implemented") }()
+    /// own rule on a copy, so the free-cell rule lives in `Desk.swift` alone. `fresh` leaves a set
+    /// waiting in the stack out of the count, as the prototype counts the ticked cells that are not
+    /// taken; with no set card on the desktop it sweeps nothing, so only the small `popped` array
+    /// is copied. Empty while a set card is out: the button then gathers, and there is nothing to light.
+    lazy var spreadPreview: [Slot] = {
+        guard !desk.spreadButton.isOut else { return [] }
+        var trial = desk
+        _ = trial.apply(.spread(spreadCells, fresh: true, at: now))
+        let before = Set(desk.popped.map(\.card.id))
+        return trial.popped.filter { !before.contains($0.card.id) }.map(\.place.slot)
+    }()
 
     var freeSpreadCells: Int { spreadPreview.count }
 
     /// Page 6: a click would act, or there is a set out to gather.
     var spreadCanAct: Bool { desk.spreadButton.isOut || !spreadPreview.isEmpty }
 
-    lazy var facts: TourFacts = { fatalError("not implemented") }()
+    /// What the tour remembers of this look. The loose cards are sorted by `Place.readingKey`, then
+    /// by id: the tie-break of `Desk.inReadingOrder`, which is private to the desk.
+    lazy var facts: TourFacts = {
+        let set = desk.spreadSet
+        let loose = desk.popped
+            .filter { !(set?.contains($0.card.id) ?? false) }
+            .sorted { a, b in
+                let (keyA, keyB) = (a.place.readingKey, b.place.readingKey)
+                return keyA != keyB ? keyA < keyB : a.card.id < b.card.id
+            }
+        return TourFacts(isHidden: visibility.isHidden, loose: loose.map(\.card.id),
+                         total: desk.stack.count + desk.popped.count, setOut: desk.spreadButton.isOut)
+    }()
 }
 
 /// What the tour remembers of the last look: just enough to tell what happened since.
@@ -58,8 +79,24 @@ struct TourFacts: Equatable {
     /// Some card of the Spread set is on the desktop (`spreadButton.isOut`).
     var setOut: Bool
 
-    /// The events between two looks, found by comparing. Equal facts give none.
-    static func events(from old: TourFacts, to new: TourFacts) -> [TourEvent] { fatalError("not implemented") }
+    /// The events between two looks, found by comparing, the way `render()` compares the desk with
+    /// its windows. Equal facts give none, so a second look at the same world, a refused Spread, a
+    /// Hide all while hidden and typing are all silent.
+    ///
+    /// Only the reader's card (the old `loose.first`) can return or delete. A new card is one more
+    /// card in total that is loose now and was not before: a Pop keeps the total, an AI tool's card
+    /// lands in the stack and never in `loose`, and a Spread's blank cards belong to the set.
+    static func events(from old: TourFacts, to new: TourFacts) -> [TourEvent] {
+        var events: [TourEvent] = []
+        if old.isHidden != new.isHidden { events.append(new.isHidden ? .hidden : .shown) }
+        if let reader = old.loose.first, !new.loose.contains(reader) {
+            events.append(new.total < old.total ? .deleted : .returned)
+        }
+        if new.total == old.total + 1, new.loose.contains(where: { !old.loose.contains($0) }) { events.append(.new) }
+        if !old.setOut && new.setOut { events.append(.spreadOut) }
+        if old.setOut && !new.setOut { events.append(new.total < old.total ? .vanished : .gathered) }
+        return events
+    }
 }
 
 // MARK: The position
