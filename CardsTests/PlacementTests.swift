@@ -238,6 +238,7 @@ final class PlacementTests: XCTestCase {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         var desk = desk([:], stack: ["c"])
         desk.apply(.spread(SpreadCells(indices: [0, 1]), fresh: false, at: now))
+        desk.apply(.edit(desk.popped[1].card.id, Note(header: "Written", body: [])))
         desk.apply(.move(.card(desk.popped[0].card.id), to: .free(GridPoint(x: 0.31, y: 0.62))))
         func reloaded() throws -> Desk {
             let saved = try JSONDecoder().decode(SavedDesk.self, from: JSONEncoder().encode(desk.saved))

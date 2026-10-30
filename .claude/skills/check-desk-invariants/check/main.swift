@@ -18,6 +18,28 @@ func note(_ header: String, _ body: String...) -> Note {
 
 func cid(_ name: String) -> CardID { CardID(rawValue: name) }
 
+/// The notes a Spread click may delete: no character shows. These are all the empty notes the search
+/// can write, a new card, an ideographic space over a line of spaces and a ticked checkbox with
+/// nothing in it. This list, not `Note.isBlank`, is the oracle, so a wrong rule in `Note` is caught;
+/// every other shape (`NoteTests` has them) would never be written, so it is not here.
+let blankNotes: [Note] = [
+    .blank, note("\u{3000}", "  "), Note(header: "", body: [Line(kind: .todo(done: true), runs: [])]),
+]
+
+/// Whether `desk` has a set and every card of it, on the desktop or in the stack, is on that list.
+func setIsBlank(_ desk: Desk) -> Bool {
+    guard let set = desk.spreadSet else { return false }
+    return desk.allCards.filter { set.contains($0.id) }.allSatisfy { blankNotes.contains($0.note) }
+}
+
+/// What a Spread click deletes: the whole set, when the click is plain, a card of the set is on the
+/// desktop and no card of the set shows a character. A fresh click never deletes.
+func deletedBySpread(_ desk: Desk, fresh: Bool) -> Set<CardID> {
+    guard !fresh, let set = desk.spreadSet, desk.popped.contains(where: { set.contains($0.card.id) }),
+          setIsBlank(desk) else { return [] }
+    return Set(set.homes.keys)
+}
+
 /// Starting desks, each through `Desk(notes:saved:)` as a launch builds it. `notes` and `saved` are
 /// kept so the check can compare what the load kept with what the sidecar held.
 let seeds: [(name: String, notes: [CardID: Note], saved: SavedDesk, desk: Desk)] = {
@@ -72,10 +94,28 @@ let seeds: [(name: String, notes: [CardID: Note], saved: SavedDesk, desk: Desk)]
             SavedPlacement(slot: 25, card: cid("c")),
         ]))
 
+    // A Spread set with nothing written, one of its cards in the stack between two others, and then the
+    // same set with text only on that stacked card. Clarity is on, so a deletion must leave it on. x2
+    // is a free card over cell 1.
+    func blankSetNotes(stacked x3: Note) -> [CardID: Note] {
+        fewNotes.merging([(cid("x1"), blankNotes[0]), (cid("x2"), blankNotes[1]), (cid("x3"), x3)]) { $1 }
+    }
+    let blankSetSaved = SavedDesk(
+        clarity: true,
+        placements: [SavedPlacement(slot: 0, card: cid("x1")), SavedPlacement(free: GridPoint(x: 0.31, y: 0.12), card: cid("x2"))],
+        stack: [cid("a"), cid("x3"), cid("b")],
+        spread: SavedSpread(cells: [0, 1, 2], members: [
+            SavedPlacement(slot: 0, card: cid("x1")),
+            SavedPlacement(free: GridPoint(x: 0.31, y: 0.12), card: cid("x2")),
+            SavedPlacement(slot: 2, card: cid("x3")),
+        ]))
+
     let desks: [(String, [CardID: Note], SavedDesk)] = [
         ("empty", [:], SavedDesk()), ("three stacked", fewNotes, stacked), ("mixed", fewNotes, mixed),
         ("near full", pileNotes, full), ("summaries under two prompts", fewNotes, summarized),
         ("a Spread set, one card out", spreadNotes, spreadSaved),
+        ("a blank set, one card stacked", blankSetNotes(stacked: blankNotes[2]), blankSetSaved),
+        ("a set with text only in the stack", blankSetNotes(stacked: note("X3", "written")), blankSetSaved),
     ]
     return desks.map { name, notes, saved in (name, notes, saved, Desk(notes: notes, saved: saved)) }
 }()
@@ -163,6 +203,14 @@ func commands(_ desk: Desk) -> [Command] {
         list.append(.spread(cells, fresh: false, at: now))
     }
     list += [.spread(.standard, fresh: true, at: now), .spread(.empty, fresh: true, at: now)]
+
+    // Clearing a card of the Spread set by hand to each empty note, and the one edit that is not a
+    // clearing, text below an empty header. Only a card of
+    // the set can change what a click does, and clearing every named card made the search 1.9 times as
+    // long. Last, so the older mutants keep the counterexample they had.
+    for id in cards where desk.spreadSet?.contains(id) ?? false {
+        list += blankNotes.map { Command.edit(id, $0) } + [.edit(id, note("", "text"))]
+    }
     return list
 }
 
@@ -187,8 +235,9 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     let beforeIDs = Set(ids(before)), afterIDs = Set(ids(after))
 
     // P1 No card is lost, duplicated or changed by a command that is not about it. A card missing
-    // from the desk is a file the next save moves to the Trash. Duplicates first: everything
-    // below keys cards by id.
+    // from the desk is a file the next save moves to the Trash. Spread never removes a card, except a
+    // plain click on a set with no text, which removes exactly that set (a named exception, the one
+    // way a click deletes). Duplicates first: everything below keys cards by id.
     if ids(after).count != afterIDs.count { try fail("P1 conservation", "a card is in two places: \(ids(after).map(\.rawValue))") }
     let beforeNotes = Dictionary(uniqueKeysWithValues: before.allCards.map { ($0.id, $0.note) })
     let afterNotes = Dictionary(uniqueKeysWithValues: after.allCards.map { ($0.id, $0.note) })
@@ -201,9 +250,11 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     case .addFromTool:
         if added.count != 1 { try fail("P1 conservation", "a card from an AI tool added \(added.count) cards") }
         expected = beforeIDs.union(added)
-    case .spread(let cells, _, _):
+    case .spread(let cells, let fresh, _):
+        let deleted = deletedBySpread(before, fresh: fresh)
         if added.count > cells.count { try fail("P1 conservation", "a Spread made \(added.count) cards for \(cells.count) cells") }
-        expected = beforeIDs.union(added)
+        if !deleted.isEmpty && !added.isEmpty { try fail("P1 conservation", "a Spread that deleted a set also made \(added.count) cards") }
+        expected = beforeIDs.subtracting(deleted).union(added)
     case .delete(let id): expected = beforeIDs.subtracting([id])
     case .syncFiles(let files): expected = Set(files.keys)
     case .pop, .returnToStack, .flipStack, .arrange, .showStacked, .move, .edit, .setClarity,
@@ -331,7 +382,18 @@ func checkStep(_ before: Desk, _ command: Command, _ after: Desk, arrived: CardI
     switch command {
     case .spread(let cells, let fresh, _):
         let out = before.popped.filter { homes[$0.card.id] != nil }.map { (id: $0.card.id, place: $0.place) }
-        if !fresh && !out.isEmpty {
+        if !deletedBySpread(before, fresh: fresh).isEmpty {
+            // No card of the set shows a character: every card of it is deleted, wherever it is, and with
+            // them the set. Nothing else moves, no card is made and none gets the cursor.
+            if after.spreadSet != nil { try fail("P8 spread", "deleting an empty set left the set \(describe(after.spreadSet))") }
+            if after.stack.map(\.id) != before.stack.map(\.id).filter({ homes[$0] == nil }) {
+                try fail("P8 spread", "deleting an empty set left the stack \(after.stack.map(\.id.rawValue))")
+            }
+            if after.popped != before.popped.filter({ homes[$0.card.id] == nil }) || after.stackPlace != before.stackPlace {
+                try fail("P8 spread", "deleting an empty set moved the stack or a card that is not the set's")
+            }
+            if arrived != nil { try fail("P8 spread", "deleting an empty set returned a card to focus") }
+        } else if !fresh && !out.isEmpty {
             // Gather: exactly the set's desktop cards, to the bottom in reading order of their places,
             // each remembering that place. Nothing else moves and no card is made.
             let order = out.sorted(by: readsBefore).map(\.id)
@@ -524,14 +586,16 @@ func checkState(_ after: Desk) throws {
     }
 
     // P8 Spread, the other half: every card of the set is a card on the desk, and the ribbon's Spread
-    // button says Gather exactly when a card of the set is on the desktop.
+    // button says Gather exactly when a card of the set is on the desktop, and then that the click
+    // deletes exactly when no card of the set shows a character.
     if let ghost = after.spreadSet?.homes.keys.first(where: { notes[$0] == nil }) {
         try fail("P8 spread", "\"\(ghost.rawValue)\" is in the set but not on the desk")
     }
     let out = after.popped.contains { after.spreadSet?.contains($0.card.id) ?? false }
-    if after.stackFace(hasKey: false).spreadButton != (out ? .gather : .spread) {
+    let deletes = setIsBlank(after)
+    if after.stackFace(hasKey: false).spreadButton != (out ? .gather(deletes: deletes) : .spread) {
         try fail("P8 spread", "the Spread button says \(after.stackFace(hasKey: false).spreadButton) while "
-                 + "\(out ? "a card" : "no card") of the set is on the desktop")
+                 + "\(out ? "a card" : "no card") of the set is on the desktop and \(deletes ? "none" : "a card") of it has text")
     }
 }
 
@@ -571,9 +635,9 @@ extension Command {
 
 // MARK: - Breadth-first search over every sequence
 
-/// What makes two desks different, for skipping desks already explored. Every note the check
-/// writes has its own header, so header and line count stand for the text; a summary counts by
-/// whether it is current, since that is all the app shows.
+/// What makes two desks different, for skipping desks already explored. A note counts by its digest,
+/// since two empty notes can differ in what shows nothing, which its header and line count would
+/// miss; a summary counts by whether it is current, since that is all the app shows.
 func key(_ desk: Desk) -> String {
     func card(_ c: Card) -> String {
         let summary: String = switch c.summary {
@@ -581,7 +645,7 @@ func key(_ desk: Desk) -> String {
         case let s? where s.source != c.digest: "old"
         case let s?: if case .text = s.outcome { "t" } else { "f" }
         }
-        return "\(c.id.rawValue):\(c.note.header):\(c.note.body.count):\(summary)"
+        return "\(c.id.rawValue):\(c.digest.rawValue.prefix(8)):\(summary)"
     }
     func place(_ p: Place) -> String {
         switch p {
@@ -607,7 +671,7 @@ func label(_ command: Command) -> String {
     case .new: ".new"
     case .writeBlank(let note, _): ".writeBlank(\(note == .blank ? "blank" : "\"\(note.header)\""))"
     case .syncFiles(let files): ".syncFiles(\(files.keys.map(\.rawValue).sorted()))"
-    case .edit(let id, _): ".edit(\"\(id.rawValue)\")"
+    case .edit(let id, let note): ".edit(\"\(id.rawValue)\", \(note.markdown.debugDescription))"
     case .storeSummary(let id, let s): ".storeSummary(\"\(id.rawValue)\", \(s.outcome), source \(s.source.rawValue.prefix(8)))"
     case .addFromTool(_, _, let landing, let typing): ".addFromTool(\(landing)\(typing ? ", typing in the stacked card" : ""))"
     case .spread(let cells, let fresh, _): ".spread(\(cells.indices)\(fresh ? ", fresh" : ""))"

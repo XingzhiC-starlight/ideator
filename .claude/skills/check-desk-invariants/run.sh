@@ -75,7 +75,7 @@ MUTANTS=(
   "P8 spread|guard let laid = next.layOut(cells, at: date) else { return nil }|guard let laid = next.layOut(cells, at: date) else { self = next; return nil }"
   "P8 spread|if let set = spreadSet, set.cells == cells {|if spreadSet != nil {"
   "P2 places|room.take(cell)|"
-  "P8 spread|spreadButton: spreadIsOut ? .gather : .spread)|spreadButton: .spread)"
+  "P8 spread|spreadButton: spreadButton)|spreadButton: .spread)"
   "P5 save and reload|where homes[m.card] == nil && notes[m.card] != nil {|where homes[m.card] == nil {"
   "P5 save and reload|where homes[m.card] == nil && notes[m.card] != nil {|where notes[m.card] != nil {"
 )

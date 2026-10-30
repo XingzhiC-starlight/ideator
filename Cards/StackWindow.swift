@@ -290,7 +290,7 @@ private final class StackView: NSView {
         clarityButton.toolTip = face.clarity ? "Clarity is on: click to expand every card"
                                              : "Clarity is off: click to collapse every card"
         clarityButton.setAccessibilityValue(face.clarity ? "on" : "off")
-        let out = face.spreadButton == .gather
+        let out = face.spreadButton.isOut
         spreadButton.contentTintColor = out ? Palette.accent : Palette.ribbonInk
         spreadButton.toolTip = face.spreadButton.help(after: spreadRefusal)
         spreadButton.setAccessibilityValue(out ? "out" : "in")

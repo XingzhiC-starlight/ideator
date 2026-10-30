@@ -136,22 +136,26 @@ final class StackLayoutTests: XCTestCase {
 
     func testSpreadSaysWhatAClickDoesByTintTooltipAndValue() {
         let spreads = stack(width: wide)
-        let gathers = stack(width: wide, spread: .gather)
-        XCTAssertEqual([spreads.spread.accessibilityLabel(), gathers.spread.accessibilityLabel()], ["Spread", "Spread"],
-                       "one name in both states")
+        let gathers = stack(width: wide, spread: .gather(deletes: false))
+        let deletes = stack(width: wide, spread: .gather(deletes: true))
+        XCTAssertEqual([spreads, gathers, deletes].map { $0.spread.accessibilityLabel() }, ["Spread", "Spread", "Spread"],
+                       "one name in all three states")
         XCTAssertEqual(spreads.spread.toolTip, "Spread cards")
         XCTAssertEqual(gathers.spread.toolTip, "Gather cards")
+        XCTAssertEqual(deletes.spread.toolTip, "Delete empty cards")
         XCTAssertEqual(spreads.spread.contentTintColor, Palette.ribbonInk)
-        XCTAssertEqual(gathers.spread.contentTintColor, Palette.accent, "tinted while its cards are out, like Clarity on")
+        XCTAssertEqual([gathers, deletes].map { $0.spread.contentTintColor }, [Palette.accent, Palette.accent],
+                       "tinted while its cards are out, like Clarity on, whichever way the click ends them")
         XCTAssertEqual(spreads.spread.accessibilityValue() as? String, "in")
-        XCTAssertEqual(gathers.spread.accessibilityValue() as? String, "out")
-        XCTAssertEqual(spreads.spread.frame, gathers.spread.frame, "and it does not move")
+        XCTAssertEqual([gathers, deletes].map { $0.spread.accessibilityValue() as? String }, ["out", "out"])
+        XCTAssertEqual([gathers, deletes].map { $0.spread.frame }, [spreads.spread.frame, spreads.spread.frame], "and it does not move")
     }
 
     func testARefusedSpreadSaysWhyUntilAClickWouldGather() {
         XCTAssertEqual(stack(width: wide, refusal: .taken).spread.toolTip, "Your Spread cells are taken")
         XCTAssertEqual(stack(width: wide, refusal: .noCells).spread.toolTip, "Pick Spread cells in Settings › Spread")
-        XCTAssertEqual(stack(width: wide, spread: .gather, refusal: .taken).spread.toolTip, "Gather cards")
+        XCTAssertEqual(stack(width: wide, spread: .gather(deletes: false), refusal: .taken).spread.toolTip, "Gather cards")
+        XCTAssertEqual(stack(width: wide, spread: .gather(deletes: true), refusal: .noCells).spread.toolTip, "Delete empty cards")
     }
 
     func testAClickSpreadsAndTheNewSpreadActionStartsAFreshSet() throws {

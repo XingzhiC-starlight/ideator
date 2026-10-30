@@ -35,7 +35,8 @@ extension SpreadButton {
     /// would spread.
     func help(after refusal: SpreadRefusal?) -> String {
         switch (self, refusal) {
-        case (.gather, _): "Gather cards"
+        case (.gather(deletes: true), _): "Delete empty cards"
+        case (.gather(deletes: false), _): "Gather cards"
         case (.spread, .noCells?): "Pick Spread cells in Settings › Spread"
         case (.spread, .taken?): "Your Spread cells are taken"
         case (.spread, nil): "Spread cards"

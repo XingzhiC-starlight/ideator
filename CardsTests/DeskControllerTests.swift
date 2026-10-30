@@ -219,7 +219,7 @@ final class DeskControllerTests: XCTestCase {
         cells = SpreadCells(indices: [0])
         controller.spread(fresh: false)
         XCTAssertEqual(beeps, 2, "a click that spreads makes no sound")
-        XCTAssertEqual(try spreadButton().toolTip, "Gather cards")
+        XCTAssertEqual(try spreadButton().toolTip, "Delete empty cards", "the new card is empty")
         controller.spread(fresh: false)
         XCTAssertEqual(try spreadButton().toolTip, "Spread cards", "the reason went with the click that changed the desk")
     }
