@@ -42,6 +42,13 @@ struct Shortcut: Equatable {
 
     var display: String { Self.describe(keyCode: keyCode, modifiers: modifiers) }
 
+    /// The combination spelled out for VoiceOver, in the glyphs' order: "Control-Option-I".
+    var spoken: String {
+        let names: [(Int, String)] = [(controlKey, "Control"), (optionKey, "Option"), (shiftKey, "Shift"), (cmdKey, "Command")]
+        let held = names.filter { modifiers & UInt32($0.0) != 0 }.map(\.1)
+        return (held + [Self.keyName(keyCode)]).joined(separator: "-")
+    }
+
     static func describe(keyCode: UInt32, modifiers: UInt32) -> String {
         glyphs(modifiers) + keyName(keyCode)
     }

@@ -15,6 +15,8 @@
 //   cards-ax act PID LABEL ACTION [WINDOW]  run an accessibility action (AXPress, or a custom one such
 //                                        as "Move up") on the first element whose title, description or
 //                                        help starts with LABEL; `tree` lists custom actions as actions=[…]
+//   cards-ax section PID TITLE [WINDOW]  AXPress the Settings sidebar row named exactly TITLE (a cell of the table
+//                                        "Settings sections"), which shows that section's pane
 //   cards-ax where PID LABEL             screen x y of the center of the first element whose name starts with LABEL
 //   cards-ax mouse PID down|drag|up|move X Y  one raw mouse event at screen point X,Y (no activation)
 //   cards-ax dragat PID X Y DX DY        press at screen point X,Y, drag by DX,DY points, release
@@ -142,7 +144,7 @@ func click(_ at: CGPoint) {
 
 let keyCodes: [String: CGKeyCode] = ["return": 36, "tab": 48, "space": 49, "delete": 51, "escape": 53,
                                      "left": 123, "right": 124, "down": 125, "up": 126,
-                                     "a": 0, "b": 11, "c": 8, "h": 4, "i": 34, "k": 40, "q": 12, "v": 9, "x": 7, "z": 6, ",": 43]
+                                     "a": 0, "b": 11, "c": 8, "h": 4, "i": 34, "k": 40, "q": 12, "v": 9, "w": 13, "x": 7, "z": 6, ",": 43]
 
 func post(_ pid: pid_t, key: CGKeyCode, flags: CGEventFlags = [], unicode: String? = nil) {
     for down in [true, false] {
@@ -320,6 +322,28 @@ case "act":
     guard let target else { fail("no element named \(json(args[2])) with the action \(json(args[3])) (run `tree`)") }
     let result = AXUIElementPerformAction(target.element, target.action as CFString)
     guard result == .success else { fail("action failed: \(result.rawValue)") }
+    usleep(300_000)
+
+case "section":
+    guard args.count >= 3 else { fail("section PID TITLE [WINDOW]") }
+    let scope = args.count >= 4 ? [window(app, args[3])] : windows(app)
+    func role(_ el: AXUIElement) -> String? { attr(el, kAXRoleAttribute) }
+    var target: AXUIElement?
+    for w in scope where target == nil {
+        walk(w) { table, _ in
+            guard target == nil, role(table) == "AXTable", names(table).contains("Settings sections") else { return }
+            walk(table) { cell, _ in
+                if target == nil, role(cell) == "AXCell", names(cell).contains(args[2]) { target = cell }
+            }
+        }
+    }
+    guard let target else { fail("no Settings section named \(json(args[2])); open Settings first (run `tree`)") }
+    // AppKit runs a table cell's press and still answers -25205, so the proof is the row it selected.
+    let result = AXUIElementPerformAction(target, kAXPressAction as CFString)
+    for _ in 0..<10 where (attr(target, kAXSelectedAttribute) as Bool?) != true { usleep(100_000) }
+    guard (attr(target, kAXSelectedAttribute) as Bool?) == true else {
+        fail("pressing section \(json(args[2])) did not select it (AXPress answered \(result.rawValue))")
+    }
     usleep(300_000)
 
 case "where":

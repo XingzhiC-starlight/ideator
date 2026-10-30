@@ -150,7 +150,7 @@ final class StackLayoutTests: XCTestCase {
 
     func testARefusedSpreadSaysWhyUntilAClickWouldGather() {
         XCTAssertEqual(stack(width: wide, refusal: .taken).spread.toolTip, "Your Spread cells are taken")
-        XCTAssertEqual(stack(width: wide, refusal: .noCells).spread.toolTip, "Pick Spread cells in Settings")
+        XCTAssertEqual(stack(width: wide, refusal: .noCells).spread.toolTip, "Pick Spread cells in Settings › Spread")
         XCTAssertEqual(stack(width: wide, spread: .gather, refusal: .taken).spread.toolTip, "Gather cards")
     }
 

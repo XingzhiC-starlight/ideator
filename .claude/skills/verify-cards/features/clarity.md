@@ -19,7 +19,7 @@ blank page turn it off.
 - `clarity-blank` Typing the first character on the stack's blank page turns Clarity off the same way.
 - `clarity-short-body` A card with an empty or one-line body shows that line instead of a summary.
 - `clarity-no-key` Without an API key, a longer card shows `Summary unavailable`, with the reason
-  `No API key. Add one in Settings.` on hover.
+  `No API key. Add one in Settings › AI Summary.` on hover.
 - `clarity-saved` The global state survives in the sidecar (`clarity`). The sidecar has no list of
   collapsed cards.
 - `clarity-three-lines` A long summary wraps onto three lines and the third ends in `…`.
@@ -49,7 +49,7 @@ Preconditions:
   `collapsed` key.
 - **Longer body.** Flip to Beta. Run `cv ax click stack 0.985 0.6`. `cv ax tree` shows
   `Beta card`, a `Refresh summary` button, and one of three summary lines. With no key stored it
-  is `AXStaticText "No API key. Add one in Settings." value="Summary unavailable"`: the
+  is `AXStaticText "No API key. Add one in Settings › AI Summary." value="Summary unavailable"`: the
   reason is the label's tooltip, which `tree` prints as its name. A key the API rejects gives the
   same value with the API's error as the reason, such as `HTTP 401: invalid x-api-key` from
   Anthropic or `HTTP 401: Incorrect API key provided: …` from OpenAI ([api-key](./api-key.md)). A

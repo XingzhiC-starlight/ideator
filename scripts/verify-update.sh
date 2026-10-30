@@ -255,12 +255,12 @@ begin() {
 open_settings() {
   for attempt in 1 2 3 4 5; do
     "$ax" key "$pid" cmd+, >/dev/null 2>&1 || true
-    if seen 4 "Check Now"; then
+    if seen 4 '"Settings sections"' && "$ax" section "$pid" Updates >/dev/null 2>&1 && seen 4 "Check Now"; then
       ((attempt == 1)) || echo "  Settings opened on attempt $attempt"
       return 0
     fi
   done
-  die "Settings did not open in pid $pid"
+  die "Settings did not open on Updates in pid $pid"
 }
 
 # A request that never reaches the feed server fails the check with this generic error, and the next check

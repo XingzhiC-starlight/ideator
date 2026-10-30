@@ -1,7 +1,7 @@
+import Carbon.HIToolbox
 import XCTest
 @testable import Ideator
 
-/// Settings › Spread: the grid of cells, its caption, and where the ticked cells are kept.
 final class SpreadSettingsTests: XCTestCase {
     private let suites = TestDefaults()
 
@@ -29,6 +29,16 @@ final class SpreadSettingsTests: XCTestCase {
         try (1...20).filter { try cell($0, in: window).state == .on }
     }
 
+    private func picker(in window: SettingsWindow) throws -> SpreadCellPicker {
+        try XCTUnwrap(descendants(of: window.pane(.spread)).compactMap { $0 as? SpreadCellPicker }.first)
+    }
+
+    private func key(_ code: Int, _ characters: String) throws -> NSEvent {
+        try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                                       characters: characters, charactersIgnoringModifiers: characters, isARepeat: false,
+                                       keyCode: UInt16(code)))
+    }
+
     func testTheGridsCellsSitOnAnEvenLatticeAtTheLeftOfTheSection() throws {
         let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)))
         let frames = try (1...20).map { n -> NSRect in
@@ -51,16 +61,15 @@ final class SpreadSettingsTests: XCTestCase {
         }
     }
 
-    func testTheSpreadBlockComesRightAfterTheShortcutAndBeforeTheKey() throws {
+    func testTheSpreadPaneHasItsTitleAndLeadThenTheGridThenTheCaption() throws {
         let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)))
-        let views = descendants(of: try XCTUnwrap(window.contentView))
+        let views = descendants(of: window.pane(.spread))
         func index(_ match: (NSView) -> Bool, _ name: String) throws -> Int { try XCTUnwrap(views.firstIndex(where: match), name) }
         func label(_ text: String) throws -> Int { try index({ ($0 as? NSTextField)?.stringValue == text }, text) }
         let firstCell = try index({ ($0 as? NSButton)?.accessibilityLabel() == "Spread cell 1" }, "the first cell")
-        XCTAssertLessThan(try label("Shortcut"), try label("Spread"))
-        XCTAssertLessThan(try label("Spread"), firstCell)
-        XCTAssertLessThan(firstCell, try label(SettingsWindow.spreadCaption(cells: .standard)), "the caption is under the grid")
-        XCTAssertLessThan(try label(SettingsWindow.spreadCaption(cells: .standard)), try label("API key (Anthropic or OpenAI)"))
+        XCTAssertLessThan(try label("Spread"), try label("Spread, on the stack's ribbon, puts a new card in each ticked cell."))
+        XCTAssertLessThan(try label("Spread, on the stack's ribbon, puts a new card in each ticked cell."), firstCell)
+        XCTAssertLessThan(firstCell, try label(SettingsCopy.Spread.caption), "the caption is under the grid")
     }
 
     func testTheGridShowsTheTickedCellsAndTheStacksCellCantBeTicked() throws {
@@ -89,17 +98,73 @@ final class SpreadSettingsTests: XCTestCase {
         XCTAssertEqual(choice.cells, SpreadCells(indices: [1, 2, 5, 6, 7, 19]))
         XCTAssertEqual(try ticked(in: window), [2, 3, 6, 7, 8, 20])
 
+        let empty = "No cell is ticked, so Spread makes no card. Tick the cells it should fill."
+        XCTAssertFalse(texts().contains(empty))
         for n in [2, 3, 6, 7, 8, 20] { try cell(n, in: window).performClick(nil) }
         XCTAssertEqual(choice.cells, .empty, "no cells is a choice too")
-        XCTAssertTrue(texts().contains(SettingsWindow.spreadCaption(cells: .empty)), "and the caption says so")
+        XCTAssertTrue(texts().contains(empty), "and a status line says so")
+        XCTAssertTrue(texts().contains(SettingsCopy.Spread.caption), "under the caption, which stays")
     }
 
-    func testTheCaptionSaysWhatSpreadDoesOrThatNoCellIsTicked() {
-        XCTAssertEqual(SettingsWindow.spreadCaption(cells: .standard),
-                       "Spread on the stack's ribbon puts a new card in each ticked cell. Its next click gathers them into the "
-                       + "stack, and the click after puts them back. Option-click starts a new set. The dimmed cell is the stack's.")
-        XCTAssertEqual(SettingsWindow.spreadCaption(cells: .empty),
-                       "No cell is ticked, so Spread makes no card. Tick the cells it should fill. The dimmed cell is the stack's.")
+    func testTheStacksCellReadsAsTheStackAndTheOthersAsTickedOrNot() throws {
+        let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)))
+
+        XCTAssertEqual(try cell(5, in: window).accessibilityValueDescription(), "The stack, dimmed")
+        XCTAssertEqual(try cell(1, in: window).accessibilityRole(), .checkBox)
+        XCTAssertEqual(try cell(1, in: window).accessibilityValue() as? Int, 1)
+        XCTAssertEqual(try cell(4, in: window).accessibilityValue() as? Int, 0)
+    }
+
+    func testTheGridIsOneTabStop() throws {
+        let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)))
+        window.select(.spread)
+        let table = try XCTUnwrap(descendants(of: window.contentView!).compactMap { $0 as? NSTableView }.first)
+
+        XCTAssertTrue(try picker(in: window) === table.nextKeyView, "Tab from the sidebar lands on the grid")
+        XCTAssertTrue(try picker(in: window).nextKeyView === table, "and the next Tab leaves it")
+        XCTAssertTrue(try (1...20).allSatisfy { try cell($0, in: window).refusesFirstResponder })
+    }
+
+    func testAnArrowMovesToTheNextCellThatWayPastTheStacksAndStopsAtTheEdge() {
+        func step(_ from: Int, _ dx: Int, _ dy: Int, stack: Int = 4) -> Int {
+            SpreadCellPicker.step(from: Slot(index: from)!, dx: dx, dy: dy, skipping: Slot(index: stack)!).index
+        }
+        XCTAssertEqual(step(0, 1, 0), 1)
+        XCTAssertEqual(step(0, 0, 1), 5)
+        XCTAssertEqual(step(0, -1, 0), 0, "nothing left of the first cell")
+        XCTAssertEqual(step(0, 0, -1), 0)
+        XCTAssertEqual(step(19, 1, 0), 19)
+        XCTAssertEqual(step(19, 0, 1), 19)
+        XCTAssertEqual(step(3, 1, 0), 3, "the stack's cell ends the row")
+        XCTAssertEqual(step(9, 0, -1), 9, "and the column")
+        XCTAssertEqual(step(6, 1, 0, stack: 7), 8, "a cell past the stack's is reached")
+        XCTAssertEqual(step(2, 0, 1, stack: 7), 12)
+    }
+
+    func testSpaceTicksTheFocusedCellAndTheArrowsMoveIt() throws {
+        let choice = SpreadChoice(preferences: Preferences(defaults: nil))
+        let window = settings(choice)
+        let picker = try picker(in: window)
+
+        picker.keyDown(with: try key(kVK_Space, " "))
+        XCTAssertEqual(choice.cells, SpreadCells(indices: [1, 2, 5, 6, 7]), "cell 1 had the focus")
+
+        picker.keyDown(with: try key(kVK_DownArrow, "\u{F701}"))
+        picker.keyDown(with: try key(kVK_RightArrow, "\u{F703}"))
+        picker.keyDown(with: try key(kVK_Space, " "))
+        XCTAssertEqual(choice.cells, SpreadCells(indices: [1, 2, 5, 7]), "cell 7 is down one and right one")
+        XCTAssertEqual(try ticked(in: window), [2, 3, 6, 8])
+    }
+
+    func testTheFocusLeavesTheStacksCellWhenTheStackMovesOntoIt() throws {
+        var stackCell = Slot.stackHome
+        let window = settings(SpreadChoice(preferences: Preferences(defaults: nil)), stackCell: { stackCell })
+        let picker = try picker(in: window)
+
+        stackCell = Slot(index: 0)!
+        window.becomeKey()
+
+        XCTAssertEqual(picker.focusedCell.index, 1)
     }
 
     func testTheFactoryCellsAreTheLeftThreeOfTheTopTwoRows() {

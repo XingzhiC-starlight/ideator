@@ -208,7 +208,7 @@ final class DeskControllerTests: XCTestCase {
 
         controller.spread(fresh: false)
         XCTAssertEqual(beeps, 1, "no cell ticked: a beep")
-        XCTAssertEqual(try spreadButton().toolTip, "Pick Spread cells in Settings")
+        XCTAssertEqual(try spreadButton().toolTip, "Pick Spread cells in Settings › Spread")
 
         cells = SpreadCells(indices: [Slot.stackHome.index])
         controller.spread(fresh: false)
