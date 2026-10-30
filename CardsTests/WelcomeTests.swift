@@ -51,12 +51,12 @@ final class WelcomeTests: XCTestCase {
     }
 
     func testTheCopyAndSettingsSayWhenACardIsSentInTheSameWordsAndNameBothCompanies() {
-        let rule = "whenever the card has no summary for its text as it is now"
+        let rule = "has no summary for its text as it is now"
         let summaries = copy().paragraphs.first { $0.lead == "Summaries are optional." }
 
         XCTAssertTrue(summaries?.text.contains(rule) == true)
         XCTAssertTrue(summaries?.text.contains("Anthropic or OpenAI API key") == true)
-        XCTAssertTrue(SettingsWindow.privacy(for: nil).contains(rule))
+        XCTAssertTrue(SettingsCopy.Privacy.card(for: nil).allText.contains(rule))
     }
 
     func testTheCardFitsItsCopyAtTheStackWidth() {

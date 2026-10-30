@@ -97,8 +97,16 @@ struct PrivacyCard: Equatable {
 /// `SettingsStatus` or `String`, so a pane's `refresh()` has no wording logic. Tests assert here, and
 /// the docs quote from here.
 enum SettingsCopy {
+    /// Hidden in the title bar, but VoiceOver still reads it.
+    static let windowTitle = "Ideator Settings"
+    /// The sidebar's accessibility label, which the harness's `section` verb looks for.
+    static let sections = "Settings sections"
+
     enum Shortcut {
+        static let useDefault = "Use Default"
         static let caption = "Click the shortcut, then press the new keys."
+        /// The recorder's title while it records.
+        static let prompt = "Type shortcut…"
         /// What VoiceOver hears when recording starts.
         static let recording = "Recording. Press the new keys, or Escape to cancel."
 
@@ -125,6 +133,9 @@ enum SettingsCopy {
             + "Option-click starts a new set. The dimmed cell is the stack's."
         /// The stack's cell reads this as its value.
         static let stackCell = "The stack, dimmed"
+
+        /// What VoiceOver, the tests and the recipes call cell `n`, 1 to 20 in reading order.
+        static func cell(_ n: Int) -> String { "Spread cell \(n)" }
 
         static func status(cells: SpreadCells) -> SettingsStatus? {
             cells.isEmpty ? .neutral("No cell is ticked, so Spread makes no card. Tick the cells it should fill.") : nil

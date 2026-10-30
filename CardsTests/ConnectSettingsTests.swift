@@ -47,21 +47,23 @@ final class ConnectSettingsTests: XCTestCase {
         editor.insertText(text, replacementRange: editor.selectedRange())
     }
 
-    func testTheInstructionAndTheConnectSectionComeAfterTheLandingRowAndBeforePrivacy() throws {
+    func testTheMCPPaneHasConnectFirstThenTheSwitchAndWhereCardsGoThenTheInstruction() throws {
         let window = settings()
-        let order = views(in: window).compactMap { view -> String? in
+        let order = descendants(of: window.pane(.mcp)).compactMap { view -> String? in
             if view is NSTextView { return "editor" }
             if let button = view as? NSButton { return button.title }
             if let field = view as? NSTextField, !field.isEditable { return field.stringValue }
             return nil
         }
         func index(_ label: String) throws -> Int { try XCTUnwrap(order.firstIndex(of: label), label) }
-        let expected = ["Bottom", "Instruction for AI tools", "editor", "Reset to Default", "Connect AI tools", "Claude Code",
-                        "Codex", "Claude Desktop", "Privacy"]
+        let caption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next session. "
+            + "It holds up to 100 KB."
+        let expected = ["MCP", "Connect an AI tool", "Claude Code", "Codex", "Claude Desktop",
+                        "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files.",
+                        "Let AI tools add cards", "Cards from AI tools go to:", "Top", "Bottom",
+                        "Instruction for AI tools", caption, "editor", "Reset to Default"]
         let positions = try expected.map(index)
         XCTAssertEqual(positions, positions.sorted(), "\(expected) in this order")
-        XCTAssertTrue(texts(in: window).contains("Ideator gives an AI tool this text when a session starts, so an edit reaches it "
-                                                 + "at its next session. It holds up to 100 KB."))
     }
 
     func testTheEditorShowsTheStandardTextAndResetStartsDimmed() throws {
@@ -221,26 +223,28 @@ final class ConnectSettingsTests: XCTestCase {
         for tool in AITool.allCases { XCTAssertTrue(try button(tool.name, in: window).isEnabled, tool.name) }
     }
 
-    func testAWindowTallerThanTheScreenScrollsFromItsTop() throws {
-        let window = settings(maxContentHeight: 400)
-        let scroll = try XCTUnwrap(window.contentView as? NSScrollView)
-        let document = try XCTUnwrap(scroll.documentView)
-
-        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).height, 400, "the window stops at the room the screen has")
-        XCTAssertGreaterThan(document.frame.height, 400, "the rows keep their height and scroll")
-        XCTAssertEqual(document.frame.width, 440)
-        XCTAssertEqual(scroll.contentView.documentVisibleRect.minY, 0, "it opens at the Shortcut row, not at Privacy")
-        XCTAssertTrue(views(in: window).contains { ($0 as? NSTextField)?.stringValue == "Shortcut" })
-    }
-
-    func testAWindowThatFitsTheScreenHasAllItsRowsAndNoRoomToScroll() throws {
+    func testTheMCPPaneFitsTheWindowWithoutScrolling() throws {
         let window = settings(maxContentHeight: 5_000)
-        let scroll = try XCTUnwrap(window.contentView as? NSScrollView)
+        window.select(.mcp)
+        let pane = window.pane(.mcp)
+        let scroll = try XCTUnwrap(pane.enclosingScrollView)
+        window.contentView?.layoutSubtreeIfNeeded()
+
+        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).height, 640, "the window stays 640 where there is more room")
+        XCTAssertLessThanOrEqual(pane.fittingSize.height, 640, "the tallest pane, measured with its fonts")
+        XCTAssertLessThanOrEqual(try XCTUnwrap(scroll.documentView).frame.height, scroll.contentSize.height, "nothing to scroll")
+    }
+
+    func testOnAShortScreenTheWindowStopsAtItsRoomAndThePaneScrollsFromItsTop() throws {
+        let window = settings(maxContentHeight: 400)
+        window.select(.mcp)
+        let scroll = try XCTUnwrap(window.pane(.mcp).enclosingScrollView)
         let document = try XCTUnwrap(scroll.documentView)
 
-        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).height, document.frame.height)
-        XCTAssertLessThan(document.frame.height, 5_000)
-    }
+        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).size, NSSize(width: 640, height: 400))
+        XCTAssertGreaterThan(document.frame.height, 400, "the pane keeps its height and scrolls")
+        XCTAssertEqual(scroll.contentView.bounds.minY, 0, "from its title")
+            }
 
     private func descendants(of view: NSView) -> [NSView] {
         view.subviews.flatMap { [$0] + descendants(of: $0) }

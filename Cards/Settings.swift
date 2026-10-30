@@ -1,539 +1,333 @@
 import AppKit
 
-final class SettingsWindow: NSWindow, NSTextViewDelegate {
-    private static let width: CGFloat = 440
-    private static let inner: CGFloat = 400
-    private static let editorHeight: CGFloat = 112
-
-    private static let connectCaption = "Each button copies a tool's setup, for you to paste. Ideator never edits another app's config files."
-    private static let limitName = "\(Instruction.byteLimit / 1_000) KB"
-    private static let instructionCaption = "Ideator gives an AI tool this text when a session starts, so an edit reaches it at its next "
-        + "session. It holds up to \(limitName)."
-    private static let connectMoveFirst = "Ideator is running from a disk image, another volume or a quarantined download, so a "
-        + "setup copied now would point at a path that goes away. Move Ideator to Applications, open it from there, then copy a setup."
-    private static let instructionRefusal = "That change would pass the \(limitName) limit, so Ideator did not make it."
-
-    /// Names the company of the saved key, or both while no key is saved.
-    static func privacy(for provider: Provider?) -> String {
-        let recipient = provider?.name ?? "Anthropic or OpenAI, whichever your key is for"
-        return "With a key saved, Ideator sends a card's text to \(recipient), using your own key, to "
-            + "write its summary, whenever the card has no summary for its text as it is now. It does so, for "
-            + "example, after you change a card, when you save a key, at launch after a failed try, and after an "
-            + "update that changes how Ideator asks for summaries. The key stays in your login Keychain. Once a "
-            + "day, and whenever you click Check Now, Ideator asks GitHub whether a newer version exists. GitHub "
-            + "sees your IP address and which version you have. Nothing else leaves your Mac: no analytics, no "
-            + "crash reports."
-    }
-
-    static func keyStatus(provider: Provider?, inKeychain: Bool) -> String {
-        guard let provider else {
-            return "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”."
-        }
-        let place = inKeychain ? "is saved in your Keychain" : "is held for this run only"
-        return "An \(provider.name) key \(place). Paste a new one to replace it."
-    }
-
-    private let keys: KeyStore
-    private let hotKey: HotKey
-    private let updates: Updates
-    private let onChange: () -> Void
-    private let shortcutField = ShortcutField()
-    private let defaultButton = NSButton(title: "Use Default", target: nil, action: nil)
-    private let shortcutNote = NSTextField(wrappingLabelWithString: "")
-    private let field = NSSecureTextField()
-    private let status = NSTextField(wrappingLabelWithString: "")
-    private let privacyNote = NSTextField(wrappingLabelWithString: "")
-    private let autoCheck = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
-    private let checkNowButton = NSButton(title: "Check Now", target: nil, action: nil)
-    private let aiTools: AIToolsChoice
-    private let allowAITools = NSButton(checkboxWithTitle: "Let AI tools add cards", target: nil, action: nil)
-    private let landsOnTop = NSButton(radioButtonWithTitle: "Top", target: nil, action: nil)
-    private let landsAtBottom = NSButton(radioButtonWithTitle: "Bottom", target: nil, action: nil)
-    private let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: SettingsWindow.inner, height: SettingsWindow.editorHeight))
-    private let instructionNote = NSTextField(wrappingLabelWithString: "")
-    private let resetInstruction = NSButton(title: "Reset to Default", target: nil, action: nil)
-    private let connectNote = NSTextField(wrappingLabelWithString: "")
-    private let connect: HelperCommand
-    private let spread: SpreadChoice
-    /// The stack's cell now, which can't be ticked. `Slot.stackHome` before the desk exists.
-    private let stackCell: () -> Slot
-    private let spreadPicker = SpreadCellPicker()
-    private let spreadNote = NSTextField(wrappingLabelWithString: "")
-    private let pasteboard: NSPasteboard
-    private var connectButtons: [(tool: AITool, button: NSButton)] = []
-    private var copied: AITool?
-    private let stack = NSStackView()
-    private let document = FlippedView()
+/// Settings: a sidebar of the six sections and one pane per section, 640 × 640 and not resizable.
+/// The window holds no control and no model of its own. It picks which pane shows, keeps the panes
+/// fresh and owns the window's lifecycle; each pane owns its controls (SettingsPanes.swift).
+///
+/// - Every pane stays in the view tree for the window's life and only the selected one is unhidden,
+///   so the accessibility tree and the key view loop see one pane while tests can reach every control.
+/// - It opens on Shortcut every time: `close()` goes back to it. `becomeKey` fires on every app
+///   switch, so it never touches the selection, and the chosen section stays while the window is open.
+/// - `refresh()` refreshes every pane, shown or not: `Updates` has no change callback.
+final class SettingsWindow: NSWindow {
+    private let sidebar = SettingsSidebar()
+    private let host = PaneHost()
+    private var panes: [SettingsPane] = []
     private let maxContentHeight: CGFloat?
-    private var rejected: String?
-    private var instructionRefused = false
-    private var releasedForRecording = false
+    private(set) var selected = SettingsSection.opening
 
-    /// The window is as tall as its rows, and scrolls where the screen has less room. `maxContentHeight`
-    /// replaces the screen's room, for a test.
+    /// `maxContentHeight` replaces the screen's room, for a test. `announce` replaces the VoiceOver
+    /// announcement, for a test.
     init(keys: KeyStore, hotKey: HotKey, updates: Updates,
          aiTools: AIToolsChoice = AIToolsChoice(preferences: Preferences(defaults: nil)),
          connect: HelperCommand = HelperCommand(app: Bundle.main.bundleURL, scratchFolder: nil),
          spread: SpreadChoice = SpreadChoice(preferences: Preferences(defaults: nil)),
          stackCell: @escaping () -> Slot = { Slot.stackHome },
-         pasteboard: NSPasteboard = .general, maxContentHeight: CGFloat? = nil, onChange: @escaping () -> Void) {
-        self.keys = keys
-        self.hotKey = hotKey
-        self.updates = updates
-        self.aiTools = aiTools
-        self.connect = connect
-        self.spread = spread
-        self.stackCell = stackCell
-        self.pasteboard = pasteboard
+         pasteboard: NSPasteboard = .general, maxContentHeight: CGFloat? = nil,
+         announce: ((String) -> Void)? = nil, onChange: @escaping () -> Void) {
         self.maxContentHeight = maxContentHeight
-        self.onChange = onChange
-        super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
-                   styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        title = "Ideator Settings"
+        super.init(contentRect: NSRect(origin: .zero, size: SettingsStyle.windowSize),
+                   styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+        title = SettingsCopy.windowTitle
+        titleVisibility = .hidden
+        titlebarAppearsTransparent = true
         isReleasedWhenClosed = false
 
-        func heading(_ text: String) -> NSTextField {
-            let label = NSTextField(labelWithString: text)
-            label.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-            return label
+        let speak = announce ?? { [unowned self] text in
+            NSAccessibility.post(element: self, notification: .announcementRequested, userInfo: [
+                .announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue,
+            ])
         }
-        func caption(_ label: NSTextField) -> NSTextField {
-            label.textColor = .secondaryLabelColor
-            label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-            label.preferredMaxLayoutWidth = Self.inner
-            label.widthAnchor.constraint(equalToConstant: Self.inner).isActive = true
-            return label
-        }
-
-        shortcutField.onPick = { [unowned self] picked in pick(picked) }
-        shortcutField.onReject = { [unowned self] refusal in
-            rejected = refusal
-            refresh()
-        }
-        shortcutField.onRecordingChange = { [unowned self] recording in
-            // Retake only what this recording released: a scratch run never registered one.
-            if recording {
-                releasedForRecording = hotKey.unregister()
-                rejected = nil
-            } else if releasedForRecording {
-                releasedForRecording = false
-                hotKey.register()
+        let refreshAll = { [unowned self] in refresh() }
+        panes = SettingsSection.allCases.map { section in
+            switch section {
+            case .shortcut: ShortcutPane(hotKey: hotKey, refreshAll: refreshAll, announce: speak)
+            case .spread: SpreadPane(spread: spread, stackCell: stackCell, refreshAll: refreshAll, announce: speak)
+            case .aiSummary: AISummaryPane(keys: keys, keyChanged: onChange, refreshAll: refreshAll, announce: speak)
+            case .mcp: MCPPane(aiTools: aiTools, connect: connect, pasteboard: pasteboard, refreshAll: refreshAll, announce: speak)
+            case .updates: UpdatesPane(updates: updates, refreshAll: refreshAll, announce: speak)
+            case .privacy: PrivacyPane(keys: keys, refreshAll: refreshAll, announce: speak)
             }
-            refresh()
         }
-        defaultButton.target = self
-        defaultButton.action = #selector(useDefaultShortcut)
-        let shortcutRow = NSStackView(views: [shortcutField, defaultButton])
-        shortcutRow.spacing = 8
+        host.install(panes)
+        sidebar.onSelect = { [unowned self] section in select(section) }
 
-        spreadPicker.onToggle = { [unowned self] slot in
-            self.spread.cells = self.spread.cells.toggling(slot)
-            refresh()
+        let content = NSView(frame: NSRect(origin: .zero, size: SettingsStyle.windowSize))
+        for view in [sidebar, host] as [NSView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            content.addSubview(view)
         }
-
-        field.placeholderString = "sk-ant-… or sk-…"
-        field.target = self
-        field.action = #selector(save)
-        let save = NSButton(title: "Save", target: self, action: #selector(save))
-        save.keyEquivalent = "\r"
-        let remove = NSButton(title: "Remove Key", target: self, action: #selector(remove))
-        let buttons = NSStackView(views: [remove, save])
-
-        autoCheck.target = self
-        autoCheck.action = #selector(toggleAutomaticChecks)
-        checkNowButton.target = self
-        checkNowButton.action = #selector(checkNow)
-        let updatesRow = NSStackView(views: [autoCheck, checkNowButton])
-        updatesRow.distribution = .equalSpacing
-        let updatesNote = NSTextField(wrappingLabelWithString: Self.updatesCaption(build: updates.build, plan: updates.plan))
-
-        allowAITools.target = self
-        allowAITools.action = #selector(toggleAITools)
-        for radio in [landsOnTop, landsAtBottom] {
-            radio.target = self
-            radio.action = #selector(chooseLanding)
-        }
-        let landingRow = NSStackView(views: [NSTextField(labelWithString: "Cards from AI tools go to:"), landsOnTop, landsAtBottom])
-        landingRow.spacing = 8
-
-        let editorScroll = NSScrollView()
-        editorScroll.borderType = .bezelBorder
-        editorScroll.hasVerticalScroller = true
-        editorScroll.drawsBackground = false
-        editorScroll.documentView = editor
-        editor.minSize = NSSize(width: 0, height: Self.editorHeight)
-        editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        editor.isVerticallyResizable = true
-        editor.isHorizontallyResizable = false
-        editor.autoresizingMask = .width
-        editor.textContainer?.widthTracksTextView = true
-        editor.textContainerInset = NSSize(width: 2, height: 4)
-        editor.font = .systemFont(ofSize: NSFont.systemFontSize)
-        editor.drawsBackground = false
-        editor.isRichText = false
-        editor.allowsUndo = true
-        editor.isAutomaticQuoteSubstitutionEnabled = false
-        editor.isAutomaticDashSubstitutionEnabled = false
-        editor.isAutomaticTextReplacementEnabled = false
-        editor.isAutomaticSpellingCorrectionEnabled = false
-        editor.delegate = self
-        editor.setAccessibilityLabel("Instruction for AI tools")
-        resetInstruction.target = self
-        resetInstruction.action = #selector(resetInstructionText)
-
-        let connectRow = NSStackView()
-        connectRow.spacing = 8
-        for tool in AITool.allCases {
-            let copy = NSButton(title: tool.name, image: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil) ?? NSImage(),
-                                target: self, action: #selector(copySetup))
-            copy.imagePosition = .imageLeading
-            copy.setAccessibilityLabel("Copy setup for \(tool.name)")
-            connectButtons.append((tool, copy))
-            connectRow.addArrangedSubview(copy)
-        }
-
-        for view in [heading("Shortcut"), shortcutRow, caption(shortcutNote),
-                     heading("Spread"), spreadPicker, caption(spreadNote), heading("API key (Anthropic or OpenAI)"), field,
-                     caption(status), buttons, heading("Updates"), updatesRow, caption(updatesNote),
-                     heading("AI tools"), allowAITools, landingRow,
-                     NSTextField(labelWithString: "Instruction for AI tools"),
-                     caption(instructionNote), editorScroll, resetInstruction,
-                     heading("Connect AI tools"), caption(connectNote), connectRow,
-                     heading("Privacy"), caption(privacyNote)] {
-            stack.addArrangedSubview(view)
-        }
-        stack.setCustomSpacing(18, after: landingRow)
-        stack.setCustomSpacing(18, after: resetInstruction)
-        stack.setCustomSpacing(18, after: connectRow)
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 10
-        stack.setCustomSpacing(18, after: shortcutNote)
-        stack.setCustomSpacing(18, after: spreadNote)
-        stack.setCustomSpacing(18, after: buttons)
-        stack.setCustomSpacing(18, after: updatesNote)
-        stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        document.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: document.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor),
-            stack.widthAnchor.constraint(equalToConstant: Self.width),
-            field.widthAnchor.constraint(equalToConstant: Self.inner),
-            buttons.trailingAnchor.constraint(equalTo: field.trailingAnchor),
-            updatesRow.widthAnchor.constraint(equalToConstant: Self.inner),
-            editorScroll.widthAnchor.constraint(equalToConstant: Self.inner),
-            editorScroll.heightAnchor.constraint(equalToConstant: Self.editorHeight),
+            sidebar.topAnchor.constraint(equalTo: content.topAnchor),
+            sidebar.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            sidebar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            sidebar.widthAnchor.constraint(equalToConstant: SettingsStyle.sidebarWidth),
+            host.topAnchor.constraint(equalTo: content.topAnchor),
+            host.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            host.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor),
+            host.trailingAnchor.constraint(equalTo: content.trailingAnchor),
         ])
-        let scroll = NSScrollView()
-        scroll.documentView = document
-        scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.drawsBackground = false
-        contentView = scroll
+        contentView = content
+        initialFirstResponder = sidebar.table
+        select(.opening)
         refresh()
+        fitScreen()
+        makeFirstResponder(sidebar.table)
+    }
+
+    /// Shows `section`'s pane from its top, selects its row and links Tab through it. Focus stays where
+    /// it is (A3): an arrow key in the sidebar changes the pane and leaves the sidebar focused.
+    func select(_ section: SettingsSection) {
+        selected = section
+        sidebar.select(section)
+        host.show(section)
+        linkKeyViews()
+    }
+
+    /// The pane for a section, shown or not.
+    func pane(_ section: SettingsSection) -> SettingsPane { panes[section.rawValue] }
+
+    /// Every pane reads its model again. Idempotent.
+    func refresh() {
+        for pane in panes { pane.refresh() }
     }
 
     /// The window is kept between openings, and the macOS shortcuts, the saved key and whether the
     /// updater can check change meanwhile, so what it says is read again each time it comes forward.
     override func becomeKey() {
         super.becomeKey()
+        fitScreen()
         refresh()
     }
 
     /// ⌘-Tab or closing the window ends a recording, so the shortcut never stays released.
     override func resignKey() {
         super.resignKey()
-        shortcutField.cancelRecording()
+        for pane in panes { pane.windowDidResignKey() }
     }
 
-    private func refresh() {
-        shortcutField.shortcut = hotKey.shortcut
-        defaultButton.isEnabled = hotKey.shortcut != .standard
-        shortcutNote.stringValue = Self.shortcutCaption(shortcut: hotKey.shortcut, problem: hotKey.problem,
-                                                        usedByMacOS: hotKey.shortcut.isUsedByMacOS(),
-                                                        rejected: rejected)
-        spreadPicker.show(spread.cells, stackCell: stackCell())
-        spreadNote.stringValue = Self.spreadCaption(cells: spread.cells)
-        status.stringValue = Self.keyStatus(provider: keys.provider, inKeychain: keys.inKeychain)
-        privacyNote.stringValue = Self.privacy(for: keys.provider)
-        autoCheck.state = updates.checksAutomatically ? .on : .off
-        autoCheck.isEnabled = updates.plan.checks
-        checkNowButton.isEnabled = updates.canCheck
-        allowAITools.state = aiTools.value.enabled ? .on : .off
-        landsOnTop.state = aiTools.value.landing == .top ? .on : .off
-        landsAtBottom.state = aiTools.value.landing == .bottom ? .on : .off
-        landsOnTop.isEnabled = aiTools.value.enabled
-        landsAtBottom.isEnabled = aiTools.value.enabled
-        if editor.string != aiTools.value.instruction.text { editor.string = aiTools.value.instruction.text }
-        resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
-        instructionNote.stringValue = instructionRefused ? Self.instructionRefusal : Self.instructionCaption
-        for (tool, button) in connectButtons {
-            button.title = copied == tool ? "Copied" : tool.name
-            button.isEnabled = !connect.isTemporary
+    override func close() {
+        super.close()
+        select(.opening)
+        makeFirstResponder(sidebar.table)
+    }
+
+    /// The main menu has no Close item, so ⌘W is this window's alone and never reaches a card. While
+    /// the recorder records, its monitor takes ⌘W first and refuses it as a shortcut.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+           event.charactersIgnoringModifiers == "w" {
+            performClose(nil)
+            return true
         }
-        connectNote.stringValue = connect.isTemporary ? Self.connectMoveFirst
-            : copied.map { "Copied for \($0.name). \($0.pasteNote)" } ?? Self.connectCaption
-        stack.layoutSubtreeIfNeeded()
-        let rows = stack.fittingSize.height
-        document.setFrameSize(NSSize(width: Self.width, height: rows))
+        return super.performKeyEquivalent(with: event)
+    }
+
+    /// Tab goes from the sidebar through the shown pane's controls in reading order, then back. AppKit's
+    /// own loop is by position and would weave the sidebar in. Disabled and hidden controls stay in the
+    /// chain and Tab skips them, so a control that becomes enabled needs no relink.
+    private func linkKeyViews() {
+        var previous: NSView = sidebar.table
+        for view in Self.keyViews(in: pane(selected)) {
+            previous.nextKeyView = view
+            previous = view
+        }
+        previous.nextKeyView = sidebar.table
+    }
+
+    private static func keyViews(in view: NSView) -> [NSView] {
+        view.subviews.flatMap { subview -> [NSView] in
+            switch subview {
+            case let button as NSButton: button.refusesFirstResponder ? [] : [button]
+            case let field as NSTextField: field.isEditable ? [field] : []
+            case let text as NSTextView: text.isEditable ? [text] : []
+            case is SpreadCellPicker: [subview]
+            default: keyViews(in: subview)
+            }
+        }
+    }
+
+    /// 640 tall, or what the screen has left below the title bar with a margin; the pane scrolls then.
+    private func fitScreen() {
+        let room: CGFloat
+        if let maxContentHeight {
+            room = maxContentHeight
+        } else if let visible = (screen ?? NSScreen.main)?.visibleFrame {
+            room = visible.height - (frame.height - contentRect(forFrameRect: frame).height) - 24
+        } else {
+            room = SettingsStyle.windowSize.height
+        }
+        let size = NSSize(width: SettingsStyle.windowSize.width, height: min(SettingsStyle.windowSize.height, room))
+        guard contentRect(forFrameRect: frame).size != size else { return }
         let top = frame.maxY
-        setContentSize(NSSize(width: Self.width, height: min(rows, roomForContent)))
+        setContentSize(size)
         setFrameTopLeftPoint(NSPoint(x: frame.minX, y: top))
     }
+}
 
-    /// What the screen the window is on has left below its title bar, with a margin.
-    private var roomForContent: CGFloat {
-        if let maxContentHeight { return maxContentHeight }
-        guard let visible = (screen ?? NSScreen.main)?.visibleFrame else { return .greatestFiniteMagnitude }
-        return visible.height - (frame.height - contentRect(forFrameRect: frame).height) - 24
+/// The six sections, one 32-point row each, from 52 down. ↑ and ↓ change the section at once.
+///
+/// Each row is an accessibility cell named exactly the section's title, with a press, so VoiceOver
+/// says "Spread, 2 of 6" and the harness's `section Spread` can never hit the ribbon's Spread button
+/// or "Spread cell 1", as matching by prefix would.
+final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate {
+    let table = NSTableView()
+    var onSelect: (SettingsSection) -> Void = { _ in }
+    private var selected: SettingsSection?
+
+    init() {
+        super.init(frame: .zero)
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("section"))
+        column.width = SettingsStyle.sidebarWidth
+        table.addTableColumn(column)
+        table.headerView = nil
+        table.style = .plain
+        table.rowHeight = SettingsStyle.sidebarRowHeight
+        table.intercellSpacing = .zero
+        table.backgroundColor = .clear
+        table.focusRingType = .none
+        table.allowsEmptySelection = false
+        table.allowsTypeSelect = false
+        table.setAccessibilityLabel(SettingsCopy.sections)
+        table.dataSource = self
+        table.delegate = self
+
+        let scroll = NSScrollView()
+        scroll.documentView = table
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = false
+        scroll.verticalScrollElasticity = .none
+        scroll.automaticallyAdjustsContentInsets = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(scroll)
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: topAnchor, constant: SettingsStyle.contentTop),
+            scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scroll.heightAnchor.constraint(equalToConstant: CGFloat(SettingsSection.allCases.count) * SettingsStyle.sidebarRowHeight),
+        ])
     }
 
-    static func shortcutCaption(shortcut: Shortcut, problem: HotKey.Problem?, usedByMacOS: Bool,
-                                rejected: String?) -> String {
-        if let rejected { return rejected }
-        if let problem { return problem.text(for: shortcut) + " There is no shortcut until you pick another." }
-        if usedByMacOS {
-            return "macOS also has a shortcut on \(shortcut.display) (System Settings › Keyboard › Keyboard "
-                + "Shortcuts). If it fires instead of Ideator, pick another here."
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// The edge it shares with the pane. Drawn, not a view: a separator view has a height of its own,
+    /// and the window would shrink to it.
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.separatorColor.setFill()
+        NSRect(x: bounds.maxX - 1, y: bounds.minY, width: 1, height: bounds.height).fill()
+    }
+
+    /// Selects the row without calling `onSelect`.
+    func select(_ section: SettingsSection) {
+        selected = section
+        table.selectRowIndexes(IndexSet(integer: section.rawValue), byExtendingSelection: false)
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int { SettingsSection.allCases.count }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard let section = SettingsSection(rawValue: row) else { return nil }
+        let cell = SidebarCell(section)
+        cell.onPress = { [unowned self] in table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        return cell
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        guard let section = SettingsSection(rawValue: table.selectedRow), section != selected else { return }
+        selected = section
+        onSelect(section)
+    }
+}
+
+/// A sidebar row's content. NSTableView wraps every cell in its own accessibility cell and forwards
+/// this view's label and press to it, so the view must not be an element too (see `ArrangerCell`).
+final class SidebarCell: NSTableCellView {
+    private let section: SettingsSection
+    var onPress: () -> Void = {}
+
+    init(_ section: SettingsSection) {
+        self.section = section
+        super.init(frame: .zero)
+        let name = SettingsControl.text(section.title, as: .label, width: SettingsStyle.sidebarWidth - 2 * SettingsStyle.s4)
+        name.setAccessibilityElement(false)
+        name.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(name)
+        textField = name
+        NSLayoutConstraint.activate([
+            name.leadingAnchor.constraint(equalTo: leadingAnchor, constant: SettingsStyle.s4),
+            name.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func isAccessibilityElement() -> Bool { false }
+    override func accessibilityRole() -> NSAccessibility.Role? { .cell }
+    override func accessibilityLabel() -> String? { section.title }
+    override func accessibilityChildren() -> [Any]? { [] }
+
+    override func accessibilityPerformPress() -> Bool {
+        onPress()
+        return true
+    }
+}
+
+/// The pane area: one scroll view whose document holds all six panes at the same origin, one unhidden.
+/// The document is as tall as the shown pane or the window, whichever is taller, so a pane taller
+/// than the window scrolls here and the sidebar never does.
+final class PaneHost: NSScrollView {
+    private let document = FlippedView()
+    private var panes: [SettingsPane] = []
+    private var fit: NSLayoutConstraint?
+
+    init() {
+        super.init(frame: .zero)
+        drawsBackground = false
+        hasVerticalScroller = true
+        autohidesScrollers = true
+        automaticallyAdjustsContentInsets = false
+        document.translatesAutoresizingMaskIntoConstraints = false
+        documentView = document
+        let snug = document.heightAnchor.constraint(equalTo: contentView.heightAnchor)
+        snug.priority = .defaultLow
+        NSLayoutConstraint.activate([
+            document.topAnchor.constraint(equalTo: contentView.topAnchor),
+            document.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            document.widthAnchor.constraint(equalTo: contentView.widthAnchor),
+            document.heightAnchor.constraint(greaterThanOrEqualTo: contentView.heightAnchor),
+            snug,
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func install(_ panes: [SettingsPane]) {
+        self.panes = panes
+        for pane in panes {
+            pane.translatesAutoresizingMaskIntoConstraints = false
+            pane.isHidden = true
+            document.addSubview(pane)
+            NSLayoutConstraint.activate([
+                pane.topAnchor.constraint(equalTo: document.topAnchor),
+                pane.leadingAnchor.constraint(equalTo: document.leadingAnchor),
+                pane.trailingAnchor.constraint(equalTo: document.trailingAnchor),
+            ])
         }
-        return "Hides or shows every card, from any app. Click it, then press the new keys."
     }
 
-    static func spreadCaption(cells: SpreadCells) -> String {
-        if cells.isEmpty {
-            return "No cell is ticked, so Spread makes no card. Tick the cells it should fill. The dimmed cell is the stack's."
-        }
-        return "Spread on the stack's ribbon puts a new card in each ticked cell. Its next click gathers them into the "
-            + "stack, and the click after puts them back. Option-click starts a new set. The dimmed cell is the stack's."
-    }
-
-    static func updatesCaption(build: BuildInfo, plan: UpdatePlan) -> String {
-        switch plan {
-        case .check: "\(build.versionLine). Ideator asks before it installs an update."
-        case .off(.scratchRun): "\(build.versionLine). A scratch run (-CardsFolder) doesn't check for updates."
-        case .off(.notPackaged): "\(build.versionLine). Only builds made by scripts/package.sh check for updates."
-        }
-    }
-
-    @objc private func toggleAutomaticChecks() {
-        updates.checksAutomatically = autoCheck.state == .on
-        refresh()
-    }
-
-    @objc private func checkNow() {
-        updates.checkNow()
-        refresh()
-    }
-
-    @objc private func toggleAITools() {
-        aiTools.value.enabled = allowAITools.state == .on
-        refresh()
-    }
-
-    @objc private func chooseLanding(_ sender: NSButton) {
-        aiTools.value.landing = sender === landsAtBottom ? .bottom : .top
-        refresh()
-    }
-
-    func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
-        guard textView === editor, let replacement = replacementString else { return true }
-        let removed = (editor.string as NSString).substring(with: range).utf8.count
-        guard editor.string.utf8.count - removed + replacement.utf8.count > Instruction.byteLimit else { return true }
-        instructionRefused = true
-        instructionNote.stringValue = Self.instructionRefusal
-        return false
-    }
-
-    func textDidChange(_ notification: Notification) {
-        aiTools.value.instruction.edit(to: editor.string)
-        resetInstruction.isEnabled = !aiTools.value.instruction.isStandard
-        instructionRefused = false
-        instructionNote.stringValue = Self.instructionCaption
-    }
-
-    /// Replaces the text through the editor, so Undo brings the edit back.
-    @objc private func resetInstructionText() {
-        let all = NSRange(location: 0, length: (editor.string as NSString).length)
-        guard editor.shouldChangeText(in: all, replacementString: Instruction.standard) else { return }
-        editor.replaceCharacters(in: all, with: Instruction.standard)
-        editor.didChangeText()
-    }
-
-    @objc private func copySetup(_ sender: NSButton) {
-        guard let tool = connectButtons.first(where: { $0.button === sender })?.tool else { return }
-        pasteboard.clearContents()
-        pasteboard.setString(tool.setup(for: connect), forType: .string)
-        copied = tool
-        refresh()
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard let self, copied == tool else { return }
-            copied = nil
-            refresh()
-        }
-    }
-
-    @objc private func useDefaultShortcut() {
-        pick(.standard)
-        refresh()
-    }
-
-    private func pick(_ shortcut: Shortcut) {
-        let problem = hotKey.choose(shortcut)
-        rejected = problem.map { "\($0.text(for: shortcut)) Still using \(hotKey.shortcut.display)." }
-    }
-
-    @objc private func save() {
-        guard !field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        if keys.set(field.stringValue) {
-            field.stringValue = ""
-            onChange()
-        } else {
-            NSSound.beep()
-        }
-        refresh()
-    }
-
-    @objc private func remove() {
-        if keys.set(nil) { onChange() } else { NSSound.beep() }
-        refresh()
+    /// Idempotent.
+    func show(_ section: SettingsSection) {
+        for pane in panes { pane.isHidden = pane.section != section }
+        fit?.isActive = false
+        fit = document.bottomAnchor.constraint(greaterThanOrEqualTo: panes[section.rawValue].bottomAnchor)
+        fit?.isActive = true
+        layoutSubtreeIfNeeded()
+        contentView.scroll(to: .zero)
+        reflectScrolledClipView(contentView)
     }
 }
 
 /// A view whose origin is its top left, so a scroll view opens on its first row.
 private final class FlippedView: NSView {
     override var isFlipped: Bool { true }
-}
-
-/// Settings › Spread: the desktop's 5 × 4 cells as small toggle buttons, in reading order. Each has
-/// no title (Settings tests find buttons by title) and the accessibility label "Spread cell N", N
-/// from 1 to 20. The stack's cell shows the stack's symbol, dimmed and disabled, whatever is stored
-/// for it; when the stack moves away, a stored tick there shows again.
-final class SpreadCellPicker: NSView {
-    /// About the shape of one cell of a laptop screen.
-    static let cellSize = NSSize(width: 30, height: 22)
-    static let spacing: CGFloat = 4
-    var onToggle: (Slot) -> Void = { _ in }
-    /// In `Slot.all` order.
-    private let buttons: [NSButton]
-
-    init() {
-        buttons = Slot.all.map { slot in
-            let button = NSButton(title: "", target: nil, action: nil)
-            button.setButtonType(.pushOnPushOff)
-            button.bezelStyle = .smallSquare
-            button.imagePosition = .imageOnly
-            button.setAccessibilityLabel("Spread cell \(slot.index + 1)")
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.widthAnchor.constraint(equalToConstant: Self.cellSize.width).isActive = true
-            button.heightAnchor.constraint(equalToConstant: Self.cellSize.height).isActive = true
-            return button
-        }
-        super.init(frame: .zero)
-        for button in buttons {
-            button.target = self
-            button.action = #selector(toggle)
-        }
-        let grid = NSGridView(views: (0..<Slot.rows).map { row in
-            Array(buttons[row * Slot.columns..<(row + 1) * Slot.columns])
-        })
-        grid.rowSpacing = Self.spacing
-        grid.columnSpacing = Self.spacing
-        grid.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(grid)
-        // The picker has no intrinsic size, so the settings stack stretches it to the full width and
-        // the grid hands the extra to one column.
-        let columns = CGFloat(Slot.columns), rows = CGFloat(Slot.rows)
-        NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: columns * Self.cellSize.width + (columns - 1) * Self.spacing),
-            heightAnchor.constraint(equalToConstant: rows * Self.cellSize.height + (rows - 1) * Self.spacing),
-            grid.topAnchor.constraint(equalTo: topAnchor),
-            grid.bottomAnchor.constraint(equalTo: bottomAnchor),
-            grid.leadingAnchor.constraint(equalTo: leadingAnchor),
-            grid.trailingAnchor.constraint(equalTo: trailingAnchor),
-        ])
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    func show(_ cells: SpreadCells, stackCell: Slot) {
-        for (slot, button) in zip(Slot.all, buttons) {
-            let ticked = slot != stackCell && cells.contains(slot)
-            button.isEnabled = slot != stackCell
-            button.state = ticked ? .on : .off
-            button.image = slot == stackCell ? NSImage(systemSymbolName: "rectangle.stack", accessibilityDescription: "The stack")
-                : ticked ? NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) : nil
-        }
-    }
-
-    @objc private func toggle(_ sender: NSButton) {
-        guard let i = buttons.firstIndex(of: sender) else { return }
-        onToggle(Slot.all[i])
-    }
-}
-
-/// While it records, the live hotkey is released (`onRecordingChange(true)`), so pressing the
-/// current combination reaches the recorder instead of hiding every card. A local monitor sees
-/// every key first, so ⌘, ⌘Q and Return never reach the menu or the default button.
-final class ShortcutField: NSButton {
-    private static let prompt = "Type shortcut…"
-
-    var shortcut: Shortcut = .standard { didSet { if monitor == nil { title = shortcut.display } } }
-    var onPick: (Shortcut) -> Void = { _ in }
-    var onReject: (String) -> Void = { _ in }
-    var onRecordingChange: (Bool) -> Void = { _ in }
-    private var monitor: Any?
-
-    init() {
-        super.init(frame: .zero)
-        bezelStyle = .rounded
-        target = self
-        action = #selector(beginRecording)
-        title = shortcut.display
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    @objc private func beginRecording() {
-        guard monitor == nil else { return }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .leftMouseDown]) { [weak self] event in
-            guard let self else { return event }
-            switch event.type {
-            case .leftMouseDown:
-                finish(nil)
-                return event
-            case .flagsChanged:
-                let held = Shortcut.describe(event)
-                title = held.isEmpty ? Self.prompt : held + "…"
-                return event
-            default:
-                let bare = event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty
-                if bare, event.charactersIgnoringModifiers == "\u{1B}" {
-                    finish(nil)
-                } else if let picked = Shortcut(event: event) {
-                    finish(picked)
-                } else if !event.isARepeat {
-                    onReject(Shortcut.refusal(of: event))
-                }
-                return nil
-            }
-        }
-        title = Self.prompt
-        onRecordingChange(true)
-    }
-
-    func cancelRecording() {
-        if monitor != nil { finish(nil) }
-    }
-
-    /// `onPick` runs while the old shortcut is still released, so `choose` claims the new one
-    /// before `onRecordingChange(false)` would retake the old.
-    private func finish(_ picked: Shortcut?) {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
-        title = shortcut.display
-        if let picked { onPick(picked) }
-        onRecordingChange(false)
-    }
 }

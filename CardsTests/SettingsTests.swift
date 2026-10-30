@@ -2,63 +2,6 @@ import XCTest
 @testable import Ideator
 
 final class SettingsTests: XCTestCase {
-    private func caption(problem: HotKey.Problem? = nil, usedByMacOS: Bool = false, rejected: String? = nil) -> String {
-        SettingsWindow.shortcutCaption(shortcut: .standard, problem: problem, usedByMacOS: usedByMacOS,
-                                       rejected: rejected)
-    }
-
-    func testTheShortcutCaptionSaysTheLastVerdictFirstThenWhyThereIsNoShortcutThenTheMacOSNote() {
-        XCTAssertEqual(caption(problem: .taken, usedByMacOS: true, rejected: "⌘K can't be the shortcut."),
-                       "⌘K can't be the shortcut.")
-        XCTAssertEqual(caption(problem: .taken, usedByMacOS: true),
-                       "⌃⌥I is already taken. There is no shortcut until you pick another.")
-        XCTAssertEqual(caption(problem: .refused(-9879)),
-                       "macOS refused ⌃⌥I (error -9879). There is no shortcut until you pick another.")
-        XCTAssertTrue(caption(usedByMacOS: true).hasPrefix("macOS also has a shortcut on ⌃⌥I"))
-        XCTAssertEqual(caption(), "Hides or shows every card, from any app. Click it, then press the new keys.")
-    }
-
-    func testThePrivacyLineNamesTheSavedKeysCompanyAndBothWhenThereIsNoKey() {
-        XCTAssertTrue(SettingsWindow.privacy(for: .anthropic).contains("sends a card's text to Anthropic, using your own key"),
-                      "what, to whom, whose key")
-        XCTAssertTrue(SettingsWindow.privacy(for: .openAI).contains("sends a card's text to OpenAI, using your own key"))
-        XCTAssertTrue(SettingsWindow.privacy(for: nil).contains(
-            "sends a card's text to Anthropic or OpenAI, whichever your key is for, using your own key"))
-        XCTAssertFalse(SettingsWindow.privacy(for: .anthropic).contains("OpenAI"), "a saved key names its company alone")
-        XCTAssertFalse(SettingsWindow.privacy(for: .openAI).contains("Anthropic"))
-    }
-
-    func testThePrivacyLineNamesTheServicesAndWhatEachGetsThenPromisesNothingElseLeaves() {
-        for provider in [Provider.anthropic, .openAI, nil] {
-            let line = SettingsWindow.privacy(for: provider)
-            XCTAssertTrue(line.contains("login Keychain"), "where the key stays")
-            XCTAssertTrue(line.contains("whenever you click Check Now, Ideator asks GitHub whether a newer version exists"))
-            XCTAssertTrue(line.contains("GitHub sees your IP address and which version you have"))
-            XCTAssertTrue(line.hasSuffix("Nothing else leaves your Mac: no analytics, no crash reports."),
-                          "the promise comes after both services")
-        }
-    }
-
-    func testThePrivacyLineSaysWhenACardIsSentAgainAndNotThatItIsSentOnce() {
-        for provider in [Provider.anthropic, .openAI, nil] {
-            let line = SettingsWindow.privacy(for: provider)
-            XCTAssertTrue(line.contains("whenever the card has no summary for its text as it is now"), "the rule")
-            XCTAssertTrue(line.contains("when you save a key"), "every card without a summary goes at once")
-            XCTAssertTrue(line.contains("at launch after a failed try"), "a failure is never saved")
-            XCTAssertTrue(line.contains("after an update that changes how Ideator asks for summaries"), "every card, once")
-        }
-    }
-
-    func testTheKeyLineSaysWhoseKeyIsSavedAndWhereItIsHeld() {
-        let replace = "Paste a new one to replace it."
-        XCTAssertEqual(SettingsWindow.keyStatus(provider: nil, inKeychain: true),
-                       "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”.")
-        XCTAssertEqual(SettingsWindow.keyStatus(provider: .anthropic, inKeychain: true), "An Anthropic key is saved in your Keychain. \(replace)")
-        XCTAssertEqual(SettingsWindow.keyStatus(provider: .openAI, inKeychain: true), "An OpenAI key is saved in your Keychain. \(replace)")
-        XCTAssertEqual(SettingsWindow.keyStatus(provider: .openAI, inKeychain: false), "An OpenAI key is held for this run only. \(replace)")
-        XCTAssertEqual(SettingsWindow.keyStatus(provider: .anthropic, inKeychain: false), "An Anthropic key is held for this run only. \(replace)")
-    }
-
     func testTheKeyStoreSaysWhoseKeyItHolds() {
         let keys = KeyStore(inKeychain: false)
         XCTAssertNil(keys.provider)
@@ -74,44 +17,203 @@ final class SettingsTests: XCTestCase {
         XCTAssertNil(keys.provider)
     }
 
-    func testSavingAndRemovingKeysMovesTheKeyLineAndThePrivacyLineTogether() async throws {
-        var changes = 0
-        let window = settings(keys: KeyStore(inKeychain: false)) { changes += 1 }
-        let content = try XCTUnwrap(window.contentView)
-        let field = try XCTUnwrap(descendants(of: content).compactMap { $0 as? NSSecureTextField }.first)
-        XCTAssertTrue(texts(in: window).contains("API key (Anthropic or OpenAI)"), "the heading says either company works")
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic or OpenAI, whichever your key is for") })
+    func testTheWindowIsAFixedSixHundredFortySquareWithItsTitleHidden() {
+        let window = settings()
+        window.contentView?.layoutSubtreeIfNeeded()
 
-        field.stringValue = "sk-proj-test"
-        try button("Save", in: window).performClick(nil)
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("An OpenAI key is held for this run only") })
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to OpenAI, using your own key") })
+        XCTAssertEqual(window.contentRect(forFrameRect: window.frame).size, NSSize(width: 640, height: 640))
+        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 640, height: 640), "nothing inside pulls it smaller")
+        XCTAssertFalse(window.styleMask.contains(.resizable))
+        XCTAssertTrue(window.styleMask.contains(.closable))
+        XCTAssertEqual(window.title, "Ideator Settings", "VoiceOver still reads it")
+        XCTAssertEqual(window.titleVisibility, .hidden)
+    }
+
+    func testTheSidebarListsTheSixSectionsAndTheWindowOpensOnShortcut() throws {
+        let window = settings()
+        let table = try XCTUnwrap(descendants(of: window.contentView!).compactMap { $0 as? NSTableView }.first)
+
+        XCTAssertEqual(table.accessibilityLabel(), "Settings sections")
+        let rows = (0..<table.numberOfRows).map { table.view(atColumn: 0, row: $0, makeIfNecessary: true)?.accessibilityLabel() }
+        XCTAssertEqual(rows, ["Shortcut", "Spread", "AI Summary", "MCP", "Updates", "Privacy"])
+        XCTAssertEqual(table.selectedRow, 0)
+        XCTAssertEqual(shown(in: window), [.shortcut])
+    }
+
+    func testPickingASectionShowsItsPaneAloneAndFromItsTop() throws {
+        let window = settings()
+
+        window.select(.updates)
+
+        XCTAssertEqual(shown(in: window), [.updates])
+        let table = try XCTUnwrap(descendants(of: window.contentView!).compactMap { $0 as? NSTableView }.first)
+        XCTAssertEqual(table.selectedRow, SettingsSection.updates.rawValue)
+        XCTAssertEqual(window.pane(.updates).enclosingScrollView?.contentView.bounds.minY, 0)
+    }
+
+    func testClosingTheWindowBringsItBackOnShortcut() {
+        let window = settings()
+        window.select(.mcp)
+        window.becomeKey()
+        XCTAssertEqual(shown(in: window), [.mcp], "the section stays while the window is open")
+
+        window.close()
+        window.becomeKey()
+
+        XCTAssertEqual(window.selected, .shortcut)
+        XCTAssertEqual(shown(in: window), [.shortcut])
+    }
+
+    func testCommandWClosesTheWindow() throws {
+        let window = settings()
+        window.select(.privacy)
+        window.orderFront(nil)
+        let commandW = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                                                      windowNumber: window.windowNumber, context: nil, characters: "w",
+                                                      charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13))
+
+        XCTAssertTrue(window.performKeyEquivalent(with: commandW))
+
+        XCTAssertFalse(window.isVisible)
+        XCTAssertEqual(window.selected, .shortcut)
+    }
+
+    func testEachPaneIsAGroupNamedForItsSectionSoVoiceOverSaysWhereItIs() {
+        let window = settings()
+        for section in SettingsSection.allCases {
+            XCTAssertEqual(window.pane(section).accessibilityRole(), .group, section.title)
+            XCTAssertEqual(window.pane(section).accessibilityLabel(), section.title)
+        }
+    }
+
+    func testEverySectionNameFitsTheSidebarWithoutWrapping() {
+        let selected = NSFont.systemFont(ofSize: 14, weight: .semibold)
+        for section in SettingsSection.allCases {
+            let width = (section.title as NSString).size(withAttributes: [.font: selected]).width
+            XCTAssertLessThanOrEqual(width, 136, "\(section.title) is \(width) points in the selected row's 14/600")
+        }
+    }
+
+    func testEachPaneOpensWithItsTitleThenItsLead() {
+        let window = settings()
+        for section in SettingsSection.allCases {
+            let lines = texts(in: window.pane(section))
+            XCTAssertEqual(lines.first, section.title)
+            if let lead = section.lead { XCTAssertEqual(lines.dropFirst().first, lead, section.title) }
+        }
+    }
+
+    func testTabGoesFromTheSidebarThroughThePaneInReadingOrderAndBack() throws {
+        let window = settings(keys: KeyStore(inKeychain: false))
+        let table = try XCTUnwrap(descendants(of: window.contentView!).compactMap { $0 as? NSTableView }.first)
+
+        window.select(.mcp)
+        let loop = keyLoop(from: table)
+        let pane = window.pane(.mcp)
+        let order: [NSView] = try ["Claude Code", "Codex", "Claude Desktop", "Let AI tools add cards", "Top", "Bottom"].map {
+            try button($0, in: pane)
+        } + [try XCTUnwrap(descendants(of: pane).compactMap { $0 as? NSTextView }.first), try button("Reset to Default", in: pane)]
+        XCTAssertEqual(loop.map(ObjectIdentifier.init), order.filter(\.canBecomeKeyView).map(ObjectIdentifier.init),
+                       "only what Tab can reach now: buttons need Full Keyboard Access, and Reset is dimmed")
+
+        window.select(.privacy)
+        XCTAssertEqual(keyLoop(from: table).count, 0, "the card has nothing to focus")
+    }
+
+    func testTheRecorderIsNamedShortcutAndSpellsTheCombinationOut() throws {
+        let window = settings()
+        let recorder = try XCTUnwrap(descendants(of: window.pane(.shortcut)).compactMap { $0 as? ShortcutField }.first)
+
+        XCTAssertEqual(recorder.title, "⌃⌥I", "the harness presses it by its glyphs")
+        XCTAssertEqual(recorder.accessibilityLabel(), "Shortcut")
+        XCTAssertEqual(recorder.accessibilityValue() as? String, "Control-Option-I")
+    }
+
+    func testStartingARecordingIsAnnouncedAndFillingTheWindowIsNot() throws {
+        var said: [String] = []
+        let window = settings(announce: { said.append($0) })
+        let recorder = try XCTUnwrap(descendants(of: window.pane(.shortcut)).compactMap { $0 as? ShortcutField }.first)
+        window.becomeKey()
+        XCTAssertEqual(said, [], "opening the window is not news")
+
+        recorder.performClick(nil)
+        recorder.cancelRecording()
+
+        XCTAssertEqual(said, ["Recording. Press the new keys, or Escape to cancel."])
+    }
+
+    func testAStatusThatChangesIsAnnouncedWithItsPrefix() throws {
+        var said: [String] = []
+        let window = settings(keys: KeyStore(inKeychain: false), announce: { said.append($0) })
+        window.select(.aiSummary)
+        let field = try XCTUnwrap(descendants(of: window.pane(.aiSummary)).compactMap { $0 as? NSSecureTextField }.first)
 
         field.stringValue = "sk-ant-test"
-        try button("Save", in: window).performClick(nil)
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("An Anthropic key is held for this run only") })
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic, using your own key") })
+        try button("Save", in: window.pane(.aiSummary)).performClick(nil)
 
-        try button("Remove Key", in: window).performClick(nil)
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("No key saved") })
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic or OpenAI") })
+        XCTAssertEqual(said, ["Done: An Anthropic key is held for this run only. Paste a new one to replace it."])
+    }
+
+    func testAStatusThatChangesOnAHiddenPaneIsNotAnnounced() throws {
+        var said: [String] = []
+        let spread = SpreadChoice(preferences: Preferences(defaults: nil))
+        let window = SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
+                                    updates: Updates(build: .current, isScratch: false), spread: spread,
+                                    announce: { said.append($0) }) {}
+
+        spread.cells = .empty
+        window.becomeKey()
+        XCTAssertEqual(said, [], "Spread is not the pane on screen")
+
+        window.select(.spread)
+        spread.cells = .standard
+        window.becomeKey()
+        spread.cells = .empty
+        window.becomeKey()
+        XCTAssertEqual(said, ["No cell is ticked, so Spread makes no card. Tick the cells it should fill."], "a neutral line has no prefix")
+    }
+
+    func testSavingAndRemovingKeysMovesTheKeyLineAndThePrivacyCardTogether() async throws {
+        var changes = 0
+        let window = settings(keys: KeyStore(inKeychain: false), onChange: { changes += 1 })
+        let key = window.pane(.aiSummary), privacy = window.pane(.privacy)
+        let field = try XCTUnwrap(descendants(of: key).compactMap { $0 as? NSSecureTextField }.first)
+        XCTAssertTrue(texts(in: key).contains("API key"), "the lead names both companies")
+        XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic or OpenAI, whichever your key is for") })
+
+        field.stringValue = "sk-proj-test"
+        try button("Save", in: key).performClick(nil)
+        XCTAssertTrue(texts(in: key).contains { $0.hasPrefix("An OpenAI key is held for this run only") })
+        XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to OpenAI, using your own key") })
+
+        field.stringValue = "sk-ant-test"
+        try button("Save", in: key).performClick(nil)
+        XCTAssertTrue(texts(in: key).contains { $0.hasPrefix("An Anthropic key is held for this run only") })
+        XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic, using your own key") })
+
+        try button("Remove Key", in: key).performClick(nil)
+        XCTAssertTrue(texts(in: key).contains { $0.hasPrefix("No key saved") })
+        XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic or OpenAI") })
         XCTAssertEqual(changes, 3, "each save and the removal tell the controller, so failed summaries retry under the new key")
     }
 
-    func testTheUpdatesCaptionFollowsTheVersionLineWithWhetherThisRunChecks() {
-        let release = BuildInfo(info: ["CFBundleShortVersionString": "0.9", "CFBundleVersion": "57",
-                                       "IdeatorCommit": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d", "IdeatorTreeDirty": "NO",
-                                       "SUFeedURL": "https://github.com/XingzhiC-starlight/ideator/releases/latest/download/appcast.xml",
-                                       "SUPublicEDKey": "aU79Ryz97RGp9XiQfDRmXkV4198Z8g6cp+8nhrIpaJ4="])
-        let xcode = BuildInfo(info: ["CFBundleShortVersionString": "0.9", "CFBundleVersion": "1",
-                                     "IdeatorCommit": "none", "IdeatorTreeDirty": "unknown"])
+    func testThePrivacyCardShowsItsHeadlineAndEachTermOverItsText() {
+        let window = settings()
+        let lines = texts(in: window.pane(.privacy))
+        let card = SettingsCopy.Privacy.card(for: nil)
 
-        XCTAssertEqual(SettingsWindow.updatesCaption(build: release, plan: release.plan(isScratch: false)),
-                       "Version 0.9 (57), commit 1a2b3c4. Ideator asks before it installs an update.")
-        XCTAssertEqual(SettingsWindow.updatesCaption(build: release, plan: release.plan(isScratch: true)),
-                       "Version 0.9 (57), commit 1a2b3c4. A scratch run (-CardsFolder) doesn't check for updates.")
-        XCTAssertEqual(SettingsWindow.updatesCaption(build: xcode, plan: xcode.plan(isScratch: false)),
-                       "Version 0.9 (1), a development build. Only builds made by scripts/package.sh check for updates.")
+        XCTAssertEqual(lines, ["Privacy", card.headline] + card.items.flatMap { [$0.term, $0.text] })
+    }
+
+    func testTheUpdatesPaneShowsTheVersionLineThenWhyThisRunDoesNotCheck() {
+        let updates = Updates(build: .current, isScratch: false)
+        let window = SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
+                                    updates: updates) {}
+        let lines = texts(in: window.pane(.updates))
+
+        let version = lines.firstIndex(of: updates.build.versionLine)
+        XCTAssertNotNil(version)
+        XCTAssertEqual(version.map { lines[$0 + 1] }, "Only builds made by scripts/package.sh check for updates.")
     }
 
     func testABuildThatNeverChecksDimsTheUpdateControlsAndTheMenuItem() throws {
@@ -134,28 +236,28 @@ final class SettingsTests: XCTestCase {
         let keys = RefusableKeyStore()
         keys.set("sk-ant-test")
         var changes = 0
-        let window = settings(keys: keys) { changes += 1 }
+        let window = settings(keys: keys, onChange: { changes += 1 })
 
         keys.refuses = true
-        try button("Remove Key", in: window).performClick(nil)
+        try button("Remove Key", in: window.pane(.aiSummary)).performClick(nil)
 
         XCTAssertEqual(keys.apiKey, "sk-ant-test", "the key is still saved, so it still sends")
         XCTAssertEqual(changes, 0, "the summarizer must not be told the key is gone")
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("An Anthropic key is held") }, "the status line still says a key is saved")
-        XCTAssertFalse(texts(in: window).contains { $0.hasPrefix("No key saved") })
+        XCTAssertTrue(texts(in: window.pane(.aiSummary)).contains { $0.contains("An Anthropic key is held") }, "the status line still says a key is saved")
+        XCTAssertFalse(texts(in: window.pane(.aiSummary)).contains { $0.contains("No key saved") })
     }
 
     func testRemoveKeyDeletesTheKeyAndTellsTheControllerOnce() async throws {
         let keys = RefusableKeyStore()
         keys.set("sk-ant-test")
         var changes = 0
-        let window = settings(keys: keys) { changes += 1 }
+        let window = settings(keys: keys, onChange: { changes += 1 })
 
-        try button("Remove Key", in: window).performClick(nil)
+        try button("Remove Key", in: window.pane(.aiSummary)).performClick(nil)
 
         XCTAssertNil(keys.apiKey)
         XCTAssertEqual(changes, 1)
-        XCTAssertTrue(texts(in: window).contains { $0.hasPrefix("No key saved") })
+        XCTAssertTrue(texts(in: window.pane(.aiSummary)).contains { $0.hasPrefix("No key saved") })
     }
 
     func testTheShortcutFieldShowsThatItIsRecordingEvenWhenTheHandlerRefreshesTheShortcut() {
@@ -170,22 +272,40 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(field.title, Shortcut.standard.display)
     }
 
-    private func settings(keys: KeyStore, onChange: @escaping () -> Void) -> SettingsWindow {
+    private func settings(keys: KeyStore = KeyStore(inKeychain: false), announce: ((String) -> Void)? = nil,
+                          onChange: @escaping () -> Void = {}) -> SettingsWindow {
         SettingsWindow(keys: keys, hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
-                       updates: Updates(build: .current, isScratch: false), onChange: onChange)
+                       updates: Updates(build: .current, isScratch: false), announce: announce, onChange: onChange)
     }
 
-    private func button(_ title: String, in window: SettingsWindow) throws -> NSButton {
-        let buttons = descendants(of: try XCTUnwrap(window.contentView)).compactMap { $0 as? NSButton }
-        return try XCTUnwrap(buttons.first { $0.title == title }, title)
+    private func shown(in window: SettingsWindow) -> [SettingsSection] {
+        SettingsSection.allCases.filter { !window.pane($0).isHidden }
     }
 
-    private func texts(in window: SettingsWindow) -> [String] {
-        descendants(of: window.contentView!).compactMap { ($0 as? NSTextField)?.stringValue }
+    /// What Tab visits after `start`, in order, until it comes back.
+    private func keyLoop(from start: NSView) -> [NSView] {
+        var loop: [NSView] = []
+        var view = start.nextValidKeyView
+        while let current = view, current !== start, loop.count < 50 {
+            loop.append(current)
+            view = current.nextValidKeyView
+        }
+        XCTAssertTrue(view == nil || view === start, "Tab comes back to the sidebar")
+        return loop
     }
 
+    private func button(_ title: String, in view: NSView) throws -> NSButton {
+        try XCTUnwrap(descendants(of: view).compactMap { $0 as? NSButton }.first { $0.title == title }, title)
+    }
+
+    /// Every label's text under `view`, in reading order.
+    private func texts(in view: NSView) -> [String] {
+        descendants(of: view).compactMap { ($0 as? NSTextField)?.stringValue }.filter { !$0.isEmpty }
+    }
+
+    /// Every view under `view` in reading order: each view, then what it holds.
     private func descendants(of view: NSView) -> [NSView] {
-        view.subviews + view.subviews.flatMap(descendants(of:))
+        view.subviews.flatMap { [$0] + descendants(of: $0) }
     }
 }
 
