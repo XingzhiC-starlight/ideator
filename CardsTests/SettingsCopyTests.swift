@@ -8,7 +8,7 @@ final class SettingsCopyTests: XCTestCase {
         XCTAssertEqual(SettingsSection.allCases.map(\.rawValue), Array(0..<6), "the position in the list is the raw value")
     }
 
-    func testEverySectionButPrivacyOpensWithALeadAndPrivacyLetsItsCardOpen() {
+    func testEverySectionButPrivacyOpensWithALeadAndPrivacyLetsItsPageOpen() {
         for section in SettingsSection.allCases where section != .privacy {
             XCTAssertFalse(try XCTUnwrap(section.lead, section.title).isEmpty, section.title)
         }
@@ -114,27 +114,27 @@ final class SettingsCopyTests: XCTestCase {
         XCTAssertEqual(release.versionLine, "Version 0.9 (57), commit 1a2b3c4", "the line the pane shows on its own")
     }
 
-    func testThePrivacyCardOpensWithTheTwoThingsThatLeaveTheMacThenListsEachWithItsTerm() {
-        let card = SettingsCopy.Privacy.card(for: nil)
+    func testThePrivacyPageOpensWithTheTwoThingsThatLeaveTheMacThenListsEachWithItsTerm() {
+        let card = SettingsCopy.Privacy.page(for: nil)
 
         XCTAssertEqual(card.headline, "Two things leave your Mac. Nothing else does.")
         XCTAssertEqual(card.items.map(\.term), ["Card text", "Update checks", "Your key", "Nothing else"])
         XCTAssertEqual(card.items.last?.text, "No analytics, no crash reports.")
     }
 
-    func testThePrivacyCardNamesTheSavedKeysCompanyAndBothWhenThereIsNoKey() {
-        func cardText(_ provider: Provider?) -> String { SettingsCopy.Privacy.card(for: provider).items[0].text }
+    func testThePrivacyPageNamesTheSavedKeysCompanyAndBothWhenThereIsNoKey() {
+        func cardText(_ provider: Provider?) -> String { SettingsCopy.Privacy.page(for: provider).items[0].text }
 
         XCTAssertTrue(cardText(.anthropic).contains("sends a card's text to Anthropic, using your own key"), "what, to whom, whose key")
         XCTAssertTrue(cardText(.openAI).contains("sends a card's text to OpenAI, using your own key"))
         XCTAssertTrue(cardText(nil).contains("sends a card's text to Anthropic or OpenAI, whichever your key is for, using your own key"))
-        XCTAssertFalse(SettingsCopy.Privacy.card(for: .anthropic).allText.contains("OpenAI"), "a saved key names its company alone")
-        XCTAssertFalse(SettingsCopy.Privacy.card(for: .openAI).allText.contains("Anthropic"))
+        XCTAssertFalse(SettingsCopy.Privacy.page(for: .anthropic).allText.contains("OpenAI"), "a saved key names its company alone")
+        XCTAssertFalse(SettingsCopy.Privacy.page(for: .openAI).allText.contains("Anthropic"))
     }
 
-    func testThePrivacyCardSaysWhenACardIsSentAgainAndWhatTheDailyCheckSends() {
+    func testThePrivacyPageSaysWhenACardIsSentAgainAndWhatTheDailyCheckSends() {
         for provider in [Provider.anthropic, .openAI, nil] {
-            let card = SettingsCopy.Privacy.card(for: provider)
+            let card = SettingsCopy.Privacy.page(for: provider)
             let text = card.allText
             XCTAssertTrue(text.contains("whenever a card has no summary for its text as it is now"), "the rule")
             XCTAssertTrue(text.contains("when you save a key"), "every card without a summary goes at once")
@@ -149,8 +149,8 @@ final class SettingsCopyTests: XCTestCase {
     }
 }
 
-extension PrivacyCard {
-    /// The headline, then each term and its text, one per line: what the card says, for assertions.
+extension PrivacyPage {
+    /// The headline, then each term and its text, one per line: what the page says, for assertions.
     var allText: String {
         ([headline] + items.flatMap { [$0.term, $0.text] }).joined(separator: "\n")
     }

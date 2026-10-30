@@ -28,6 +28,7 @@ final class SettingsWindow: NSWindow {
         super.init(contentRect: NSRect(origin: .zero, size: SettingsStyle.windowSize),
                    styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
         title = SettingsCopy.windowTitle
+        appearance = NSAppearance(named: .aqua)
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isReleasedWhenClosed = false
@@ -71,6 +72,9 @@ final class SettingsWindow: NSWindow {
         select(.opening)
         refresh()
         fitScreen()
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(displayOptionsChanged),
+                                                          name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+                                                          object: nil)
     }
 
     /// Shows `section`'s pane from its top, selects its row and links Tab through it. Focus stays where
@@ -100,12 +104,60 @@ final class SettingsWindow: NSWindow {
         super.becomeKey()
         fitScreen()
         refresh()
+        if let owner = SettingsFocusRing.owner(of: firstResponder) { Self.redrawFocus(owner) }
     }
 
     /// ⌘-Tab or closing the window ends a recording, so the shortcut never stays released.
     override func resignKey() {
         super.resignKey()
         for pane in panes { pane.windowDidResignKey() }
+        if let owner = SettingsFocusRing.owner(of: firstResponder) { Self.redrawFocus(owner) }
+    }
+
+    /// Every focus change comes through here, so this is where the controls that gain and lose focus
+    /// redraw their ring, and where a control focused below the fold scrolls fully into view (A4).
+    @discardableResult
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let before = SettingsFocusRing.owner(of: firstResponder)
+        let made = super.makeFirstResponder(responder)
+        let after = SettingsFocusRing.owner(of: firstResponder)
+        if before !== after {
+            if let before { Self.redrawFocus(before) }
+            if let after {
+                Self.redrawFocus(after)
+                let reach = SettingsFocusRing.reach()
+                after.scrollToVisible(after.bounds.insetBy(dx: -reach, dy: -reach))
+            }
+        }
+        return made
+    }
+
+    override func fieldEditor(_ createFlag: Bool, for object: Any?) -> NSText? {
+        let editor = super.fieldEditor(createFlag, for: object)
+        if let editor = editor as? NSTextView { SettingsStyle.styleEditing(editor) }
+        return editor
+    }
+
+    /// A segment's ring crosses onto its partner and a Spread cell draws its picker's, so the view's
+    /// neighbors redraw with it.
+    private static func redrawFocus(_ view: NSView) {
+        func mark(_ view: NSView) {
+            view.needsDisplay = true
+            view.subviews.forEach(mark)
+        }
+        mark(view.superview ?? view)
+    }
+
+    /// Increase Contrast changes `border`, `inkMuted` and `inkInverseMuted`, which labels hold in
+    /// their text and everything else reads when it draws.
+    @objc private func displayOptionsChanged() {
+        func restyle(_ view: NSView) {
+            (view as? SettingsText)?.restyle()
+            (view as? SettingsKeyField)?.restyle()
+            view.needsDisplay = true
+            view.subviews.forEach(restyle)
+        }
+        contentView.map(restyle)
     }
 
     override func close() {
@@ -204,11 +256,10 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// The edge it shares with the pane. Drawn, not a view: a separator view has a height of its own,
-    /// and the window would shrink to it.
+    /// Spruce, with no line at its edge: the ivory ↔ spruce edge alone parts it from the pane (§2.4).
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.separatorColor.setFill()
-        NSRect(x: bounds.maxX - 1, y: bounds.minY, width: 1, height: bounds.height).fill()
+        Palette.Settings.inverse.setFill()
+        bounds.fill()
     }
 
     /// Selects the row without calling `onSelect`.
@@ -218,6 +269,8 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { SettingsSection.allCases.count }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { SidebarRowView() }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let section = SettingsSection(rawValue: row) else { return nil }
@@ -237,12 +290,16 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
 /// this view's label and press to it, so the view must not be an element too (see `ArrangerCell`).
 final class SidebarCell: NSTableCellView {
     private let section: SettingsSection
+    private let name: SettingsText
+    private var hover: NSTrackingArea?
+    private var isHovered = false { didSet { restyle() } }
     var onPress: () -> Void = {}
 
     init(_ section: SettingsSection) {
         self.section = section
+        name = SettingsControl.text(section.title, as: .label, tone: .inverseMuted,
+                                    width: SettingsStyle.sidebarWidth - 2 * SettingsStyle.s4)
         super.init(frame: .zero)
-        let name = SettingsControl.text(section.title, as: .label, width: SettingsStyle.sidebarWidth - 2 * SettingsStyle.s4)
         name.setAccessibilityElement(false)
         name.translatesAutoresizingMaskIntoConstraints = false
         addSubview(name)
@@ -254,6 +311,29 @@ final class SidebarCell: NSTableCellView {
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { restyle() }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hover { removeTrackingArea(hover) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp], owner: self)
+        addTrackingArea(area)
+        hover = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovered = true }
+
+    override func mouseExited(with event: NSEvent) { isHovered = false }
+
+    private func restyle() {
+        let selected = backgroundStyle == .emphasized
+        name.role = selected ? .term : .label
+        name.tone = selected ? .ink : isHovered ? .inverse : .inverseMuted
+        name.underline = isHovered && !selected
+    }
 
     override func isAccessibilityElement() -> Bool { false }
     override func accessibilityRole() -> NSAccessibility.Role? { .cell }
@@ -270,13 +350,13 @@ final class SidebarCell: NSTableCellView {
 /// The document is as tall as the shown pane or the window, whichever is taller, so a pane taller
 /// than the window scrolls here and the sidebar never does.
 final class PaneHost: NSScrollView {
-    private let document = FlippedView()
+    private let document = PaneDocument()
     private var panes: [SettingsPane] = []
     private var fit: NSLayoutConstraint?
 
     init() {
         super.init(frame: .zero)
-        drawsBackground = false
+        backgroundColor = Palette.Settings.canvas
         hasVerticalScroller = true
         autohidesScrollers = true
         automaticallyAdjustsContentInsets = false
@@ -320,7 +400,13 @@ final class PaneHost: NSScrollView {
     }
 }
 
-/// A view whose origin is its top left, so a scroll view opens on its first row.
-private final class FlippedView: NSView {
+/// The panes' ivory, drawn like the sidebar's spruce. The scroll view's own background only shows past
+/// the ends while it bounces. Its origin is its top left, so a pane opens on its first row.
+private final class PaneDocument: NSView {
     override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        Palette.Settings.canvas.setFill()
+        dirtyRect.fill()
+    }
 }

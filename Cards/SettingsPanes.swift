@@ -191,6 +191,7 @@ final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     override func refresh() {
         save.isEnabled = !typedKey.isEmpty
         remove.isEnabled = keys.provider != nil
+        field.showsError = keychainRefused
         status.show(SettingsCopy.AISummary.status(provider: keys.provider, inKeychain: keys.inKeychain,
                                                   keychainRefused: keychainRefused))
     }
@@ -269,6 +270,7 @@ final class MCPPane: SettingsPane, NSTextViewDelegate {
         }
         if editor.textView.string != settings.instruction.text { editor.textView.string = settings.instruction.text }
         reset.isEnabled = !settings.instruction.isStandard
+        editor.scroll.showsError = instructionRefused
         instructionStatus.show(SettingsCopy.MCP.instructionStatus(refused: instructionRefused))
     }
 
@@ -358,15 +360,15 @@ final class UpdatesPane: SettingsPane {
 
 final class PrivacyPane: SettingsPane {
     private let keys: KeyStore
-    private let card = PrivacyCardView()
+    private let page = PrivacyPageView()
 
     init(keys: KeyStore, refreshAll: @escaping () -> Void, announce: @escaping (String) -> Void) {
         self.keys = keys
         super.init(section: .privacy, refreshAll: refreshAll, announce: announce)
-        addGroup([.control(card)])
+        addGroup([.control(page)])
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    override func refresh() { card.show(SettingsCopy.Privacy.card(for: keys.provider)) }
+    override func refresh() { page.show(SettingsCopy.Privacy.page(for: keys.provider)) }
 }

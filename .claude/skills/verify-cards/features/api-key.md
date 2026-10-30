@@ -7,10 +7,10 @@ that starts with `sk-ant-` is Anthropic's and any other key is OpenAI's.
 
 ## Sub-features
 
-- `key-none` With no key, the status line says so, the privacy card names both companies, and a
+- `key-none` With no key, the status line says so, the privacy page names both companies, and a
   collapsed card with two body lines shows `Summary unavailable` with `No API key. Add one in Settings › AI Summary.`
 - `key-openai` A key that does not start with `sk-ant-` gives `An OpenAI key is held for this run only.`
-  and a privacy card naming OpenAI alone. The collapsed card asks OpenAI and shows its HTTP 401.
+  and a privacy page naming OpenAI alone. The collapsed card asks OpenAI and shows its HTTP 401.
 - `key-anthropic` A key that starts with `sk-ant-` replaces it: the lines name Anthropic, the failed
   summary is asked again, and the hover now shows Anthropic's `HTTP 401: invalid x-api-key`.
 - `key-removed` Remove Key puts the none lines back, and the card says `No API key.` again.
@@ -41,12 +41,12 @@ Preconditions:
 - **key-openai.** `cv ax type 'sk-proj-fakefakefakefakefake'` (Save is enabled once the field has
   text), then `cv ax press Save`, and wait 4 s.
   The status line reads `An OpenAI key is held for this run only. Paste a new one to replace it.`,
-  Remove Key is enabled, the privacy card (`cv ax section Privacy`) says `… sends a card's text to
+  Remove Key is enabled, the privacy page (`cv ax section Privacy`) says `… sends a card's text to
   OpenAI, using your own key`, and Beta's static text is
   `AXStaticText "HTTP 401: Incorrect API key provided: sk-proj-****************fake. …" value="Summary
   unavailable"`. OpenAI's own message echoes the pasted key with the middle masked.
 - **key-anthropic.** `cv ax section "AI Summary"`, `cv ax key tab`, `cv ax type 'sk-ant-fakefakefakefakefake'`,
-  `cv ax press Save`, wait 4 s. The status line starts `An Anthropic key is held`, the privacy card
+  `cv ax press Save`, wait 4 s. The status line starts `An Anthropic key is held`, the privacy page
   `… to Anthropic, using your own key`, and Beta's reason is `HTTP 401: invalid x-api-key`.
 - **key-removed.** In AI Summary, `cv ax press "Remove Key"`. The none lines are back, Remove Key is
   `[disabled]` again, and Beta says `No API key.`.
@@ -60,6 +60,6 @@ Preconditions:
   longer than 4 s.
 - A key with no `sk-ant-` start is OpenAI's whatever service issued it, so a Kimi or Qwen key fails
   with OpenAI's 401.
-- Only the shown section is in `cv ax tree`, so read the privacy card after `cv ax section Privacy` and
+- Only the shown section is in `cv ax tree`, so read the privacy page after `cv ax section Privacy` and
   the key's lines after `cv ax section "AI Summary"`. Typing goes to the focused view: after a section
   change that is the sidebar, so press Tab before typing a key.

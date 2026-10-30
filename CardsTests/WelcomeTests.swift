@@ -56,7 +56,7 @@ final class WelcomeTests: XCTestCase {
 
         XCTAssertTrue(summaries?.text.contains(rule) == true)
         XCTAssertTrue(summaries?.text.contains("Anthropic or OpenAI API key") == true)
-        XCTAssertTrue(SettingsCopy.Privacy.card(for: nil).allText.contains(rule))
+        XCTAssertTrue(SettingsCopy.Privacy.page(for: nil).allText.contains(rule))
     }
 
     func testTheCardFitsItsCopyAtTheStackWidth() {

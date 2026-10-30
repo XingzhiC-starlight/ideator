@@ -54,8 +54,9 @@ func send(_ command: Command) {
 | `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
 | `Settings.swift`, `App.swift` | the Settings window, 640 × 640: a sidebar of the six sections, the pane each one shows, which section is shown, ⌘W and the Tab order; entry point, menu bar, reopen |
-| `SettingsPanes.swift` | one pane per section, each the only reader and writer of its model: the shortcut recorder, the Spread cell grid, the API key, the AI tools rows (the copy buttons, the switch with Top / Bottom, the instruction editor), the update controls with the version line, and the privacy card |
-| `SettingsControls.swift` | the spacing, sizes and type roles Settings uses (`SettingsStyle`), the one factory its controls come from, the status line that announces its changes, the Spread cell picker, the shortcut recorder and the privacy card's view |
+| `SettingsPanes.swift` | one pane per section, each the only reader and writer of its model: the shortcut recorder, the Spread cell grid, the API key, the AI tools rows (the copy buttons, the switch with Top / Bottom, the instruction editor), the update controls with the version line, and the privacy page |
+| `SettingsControls.swift` | the spacing, sizes, type roles and colors by job Settings uses (`SettingsStyle`), the one factory its controls come from, the status line that announces its changes, the Spread cell picker, the shortcut recorder and the privacy page's view |
+| `SettingsCells.swift` | how Settings draws: the button cell with a look for each control, the key field and editor wells, the selected sidebar row, and the focus ring each control draws for itself |
 | `SettingsCopy.swift`, `KeyStore.swift` | the six sections in order (`SettingsSection`) and every word Settings shows (pure); the API key in the login Keychain, or in memory for a scratch run |
 | `Spread.swift` | the Spread button's presentation: `SpreadChoice`, the ticked cells for this run, `SpreadRefusal`, why the last click changed nothing, and the button's tooltip |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
@@ -273,6 +274,41 @@ Rules the values keep:
 
 To add a color, add a token with its use, check its contrast on the rendered glass, and add a row
 here.
+
+### Settings palette
+
+Settings is a page from a research journal rather than a card, so it has a palette of its own,
+`Palette.Settings` (SETTINGS-DESIGN.md §2.1): ivory paper, a spruce sidebar and dark green-black
+ink, and one clay accent. The values are opaque, so contrast is measured on the values themselves rather than
+on glass. Settings keeps the light look in Dark Mode, as cards do.
+
+| Token | Value | Used for | Contrast |
+| --- | --- | --- | --- |
+| `canvas` | `#F7F5EE` | the pane, a button's fill, the selected sidebar row | |
+| `inverse` | `#1F3A34` | the sidebar, Save, the selected segment, a ticked box | |
+| `surface` | `#FFFFFF` | inside the key field, the recorder and the instruction editor, and nowhere else | |
+| `ink` | `#1C2422` | all text on canvas and surface; button and box borders; the focus ring | 14.5:1 on canvas, 15.9:1 on surface |
+| `inkInverse` | `#F7F5EE` | text on spruce; the ticks | 11.2:1 on inverse |
+| `inkMuted` | `#56625E` | captions, the placeholder, the version line | 5.8:1 on canvas, 6.4:1 on surface |
+| `inkInverseMuted` | `#B5C4BD` | the sidebar rows that aren't selected | 6.8:1 on inverse |
+| `border` | `#7F8A85` | the input wells, unticked Spread cells, the Privacy page's rules | 3.3:1 on canvas, 3.6:1 on surface |
+| `inkDisabled` | `#A9B0AC` | dimmed labels and borders | 2.0:1, which WCAG allows a disabled control |
+| `wash` | `#EAEAE3`, spruce at 6 % over canvas | a hovered or pressed fill | `ink` on it 13.1:1 |
+| `inverseRaised` | `#33524A` | Save while pressed | `inkInverse` on it 7.9:1 |
+| `accent` | `#B5532F` | a ticked Spread cell, and nothing else | 4.5:1 on canvas; its ivory tick 4.5:1 |
+| `successStrong` | `#15803D` | the success glyph | 4.6:1 on canvas |
+| `warningStrong` | `#B45309` | the warning glyph | 4.6:1 on canvas |
+| `dangerStrong` | `#B91C1C` | the error glyph, and the border of a well that refused | 5.9:1 on canvas |
+
+Rules the values keep:
+
+- Text is 4.5:1 or more, and borders, the accent and the glyphs 3:1 or more. The A1 tests compute
+  each ratio from `Palette.Settings`.
+- Clay is on ticked Spread cells only. A status hue colors only a glyph or a 2 pt border; the
+  status text stays `ink`.
+- Increase Contrast turns `border` and `inkMuted` to `ink`, and `inkInverseMuted` to `inkInverse`.
+  The tokens read the setting as they draw, and the window redraws when it changes.
+- White marks where you type. No pane, card or button is white.
 
 ## Synthesis decision
 
@@ -756,7 +792,7 @@ Later changes, after trying the app:
     accessibility labels come from it, and adding a case fails the build until it has a pane.
   - Each pane takes only the model it serves and holds its own passing state (a refused shortcut,
     a refused Keychain write, the copied setup). A click writes the model and refreshes every pane,
-    because Save changes the Privacy card's company; a keystroke refreshes its own pane.
+    because Save changes the Privacy page's company; a keystroke refreshes its own pane.
   - Every pane stays in the view tree and only the shown one is unhidden, so the unit tests still
     reach any control while the accessibility tree, VoiceOver and the key view loop see one pane.
     The harness switches sections with `cards-ax section`, an exact name on the sidebar's cells,
@@ -772,12 +808,33 @@ Later changes, after trying the app:
     hidden, 1 shown).
   - A status line announces its own changes to VoiceOver, never the first fill and never on a
     hidden pane, so no pane has to remember to.
-  - Measured with the real fonts, the panes are 224 (Shortcut), 344 (Spread), 328 (AI Summary), 630
-    (MCP), 248 (Updates) and 632 (Privacy, no key saved) points tall. With the card's items 12 apart
-    Privacy measured 644 and scrolled by 4 points, so its items are 8 apart (SETTINGS-DESIGN.md
-    § Decisions). A unit test checks every pane against the 640-point window.
+  - Measured with the real fonts and the drawn controls, the panes are 224 (Shortcut), 344 (Spread),
+    328 (AI Summary), 640 (MCP), 248 (Updates) and 632 (Privacy, no key saved; 612 with one) points
+    tall. With the card's items 12 apart Privacy measured 644 and scrolled by 4 points, so its items
+    are 8 apart (SETTINGS-DESIGN.md § Decisions). A unit test checks every pane against the 640-point
+    window.
   - Rejected: `NSTabView`, which keeps only the shown tab in the view tree, and six sidebar buttons,
     which lose ↑↓ selection and "2 of 6".
+- 2026-10-30, the Settings look (SETTINGS-DESIGN.md §2, §3): ivory panes, a spruce sidebar and flat,
+  square controls drawn by Settings itself.
+  - Every control stays an AppKit control and one button cell draws them all, with a look for each
+    (button, Save, checkbox, segment, Spread cell, recorder), so titles, roles, values and the
+    keyboard stay AppKit's. A test fails on any button in the window whose cell is not that one.
+  - Each control draws its own focus ring, inside room that alignment insets add around it, so
+    layout sees only the control and the ring moves, hides and dims with it. The window's
+    `makeFirstResponder` redraws the controls that gain and lose focus and scrolls the new one into
+    view. One overlay drawing every ring was rejected: it would have to hear of every change that
+    moves, hides or dims the focused control, such as Save moving when the key's status line grows.
+  - Top and Bottom ring the selected segment whichever of the two has focus (only VoiceOver can
+    part them), so the ring crosses onto the ivory segment and never onto spruce.
+  - A checkbox is laid out at its 20 pt line and its click target grows to 24 × 24. Laid out 24
+    tall, it made the MCP pane 644 points and scroll.
+  - The instruction editor is on TextKit 1: TextKit 2 ignored the paragraph's 20 pt line height
+    and set lines 18.24 points apart. Its border is a view above the text, which scrolls under it;
+    insetting the clip view instead made the stack lay the well out 4 points taller than itself.
+  - Without Keyboard navigation, buttons, checkboxes and segments still take focus from VoiceOver
+    (AXFocused), which is how their rings were checked; the Spread grid's ring needs Keyboard
+    navigation.
 
 ## Tradeoffs accepted
 

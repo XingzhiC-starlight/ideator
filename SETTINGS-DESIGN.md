@@ -6,7 +6,7 @@ three behavior changes were approved on 2026-10-30 (§1, Decisions). Quoted copy
 word for word.
 
 **Intent:** Settings reads like a page from a research journal printed on warm stone: ivory paper,
-slate ink and a slate sidebar, flat hard-edged controls, one clay accent kept for a single job, and
+green-black ink and a spruce sidebar like a cloth cover, flat hard-edged controls, one clay accent kept for a single job, and
 emphasis made with type and underlines, never with color or glow.
 
 ---
@@ -27,22 +27,26 @@ welcome card keep their warm-paper palette (DESIGN.md › Color and glass).
 **Non-goals**
 
 - No new settings. Launch at login, Show folder and About are separate proposals.
-- No Dark Mode variant. The window always uses the light look, as cards already do. The slate
-  sidebar and the slate Privacy card already supply the dark half of the ivory ↔ slate rhythm.
+- No Dark Mode variant. The window always uses the light look, as cards already do. The spruce
+  sidebar already supplies the dark half of the ivory ↔ spruce rhythm.
 - No change to what any setting does. Only layout, drawing, the approved copy and the three
   behavior changes below change.
 
 **Decisions (2026-10-30)**
 
+- Spruce replaced slate, and the Privacy page replaced the slate card (chosen 2026-10-30 from real app
+  screenshots). Near-black covered a quarter of the window at 17.5:1 and outweighed the settings, and
+  the card made a second dark slab beside the sidebar and boxed in the longest text. Clay deepened
+  from #C15F3C to #B5532F, so a ticked cell and its tick reach 4.5:1.
 - All new wording in §3.13 is approved as written. Each section opens with a summary line under its
   title, and Shortcut's and Spread's old captions are split between that line and the caption.
 - Three behavior changes are in: a status line when the Keychain refuses the key (§3.13, AI
   Summary), Save disabled while the key field is empty (§3.4), and Remove Key disabled while no key
   is saved (§3.12).
 - The code font is SF Mono, not JetBrains Mono (§2.2).
-- The Privacy card opens with "Two things leave your Mac. Nothing else does.", and its update line
+- The Privacy page opens with "Two things leave your Mac. Nothing else does.", and its update line
   now says the daily check runs only while automatic checks are on.
-- The Privacy card's items are 8 apart, not 12 (decided 2026-10-30): with 12, the pane measured 644 pt
+- The Privacy card's items were 8 apart, not 12 (decided 2026-10-30, before the page below replaced the card): with 12, the pane measured 644 pt
   with no key saved and scrolled by 4 pt. With 8 it fits the 640 pt window (§2.5).
 
 **Where the brief and the rules disagree.** Accessibility and macOS conventions won in each case:
@@ -52,7 +56,7 @@ welcome card keep their warm-paper palette (DESIGN.md › Color and glass).
 | Primary font: "use the existing one" | SF Pro, the system font the app already uses | It's already in the app. It also settles the Anthropic Sans license question, because no font needs licensing. |
 | Display serif: "use the existing one" | New York, the macOS system serif (`.withDesign(.serif)`) | The app has no serif. New York ships with macOS and needs no license. |
 | Mono: JetBrains Mono | SF Mono (`NSFont.monospacedSystemFont`) | Chosen 2026-10-30. It's macOS's own code font and matches SF Pro, and it's used in two places only (§2.2). JetBrains Mono would add a font file and a license for two strings. |
-| `text` = #111827 | Not used. All text is `ink` #141413. | #111827 is a cool blue-black, a second near-black that clashes with the warm slate. Contrast is the same (17.5:1 vs 16.9:1). |
+| `text` = #111827 | Not used. All text is `ink` #1C2422. | #111827 is a cool blue-black, a second near-black that clashes with the warm ink. It predates spruce; `ink` is now #1C2422, a green-black chosen to match the sidebar. |
 | `surface` = #FFFFFF, but "never pure white" | White only inside input wells (key field, shortcut recorder, instruction editor) | White marks the places you can type. No page, card or button is white. |
 | `success` #16A34A, `warning` #D97706 | Darker `*Strong` variants (§2.1) | The brief's values are 3.1:1 and 3.0:1 on ivory, which fails 4.5:1 for text and only just reaches 3:1 for a glyph. |
 | `danger` #DC2626 | `dangerStrong` #B91C1C | #DC2626 is 4.6:1, too close to the limit. #B91C1C is 6.2:1. |
@@ -68,27 +72,27 @@ DESIGN.md's rule "a view never writes a color literal".
 
 ### 2.1 Color
 
-Brand values (raw): `slate` #141413 · `ivory` #FAF9F6 · `white` #FFFFFF · `clay` #C15F3C.
+Brand values (raw): `spruce` #1F3A34 · `ink` #1C2422 · `ivory` #F7F5EE · `white` #FFFFFF · `clay` #B5532F.
 
 Semantic tokens (use only these):
 
 | Token | Value | Use | Contrast (measured) |
 | --- | --- | --- | --- |
-| `canvas` | ivory #FAF9F6 | pane background, default button fill | n/a |
-| `inverse` | slate #141413 | sidebar, Privacy card, Save's fill, selected segment, ticked checkbox | n/a |
+| `canvas` | ivory #F7F5EE | pane background, default button fill | n/a |
+| `inverse` | spruce #1F3A34 | sidebar, Save's fill, selected segment, ticked checkbox | n/a |
 | `surface` | white #FFFFFF | inside input wells only | n/a |
-| `ink` | slate #141413 | all text on `canvas` and `surface`; borders of buttons and checkboxes; focus ring on light | 17.5:1 on canvas, 18.4:1 on surface |
-| `inkInverse` | ivory #FAF9F6 | text on `inverse`; focus ring on dark | 17.5:1 on inverse |
-| `inkMuted` | #5E5D59 | captions, placeholders, the version line | 6.3:1 on canvas, 6.6:1 on surface |
-| `inkInverseMuted` | #A3A198 | sidebar rows that aren't selected | 7.1:1 on inverse |
-| `border` | #858379 | input wells, unticked Spread cells | 3.6:1 on canvas, 3.8:1 on surface (≥ 3:1, WCAG 1.4.11) |
-| `inkDisabled` | #ABA9A1 | disabled labels and borders | 2.2:1, allowed because WCAG 1.4.3 exempts disabled controls |
-| `wash` | slate at 6 % over canvas (renders #ECEBE8) | hover fill | ink on wash 15.5:1 |
-| `inverseRaised` | #3D3D3A | Save while pressed | inkInverse on it 10.4:1 |
-| `accent` | clay #C15F3C | **only** the fill of a ticked Spread cell | 4.0:1 against canvas; its ivory check 4.0:1 (≥ 3:1 for graphics) |
-| `successStrong` | #15803D | success glyph | 4.8:1 on canvas |
-| `warningStrong` | #B45309 | warning glyph | 4.8:1 on canvas |
-| `dangerStrong` | #B91C1C | error glyph, error border | 6.2:1 on canvas |
+| `ink` | green-black #1C2422 | all text on `canvas` and `surface`; borders of buttons and checkboxes; focus ring on light | 14.5:1 on canvas, 15.9:1 on surface |
+| `inkInverse` | ivory #F7F5EE | text on `inverse`; focus ring on dark | 11.2:1 on inverse |
+| `inkMuted` | #56625E | captions, placeholders, the version line | 5.8:1 on canvas, 6.4:1 on surface |
+| `inkInverseMuted` | #B5C4BD | sidebar rows that aren't selected | 6.8:1 on inverse |
+| `border` | #7F8A85 | input wells, unticked Spread cells, the Privacy page's rules | 3.3:1 on canvas, 3.6:1 on surface (≥ 3:1, WCAG 1.4.11) |
+| `inkDisabled` | #A9B0AC | disabled labels and borders | 2.0:1, allowed because WCAG 1.4.3 exempts disabled controls |
+| `wash` | spruce at 6 % over canvas (renders #EAEAE3) | hover fill | ink on wash 13.1:1 |
+| `inverseRaised` | #33524A | Save while pressed | inkInverse on it 7.9:1 |
+| `accent` | clay #B5532F | **only** the fill of a ticked Spread cell | 4.5:1 against canvas; its ivory check 4.5:1 (≥ 3:1 for graphics) |
+| `successStrong` | #15803D | success glyph | 4.6:1 on canvas |
+| `warningStrong` | #B45309 | warning glyph | 4.6:1 on canvas |
+| `dangerStrong` | #B91C1C | error glyph, error border | 5.9:1 on canvas |
 
 Rules:
 
@@ -105,17 +109,17 @@ Rules:
 | Role | Font | Size / line | Weight | Use |
 | --- | --- | --- | --- | --- |
 | `title` | SF Pro | 24 / 32 | 600 | the pane title (the section's name) |
-| `display` | New York | 24 / 32 | 400 | the Privacy card's headline, and nothing else |
+| `display` | New York | 24 / 32 | 400 | the Privacy page's headline, and nothing else |
 | `lead` | SF Pro | 16 / 24 | 400 | the one-line summary under each title |
 | `label` | SF Pro | 14 / 20 | 500 | group labels, buttons, sidebar rows, field labels |
-| `body` | SF Pro | 14 / 20 | 400 | checkbox and radio text, editor text, Privacy card text |
+| `body` | SF Pro | 14 / 20 | 400 | checkbox and radio text, editor text, Privacy page text |
 | `caption` | SF Pro | 12 / 16 | 400 | captions and status lines |
 | `mono` | SF Mono | 12 / 16 (version line), 14 / 20 (key field) | 400 | the version line and the API key field |
 
 - Sizes **must** come from 12 / 14 / 16 / 20 / 24 / 32. Settings uses 20 nowhere and keeps 32 in
   reserve, since a 408 pt column has no room for it.
 - Don't set tracking by hand. SF Pro's optical sizes already tighten it at 20 pt and up.
-- The serif **must** appear only on an `inverse` card. Pane titles and the sidebar stay SF Pro.
+- The serif **must** appear only as the Privacy page's headline. Pane titles and the sidebar stay SF Pro.
 - Emphasis inside text uses weight 600 or a 1 pt underline. Never color, italics or all caps.
 
 ### 2.3 Spacing
@@ -123,10 +127,10 @@ Rules:
 | Token | Value | Use |
 | --- | --- | --- |
 | `s1` | 4 | label → its caption |
-| `s2` | 8 | title → lead; control → its caption; between controls in a row; checkbox → its label; between Privacy card items |
-| `s3` | 12 | between rows within a group |
-| `s4` | 16 | sidebar row inset; Privacy card headline → list |
-| `s5` | 24 | lead → first group; between groups; Privacy card padding |
+| `s2` | 8 | title → lead; control → its caption; between controls in a row; checkbox → its label |
+| `s3` | 12 | between rows within a group; a Privacy page rule → its item, and an item → the next rule |
+| `s4` | 16 | sidebar row inset; Privacy page headline → list |
+| `s5` | 24 | lead → first group; between groups |
 | `s6` | 32 | pane side and bottom padding |
 
 Spacing **must** come from this scale. Today's 10 and 18 pt gaps go away (§6.2).
@@ -137,7 +141,7 @@ Spacing **must** come from this scale. Today's 10 and 18 pt gaps go away (§6.2)
   `ctaRadius` = 8.
 - Borders: 1 pt. Focus and error borders: 2 pt.
 - Shadows: none. No `NSShadow`, no layer shadow, no vibrancy, no blur. Surfaces are separated by the
-  ivory ↔ slate edge alone.
+  ivory ↔ spruce edge alone.
 - Motion: none. The only timed change is "Copied" reverting after 2 s, which swaps a label and
   doesn't animate.
 
@@ -218,12 +222,12 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
 
 - A 2 pt solid line, square corners, 2 pt outside the control (offset 1 for Spread cells, whose
   gaps are 4).
-- Its color is `ink` on `canvas` and `inkInverse` on `inverse`. That's ≥ 17:1 against what it
-  touches, and the 2 pt gap keeps it apart from the slate Save button.
+- Its color is `ink` on `canvas` and `inkInverse` on `inverse`. That's ≥ 11:1 against what it
+  touches, and the 2 pt gap keeps it apart from the spruce Save button.
 - Draw it yourself: set `focusRingType = .none` and draw the ring while the control is first
   responder in the key window. Redraw on `becomeFirstResponder` and `resignFirstResponder`.
   - Trade-off: the system accent color no longer tints the ring. That's accepted, because a blue
-    glow breaks the brand, and a 2 pt slate line is easier to see on ivory.
+    glow breaks the brand, and a 2 pt ink line is easier to see on ivory.
   - Don't: set `.none` without drawing a replacement.
 
 ### 3.3 Button (secondary)
@@ -301,12 +305,14 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
 - A status line appears only while it has something to say. The caption above it, which explains
   the control, stays put.
 
-### 3.11 Privacy card (the feature card)
+### 3.11 Privacy page
 
-- An `inverse` block, full column width, padding 24, square corners.
-- Headline in `display` (New York 24) `inkInverse`. Then a list with 16 between headline and list.
-  Each item is a term (14/600) on its own line, then text (14/400), with 8 between items.
-- The only serif in the window, and the only dark block inside a pane.
+- No card: printed on `canvas` like every other pane, in the full 408 column.
+- Headline in `display` (New York 24) `ink`, kept to 320 wide so it breaks between its two
+  sentences. Then a list with 16 between headline and list.
+- Each item is a 1 pt `border` rule, then a term (14/600) on its own line, then text (14/400), all
+  `ink`, with 12 on each side of a rule.
+- The only serif in the window. No pane holds a dark block.
 
 ### 3.12 Edge cases
 
@@ -366,7 +372,7 @@ Each pane is: `title`, then `lead` (8 below), then groups 24 apart.
   sentence about whether this run checks.
 
 **6 · Privacy**
-- The Privacy card, whose company names follow the saved key (as today):
+- The Privacy page, whose company names follow the saved key (as today):
   - Headline: "Two things leave your Mac. Nothing else does."
   - **Card text**: "With a key saved, Ideator sends a card's text to ‹who›, using your own key, to
     write its summary. It does so whenever a card has no summary for its text as it is now: after
@@ -444,7 +450,7 @@ tests that quote them in the same PR.
 | Clay on ticked Spread cells only | Clay on Save, a link, the focus ring or the selected sidebar row |
 | Flat, square, no shadow | `bezelStyle = .rounded`, `layer.cornerRadius = 6`, any `NSShadow` |
 | The rounded bottom on Save only | The CTA shape on Check Now or Connect, or two primaries in one pane |
-| The serif in the Privacy card only | A serif pane title or sidebar |
+| The serif as the Privacy page's headline only | A serif pane title or sidebar |
 | `s1`…`s6` | 10, 18 or 20 pt gaps (today's values) |
 | White inside input wells only | A white pane, card or button |
 | The drawn 2 pt ring | The system's blue glow, or `focusRingType = .none` with nothing drawn |
@@ -474,7 +480,7 @@ tests that quote them in the same PR.
 7. **Order inside sections.** MCP reorders: Connect first, then the checkbox and Top / Bottom, then
    the editor. Update `ConnectSettingsTests`' expected order (it lists "Bottom", "Instruction for AI
    tools", …, "Connect AI tools", "Claude Code"…) and the heading's new text.
-8. **Privacy.** One paragraph becomes the card's list. Keep the phrase "whenever you click Check Now,
+8. **Privacy.** One paragraph becomes the page's list. Keep the phrase "whenever you click Check Now,
    Ideator asks GitHub whether a newer version exists", which SettingsTests asserts, or update that
    test together with the approved copy.
 9. **Fonts.** Use `NSFont.monospacedSystemFont(ofSize:weight:)` (SF Mono). There is nothing to
@@ -493,7 +499,7 @@ tests that quote them in the same PR.
 - [ ] Clay appears only on ticked Spread cells. Searching for `accent` in Settings code finds one use.
 - [ ] Exactly one primary button (Save). Its shape is 0/0/8/8, and every other corner in the window is 0.
 - [ ] No `NSShadow`, no `cornerRadius`, no `NSVisualEffectView` in Settings.
-- [ ] New York appears only in the Privacy card.
+- [ ] New York appears only in the Privacy page's headline.
 - [ ] The window is forced to `.aqua`, and it looks identical with Dark Mode on.
 - [ ] Increase Contrast on: borders and captions turn `ink`.
 - [ ] Every control in §3.1 has each listed state, checked by hovering, focusing, pressing and disabling it.
@@ -502,7 +508,7 @@ tests that quote them in the same PR.
 - [ ] VoiceOver pass: the A7 strings are read, and each status change is announced with its prefix (A8).
 - [ ] Every target is ≥ 24 × 24 (A6).
 - [ ] The longest caption and status string of each section wraps inside 408 with nothing truncated, and the MCP pane fits 640 without scrolling.
-- [ ] The Privacy card names the saved key's company, and switches at once on Save and Remove Key.
+- [ ] The Privacy page names the saved key's company, and switches at once on Save and Remove Key.
 - [ ] Opening Settings shows Shortcut. Closing and reopening shows Shortcut again.
 - [ ] Every string matches §3.13 word for word. CARDS-SPEC.md, DESIGN.md and the tests are updated in the same PR.
 - [ ] `run-ideator-tests` passes, and `verify-cards` screenshots each of the six panes.

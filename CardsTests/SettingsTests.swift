@@ -131,7 +131,7 @@ final class SettingsTests: XCTestCase {
                        "only what Tab can reach now: buttons need Full Keyboard Access, and Reset is dimmed")
 
         window.select(.privacy)
-        XCTAssertEqual(keyLoop(from: table).count, 0, "the card has nothing to focus")
+        XCTAssertEqual(keyLoop(from: table).count, 0, "the page has nothing to focus")
     }
 
     func testTheRecorderIsNamedShortcutAndSpellsTheCombinationOut() throws {
@@ -187,7 +187,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(said, ["No cell is ticked, so Spread makes no card. Tick the cells it should fill."], "a neutral line has no prefix")
     }
 
-    func testSavingAndRemovingKeysMovesTheKeyLineAndThePrivacyCardTogether() async throws {
+    func testSavingAndRemovingKeysMovesTheKeyLineAndThePrivacyPageTogether() async throws {
         var changes = 0
         let window = settings(keys: KeyStore(inKeychain: false), onChange: { changes += 1 })
         let key = window.pane(.aiSummary), privacy = window.pane(.privacy)
@@ -212,10 +212,10 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(changes, 3, "each save and the removal tell the controller, so failed summaries retry under the new key")
     }
 
-    func testThePrivacyCardShowsItsHeadlineAndEachTermOverItsText() {
+    func testThePrivacyPageShowsItsHeadlineAndEachTermOverItsText() {
         let window = settings()
         let lines = texts(in: window.pane(.privacy))
-        let card = SettingsCopy.Privacy.card(for: nil)
+        let card = SettingsCopy.Privacy.page(for: nil)
 
         XCTAssertEqual(lines, ["Privacy", card.headline] + card.items.flatMap { [$0.term, $0.text] })
     }
