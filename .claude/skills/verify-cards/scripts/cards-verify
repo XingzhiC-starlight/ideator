@@ -20,7 +20,7 @@ source "$SKILL_DIR/scripts/live-lock.sh"
 usage() {
   cat <<'EOF'
 cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax, cards-clip and cards-mcp
-cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from, with the .md files beside it when it is named .cards.json, as `files` saves it)
+cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch welcome and its tour, wait for the Start the tour button; --seed: two stacked cards; SIDECAR: a .cards.json to start from, with the .md files beside it when it is named .cards.json, as `files` saves it)
 cards-verify doctor                 read-only health check of the current run, and who holds the live-UI lock
 cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, section, where, mouse, dragat, listen)
 cards-verify shot NAME              screenshot every window + accessibility tree into the evidence folder
@@ -86,7 +86,7 @@ launch() {
   if [[ "${1:-}" == "--welcome" ]]; then
     # An environment variable, not an argument, so the command line pgrep and ours() match stays as is.
     env=(--env CARDS_SHOW_WELCOME=1)
-    ready=Continue
+    ready="Start the tour"
     shift
   fi
   run_id="$(date '+%Y%m%d-%H%M%S')"
@@ -149,8 +149,8 @@ doctor() {
     local windows
     windows="$(grep -c '^w' /tmp/cards-verify-doctor.$$ || true)"
     if grep -q '"New"' /tmp/cards-verify-doctor.$$; then echo "ui        ok: $windows window(s), stack answers"
-    elif grep -q '"Continue"' /tmp/cards-verify-doctor.$$; then echo "ui        ok: $windows window(s), the welcome card answers"
-    else echo "ui        FAIL: no stack window or welcome card in the accessibility tree"; ok=0; fi
+    elif grep -q -e '"Start the tour"' -e '"Continue"' /tmp/cards-verify-doctor.$$; then echo "ui        ok: $windows window(s), the welcome answers"
+    else echo "ui        FAIL: no stack window or welcome in the accessibility tree"; ok=0; fi
   else
     echo "ui        FAIL: $(cat /tmp/cards-verify-doctor.$$ 2>/dev/null)"; ok=0
   fi

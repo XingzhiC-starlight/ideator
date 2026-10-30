@@ -11,7 +11,8 @@
 //                                        (a cmd combo first activates Cards: menu shortcuts need it)
 //   cards-ax scroll PID WINDOW DX DY     one scroll-wheel event over the window (DX<0 = next card)
 //   cards-ax drag PID WINDOW FX FY DX DY press at a fraction of the window and drag by DX,DY points
-//   cards-ax windows PID                 CGWindowID and frame of each on-screen window, for screencapture -l
+//   cards-ax windows PID                 CGWindowID and frame of each on-screen window of the pid, whatever its layer
+//                                        (cards, the tour's floating panel and its overlay), for screencapture -l
 //   cards-ax act PID LABEL ACTION [WINDOW]  run an accessibility action (AXPress, or a custom one such
 //                                        as "Move up") on the first element whose title, description or
 //                                        help starts with LABEL; `tree` lists custom actions as actions=[…]
@@ -304,7 +305,7 @@ case "windows":
     let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
     for w in info where (w[kCGWindowOwnerPID as String] as? pid_t) == pid {
         guard let id = w[kCGWindowNumber as String] as? Int,
-              let b = w[kCGWindowBounds as String] as? [String: Double], (w[kCGWindowLayer as String] as? Int) == 0 else { continue }
+              let b = w[kCGWindowBounds as String] as? [String: Double] else { continue }
         print("\(id) @\(Int(b["X"]!)),\(Int(b["Y"]!)) \(Int(b["Width"]!))x\(Int(b["Height"]!))")
     }
 

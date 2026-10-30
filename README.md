@@ -82,8 +82,9 @@ They do this:
 2. Open Ideator from Applications. macOS blocks it, because Apple has not notarized the app.
 3. Open **System Settings › Privacy & Security**, scroll to the message about Ideator, click **Open
    Anyway**, and confirm.
-4. Ideator opens with a welcome card. Press **Continue**. If macOS then asks whether Ideator can
-   access the Documents folder, allow it. Notes live in `~/Documents/Ideator`.
+4. Ideator opens with a welcome window. Press **Start the tour** for a two-minute walk through the
+   buttons on their own desk, or **Skip the tour** to go straight to their cards. If macOS then asks
+   whether Ideator can access the Documents folder, allow it. Notes live in `~/Documents/Ideator`.
 5. For summaries, choose **Settings…** from the menu bar icon and paste their own Anthropic or OpenAI API key.
    The image holds no key.
 
@@ -292,13 +293,25 @@ scratch run: it then reaches, or starts, only the run on that folder. The verify
 
 ## First launch
 
-The first time Ideator starts, it shows a welcome card before it creates `~/Documents/Ideator`, so
-macOS's Documents prompt comes after the card explains it. An update shows the card once more when
-it now says something new about what Ideator sends. To see the card again, quit Ideator and
-run `defaults delete com.systemlabs.Ideator WelcomeSeen`, or start it with the environment variable
-`CARDS_SHOW_WELCOME=1` (`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with
-`-CardsFolder` shows no card on its own, remembers nothing, does not register the global shortcut,
-and never checks for updates, except in the test copies `scripts/verify-update.sh` makes.
+The first time Ideator starts, it shows a welcome window before it creates `~/Documents/Ideator`, so
+macOS's Documents prompt comes after the window explains it. **Start the tour** opens the stack and
+walks through nine pages on your real desk, and **Skip the tour** opens the stack and goes to the
+last page. A ring marks the real button a page is about, and a page that asks you to click it waits
+until you do. Nothing moves by itself, and the tour never creates, moves or deletes a card.
+
+Ideator keeps two records in its preferences. `WelcomeSeen` is the version of the welcome whose
+disclosures you accepted, and `TourSeen` says the tour was offered. An update that says something new
+about what Ideator sends shows the welcome once more, with a **Continue** button and no tour. Choose
+**Show the Tour**, in the menu bar icon's menu or the stack ribbon's ⋯ menu, to replay the tour
+from page 1 at any time.
+
+To see the welcome and the tour again, quit Ideator and run
+`defaults delete com.systemlabs.Ideator TourSeen`. To clear both records, also run
+`defaults delete com.systemlabs.Ideator WelcomeSeen`, as a second command, because `defaults delete`
+takes one key. You can also start Ideator with the environment variable `CARDS_SHOW_WELCOME=1`
+(`open --env CARDS_SHOW_WELCOME=1 /Applications/Ideator.app`). A run with `-CardsFolder` shows no
+welcome on its own, remembers nothing, does not register the global shortcut, and never checks for
+updates, except in the test copies `scripts/verify-update.sh` makes.
 
 ## Where notes live
 

@@ -42,15 +42,21 @@ func send(_ command: Command) {
 | `Grid.swift` | slots, free positions, the snap rule, the overhang limit, frames and edge bands, and `SpreadCells`, the cells Spread fills (pure) |
 | `Note.swift` | a card's content, its Markdown format, the typing rules for lists, and the level tidy-up |
 | `Clipboard.swift` | copy and paste formats: a run of lines to and from Markdown text and HTML lists (pure) |
-| `DeskController.swift` | the single owner of the desk and of every window |
+| `DeskController.swift` | the single owner of the desk and of every window, and `onSettle`, the one call that tells the tour the world changed |
 | `Library.swift` | `~/Documents/Ideator/*.md` and the hidden sidecar `.cards.json` |
 | `Summarizer.swift` | summary requests, `Provider` (whose key it is), and the two wire formats, `Anthropic` and `OpenAI` |
 | `CardWindow.swift`, `CardEditor.swift` | the card window, press routing, and the text view |
 | `StackWindow.swift`, `Swipe.swift` | the stack window and its count badge; the rules that turn scroll events into flips (pure) |
 | `StackArranger.swift` | the popover off the badge that reorders the stack, and the `Arrangement` value it reads (see The stack arranger) |
 | `HotKey.swift` | `Shortcut`, the legal global key combination, and `HotKey`, its one registration with Carbon: chosen shortcut, registered or not, and why not |
-| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run, which also picks the key store); the persisted shortcut and Spread cells, and no persistence at all in a scratch run |
-| `Welcome.swift` | the first-launch card and its copy |
+| `Launch.swift`, `Preferences.swift` | how the process was started (`-CardsFolder` makes a scratch run, which also picks the key store), and `Launch.welcome(for:)`, which welcome that start shows; the persisted shortcut, Spread cells and the two welcome records (`WelcomeSeen`, `TourSeen`), and no persistence at all in a scratch run |
+| `Welcome.swift` | the first-launch welcome window, its copy and its buttons: Start the tour and Skip the tour, or Continue alone |
+| `TourScript.swift` | the nine pages as data, each phase's title, body, ring, anchor and wait, and the copy (pure) |
+| `TourFlow.swift` | the tour's position, the world it reads, and the events it derives by comparing two looks (pure) |
+| `TourLayout.swift` | where the hint panel, its notch, the rings and the lit cells go (pure) |
+| `TourSession.swift` | the one shell object that touches the app; `TourSources`, what the tour may read, with no way to send a `Command`; and `receive`, the one input door |
+| `TourStage.swift` | the hint panel, the overlay that draws the rings, the lit cells and the notch, and the chips |
+| `Glyph.swift` | the one list of the symbols controls wear, so a chip in a tour title and its button use one name |
 | `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
 | `Settings.swift`, `App.swift` | the Settings window, 640 × 640: a sidebar of the six sections, the pane each one shows, which section is shown, ⌘W and the Tab order; entry point, menu bar, reopen |
@@ -62,7 +68,7 @@ func send(_ command: Command) {
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 | `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls); `Instruction`, the text an AI tool gets at a session start and its preference key, and `InstructionSource`, how the helper learns it without starting the app |
 | `Helper/main.swift` | the `ideator-mcp` process: its arguments, starting the app that contains it, and the stdio loop |
-| `AITools.swift` | the app's side: `ToolInbox` on this instance's endpoint (cards, and the helper's ask for the instruction), `HeldCards` while the welcome card waits, and the settings (`AIToolsChoice`) |
+| `AITools.swift` | the app's side: `ToolInbox` on this instance's endpoint (cards, and the helper's ask for the instruction), `HeldCards` while the welcome waits, and the settings (`AIToolsChoice`) |
 | `Connect.swift` | `AITool` and `HelperCommand`: the text each "Connect AI tools" button copies (pure) |
 
 - **Location is ownership.** A `Card` value lives inside its location: a desktop entry (with its
@@ -120,13 +126,14 @@ func send(_ command: Command) {
   Spread turns Hide all off before it sends its command, so every card it brings out shows.
 - **The notes folder opens last.** `DeskController` creates `~/Documents/Ideator` when it is built, and
   that first access is what makes macOS ask for the Documents folder. `Launch.run` is the only caller
-  of the closure that builds it, and it calls it after the welcome's Continue, or at once when no
-  welcome is due. Whether it is due is a number in `UserDefaults`, the `WelcomeCopy.version` last
-  acknowledged, read through `Preferences`: probing the folder to find out would be the access. The
-  number is set after the notes open, so a launch killed inside the prompt shows the welcome again
+  of the closure that builds it, and it calls it after the welcome's button (Start the tour, Skip the
+  tour or Continue), or at once when no welcome is due. Whether one is due is a function of two
+  records in `UserDefaults`, read through `Preferences`: `WelcomeSeen`, the `WelcomeCopy.version` last
+  acknowledged, and `TourSeen`. Probing the folder to find out would be the access. Both records are
+  set after the notes open, so a launch killed inside the prompt shows the welcome again
   instead of a bare prompt. A scratch run (`-CardsFolder`) gets
-  `Preferences(defaults: nil)`: factory values, nothing written, no welcome, and no global shortcut,
-  and a `KeyStore` that never calls the Keychain, so a verify run can neither change nor take
+  `Preferences(defaults: nil)`: factory values, nothing written, no welcome and no tour, and no global
+  shortcut, and a `KeyStore` that never calls the Keychain, so a verify run can neither change nor take
   anything of the owner's.
 - **One owner for the global shortcut.** `Shortcut` is legal by construction (⌘ or ⌃ plus one more
   modifier, so a hotkey never swallows ordinary typing). `HotKey` owns the chosen shortcut, its Carbon
@@ -237,7 +244,8 @@ chosen: it stays beige over white windows and only hints at what is behind.
 | Token | Value | Used for |
 | --- | --- | --- |
 | `paper` | `#F4ECDE` at 78 % | the glass tint of the card body; at 85 % under the count badge in the ribbon |
-| `ribbon` | `#E6D8BC` at 85 % | the stack's ribbon; at 55 % under the count badge on the card |
+| `Tour.hintPaper` | `#F4ECDE` at 93 % | the glass tint of the tour's hint panel and of the welcome window |
+| `ribbon` | `#E6D8BC` at 85 % | the stack's ribbon; at 55 % under the count badge on the card; the tour's Next button and the chips in its titles |
 | `glassMaterial` | `.popover` | the blur behind every card |
 | `sheen` | white, 10 % to 0 | the top half of a card, fading down |
 | `rim` | white, 55 % / 5 % / 22 % | a 1.2 pt edge inside the outline, brightest top-left |
@@ -249,7 +257,9 @@ chosen: it stays beige over white windows and only hints at what is behind.
 | `shade` | `#5A4630` at 7 % | a hovered edge band |
 | `guide` | `#5A4630` at 45 % | the dashed slot guide |
 | `focus` | `#DDB880` | the 2 pt border of the card you are typing in |
-| `accent` | `#823F1D` | a guide that will snap, the filled Clarity icon while on |
+| `accent` | `#823F1D` | a guide that will snap, the filled Clarity icon while on, the tour's rings |
+| `Tour.notch` | `#F3EBDC` | the notch that points the hint panel at its subject, drawn opaque over the panel's edge |
+| `Tour.litBase` | `#F4ECDE` at 85 % dashed edge and 12 % fill | a lit Spread cell on tour page 6, drawn on the desktop |
 | `danger` | `#9A2818` | "Desktop full" |
 | `highlight` | `#E8D5AE` | selected text and the arranger's selected row; at 50 % the row of the card the stack shows |
 
@@ -266,6 +276,11 @@ Rules the values keep:
   faint.
   Over a dark or saturated window the glass darkens a little, and the material's frost keeps the
   text readable; check a new token over both.
+- The tour's panel and the welcome are denser than a card: `Tour.hintPaper` is 93 % where `paper` is
+  78 %. Computed from the token values over a white window, not sampled from a render, `ink` is
+  13.0:1, `inkSoft` (the progress row and the Skip link) 5.0:1 and `accent` 6.8:1. A lit cell sits on
+  the wallpaper, not on glass, so its contrast changes with the wallpaper: check it over a light and a
+  dark one.
 - The editing border is light on purpose (1.6:1 against the body). It marks the card you type in
   without the dark frame the old brown border made. It is `focus`, not the system accent color,
   which is blue for most people.
@@ -860,6 +875,68 @@ Later changes, after trying the app:
   - The desk check states it. P1 names the deletion as Spread's one removal of cards, and P8 has a
     delete arm and checks the button's face against a list of empty notes that does not call
     `Note.isBlank`.
+- 2026-10-30, onboarding tour (CARDS-SPEC.md, Guided tour): the welcome card became a welcome window plus a
+  nine-page tour on the reader's real desk. The reader knows nothing about the app, so nothing may move
+  by itself, make a sound or surprise them. The tour looks at the desk and draws, and never acts on it.
+  `Desk` is unchanged.
+  - Two records, one function. `WelcomeSeen` keeps its meaning and `TourSeen` is new. The pure
+    `Launch.welcome(for:)` turns the two records and how the process started into the welcome to show, or
+    none. `WelcomeKind` then gives the buttons and, through `tourStart(after:)`, where the tour starts (page 1,
+    page 9 or nowhere), so that mapping exists once. `TourSeen` is absent on every Mac that ran an older build,
+    so each existing owner sees the full welcome and the tour once. A scratch run's `Preferences` read both
+    records as seen, so only `CARDS_SHOW_WELCOME=1` shows the welcome there. `markWelcomeSeen` writes both
+    records after `openNotes` returns, as before, and never lowers a stored value, so a run of an older build
+    keeps a newer acknowledgement. `TourSeen` is not held back to page 9, so a run that quits mid-tour does
+    not replay it. `WelcomeCopy.version` stays 3, because the new disclosures say what the old paragraphs
+    said in fewer words.
+  - One observation seam. `DeskController.onSettle` is called with no arguments as the last line of `render()`
+    and in the drag callback. `render()` already runs after every `send`, `setHidden`, `toggleHidden`,
+    `openStack`, `spread(fresh:)` and display change, so Hide all and Show all, which are not `Command`s, reach
+    the tour with no hook of their own. `send` and `setHidden` are untouched, and with no tour running the seam
+    is one nil check.
+  - Events are derived by comparing, as `render()` compares windows. A look at the world gives `TourFacts`
+    (whether the cards are hidden, the cards outside the Spread set in reading order, the card total, and
+    whether a set card is out), and `TourFacts.events(from:to:)` compares two looks. A card that left the
+    desktop with the total unchanged was returned, and with the total smaller it was deleted. Equal facts give
+    no events, so a second call changes nothing, and a press by VoiceOver or the harness counts like a click.
+    Rejected: typed notices from `send` and `setHidden`. They touch the controller at three sites to name a
+    difference between a refused Spread and a Gather that the copy never uses.
+  - The tour cannot act. `TourSources` has closures to look at the world, measure a window, hold one card's
+    hover buttons open, listen, open Finder and show the welcome again. It has none that sends a `Command`, so
+    "never creates, moves or deletes cards" is a fact about its type.
+  - One input door. `TourSession.receive(_:)` takes the panel's buttons, the desk's settle and the system's
+    three notifications (a Space change, Ideator resigning active and becoming active), and `TourFlow.apply`
+    is the only code that changes the position. The pages are a table. `TourPhase` has an exhaustive `switch`
+    to a `PhaseScript`, so a phase without an entry does not compile. Page 4's wait and page 6's opening are
+    gates checked when the reader arrives, never when a wait ends, so a finished wait always goes on. The
+    shortcut and the ticked cells are read again at every redraw, since Settings changes them without telling
+    anyone. N in "N blank cards" is a dry run of the Spread command on a copy of the desk, so Pop's rule for a
+    free cell has no second copy.
+  - The hint panel is an `NSPanel` with `.nonactivatingPanel`, so a click on it never activates Ideator, which
+    page 5 would read as "Back in front". It is `.floating`, keeps `hidesOnDeactivate` off, wears the cards'
+    collection behavior and sets `worksWhenModal`, so the "couldn't read your notes" alert that can land as
+    page 1 appears does not freeze it. It becomes key when the reader clicks into it, so a click on Next ends
+    the editing in a card as any click elsewhere would. Page 9 and the re-shown welcome are made key too, so
+    Return presses their button, but only while Ideator is active. A background start leaves Ideator inactive,
+    so no tour window takes key and a Return typed in the AI tool stays there. The panel moves with
+    `setFrame`, not the animator, so it follows a drag step by step.
+  - One overlay. A single clear window as large as the screen, one level above the panel, draws the lit cells,
+    the rings and the notch, and it ignores the mouse, so a ring never takes a click. The overlay draws the
+    notch over the panel's edge, so the panel is a plain card with no mask per placement and the card mask, a
+    fixed nine-slice, stays as it is. While a page rings the menu bar icon, the overlay sits above the menu
+    bar. Rejected: a pool of ring windows, each sized for the glow and created or closed on every page.
+  - The welcome is `.normal` at launch, as before, because no card exists to cover it. It floats only when
+    Back on page 1 shows it again, because `raiseGroup` reorders the cards on every activation and would put
+    them over a `.normal` window. While any welcome is up, `withDesk` brings it forward instead of toggling the
+    desk. Its buttons then start the tour and nothing else, so `openNotes` does not run twice and there is no
+    second Documents prompt. The panel and the overlay are ordered out, not covered, while the welcome shows,
+    so two "Skip the tour" buttons are never on screen together.
+  - A chip is the control's own symbol drawn as an image inside the title. `Glyph` is the one list of symbols
+    that the ribbon, the hover buttons and the chips read, so a chip cannot drift from its button. A drawn chip
+    reads as U+FFFC to VoiceOver, so the title's label carries the control's accessibility name instead.
+  - Tokens `Tour.hintPaper`, `Tour.notch` and `Tour.litBase` are in `Palette`, with rows in Color and glass.
+  - verify-cards: `cards-ax windows` lists every on-screen window of the app whatever its layer, so `cv shot`
+    captures the panel and the overlay, and `launch --welcome` waits for Start the tour.
 
 ## Tradeoffs accepted
 
@@ -962,14 +1039,16 @@ Later changes, after trying the app:
 - Pasted text and a card file keep a backslash that Markdown keeps (`C:\Users`, `a\nb`); only a
   backslash before punctuation escapes it, besides the writer's own `\1.` for a plain line that
   starts "1. ".
-- An update shows the welcome once to someone who already uses Ideator when the card's version rose
-  (the shortcut changed in one update, the GitHub paragraph arrived in another), in exchange for one
-  first-launch rule, a recorded number below the current one, and no migration code.
+- An update shows the welcome to someone who already uses Ideator in two cases. The first launch of the
+  build that has the tour shows the full welcome and the tour, because `TourSeen` is absent. A later
+  update whose disclosures changed shows the welcome with Continue alone, because the recorded
+  `WelcomeSeen` is below the current version. The cost is one first-launch rule over two records and
+  no migration code.
 - A conflict with another app's global shortcut can't be detected, since two apps registering one
   combination both succeed. `HotKey.problem` covers what Carbon refuses inside this process, and
   Settings warns about macOS's own shortcuts, which are the one other conflict that can be read.
-- The welcome is taller than a grid cell, in exchange for its copy fitting at body size in the
-  stack's width. It is top-right where the stack appears.
+- The welcome is about 440 pt wide, wider than a grid cell on most screens, in exchange for its copy
+  fitting at body size. It is centered on the screen, no longer top-right where the stack appears.
 - A card from an AI tool with Top keeps the page while the cursor is in the stack's editor, the
   blank page included, since a first character there is about to become a card.
 - An edit of the instruction reaches an AI tool at its next session, never the one running, because
@@ -977,8 +1056,9 @@ Later changes, after trying the app:
   tool's choice.
 - A card from an AI tool that cannot be saved stays in the stack, as any unsaved edit does, and the
   reply says not to add it again, because a retry would add a second copy.
-- The welcome card that a background start shows comes to the front with `orderFrontRegardless`,
-  neither key nor active, so a Return typed in the AI tool stays in the AI tool. A click on the card
-  brings Ideator forward and makes Continue work. macOS 15 already refused the card's
+- The welcome that a background start shows comes to the front with `orderFrontRegardless`,
+  neither key nor active, so a Return typed in the AI tool stays in the AI tool. A click on the welcome
+  brings Ideator forward and makes Continue work. macOS 15 already refused the welcome's
   `NSApp.activate()` from a background start in a test, but that refusal is macOS's policy to change,
-  so the card no longer asks.
+  so the welcome no longer asks. The tour that Continue starts at page 9 takes key only while Ideator
+  is active, so it never takes it from the AI tool either.

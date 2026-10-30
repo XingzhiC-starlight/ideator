@@ -30,7 +30,7 @@ Unit tests are not this skill's job. Run them with the
 ```bash
 cv build              # xcodebuild into build/VerifyDerivedData, and compile cards-ax, cards-clip and cards-mcp
 cv launch --seed      # or plain `cv launch` for an empty folder
-cv launch --welcome   # the first-launch card, as a stranger sees it
+cv launch --welcome   # the first-launch welcome and its tour, as a stranger sees them
 ```
 
 - `build` uses its own derived data (`build/VerifyDerivedData`), never `build/DerivedData` or
@@ -47,10 +47,12 @@ cv launch --welcome   # the first-launch card, as a stranger sees it
   places, Clarity or summaries. A SIDECAR named `.cards.json`, as `cv files` saves it, brings the
   `.md` files beside it too: the app drops what the sidecar names without its card file, so a
   saved Spread set needs them.
-- `--welcome` forces the first-launch card even though a scratch run never shows it: it adds
+- `--welcome` forces the first-launch welcome even though a scratch run never shows it: it adds
   `--env CARDS_SHOW_WELCOME=1` to `open`, and the command line stays `… --args -CardsFolder <folder>`.
-  Ready is then the card's Continue button, not New. It combines with `--seed`, which goes second.
-  Continue writes nothing of the owner's (a scratch run has no saved preferences).
+  Ready is then the welcome's Start the tour button, not New. It combines with `--seed`, which goes
+  second. Start the tour and Skip the tour open the scratch folder, so no Documents prompt appears, and
+  write nothing of the owner's (a scratch run has no saved preferences). The tour that follows runs on
+  the scratch desk, and [features/first-launch.md](features/first-launch.md) has its recipes.
 - One run at a time: `launch` refuses while the current run's app is still up.
 - `launch` also takes the live-UI lock `/tmp/claude-<uid>/ideator-live-ui.lock` and refuses, naming the holder, while another session has it (retry every 30 s). `stop` releases only a lock this run took, and `doctor` prints the holder.
 - `cv mcp STEP…` drives this build's AI tools helper on the current run's folder, as an AI tool does,
@@ -68,9 +70,10 @@ cv doctor
 
 Read-only. Checks that the pid is this run's binary on this run's folder, that no Swift source in
 `Cards/`, `MCP/` or `Helper/` is newer than the binary, that the folder exists, and that the stack
-window (or, after `launch --welcome` and before Continue, the welcome card) answers. It lists other
-Ideator processes, such as the owner's Xcode run, as a note. Never drive those. Run `doctor` first
-whenever a step fails or anything looks off. It must print `healthy` before any proof counts.
+window (or, after `launch --welcome` and before its button, the welcome) answers. The welcome answers
+when the tree holds `Start the tour` or `Continue`. It lists other Ideator processes, such as the
+owner's Xcode run, as a note. Never drive those. Run `doctor` first whenever a step fails or anything
+looks off. It must print `healthy` before any proof counts.
 
 ## Drive
 
@@ -88,7 +91,7 @@ whenever a step fails or anything looks off. It must print `healthy` before any 
 | `cv ax click WINDOW FX FY` | A real mouse click at a fraction of the window (0..1 from top-left) |
 | `cv ax scroll WINDOW DX DY` | One scroll-wheel event over the window |
 | `cv ax drag WINDOW FX FY DX DY` | Press at a fraction of the window, drag by DX,DY points, release |
-| `cv ax windows` | Window ids and frames, for `screencapture -l` |
+| `cv ax windows` | Window ids and frames, for `screencapture -l`, of every on-screen window of the app whatever its layer: the cards and the stack, and while the tour runs its hint panel and its full-screen overlay |
 | `cv ax act LABEL ACTION [WINDOW]` | Run an accessibility action (`AXPress`, or a custom one such as `Move up`) on the first element whose title, description or help starts with LABEL |
 | `cv ax section TITLE [WINDOW]` | Show a Settings section: press the sidebar row named exactly TITLE (`Shortcut`, `Spread`, `AI Summary`, `MCP`, `Updates`, `Privacy`) in the table `Settings sections`, and fail unless that row is then selected |
 | `cv ax where LABEL` | Screen `x y` of the center of the first element whose name starts with LABEL |
@@ -120,6 +123,23 @@ Stable handles in this app, all from the code:
 - `press` matches a button's whole title, description or tooltip, so `press "Pop this card out"` and
   `press Clarity` work, and `press Pop` does not.
 - Delete confirmation: a sheet "Delete this card?" with buttons `Delete` and `Cancel`.
+- Welcome window: its window title is `Welcome to Ideator`, which VoiceOver reads and `tree` does not
+  print. It has the default button `Start the tour` (Return) and the link `Skip the tour`, or the one
+  button `Continue` when it offers no tour (an update, or a background start). In `cv ax windows` it is
+  446 points wide and centered.
+- Tour panel: its window title is `Ideator tour` (not printed by `tree`). It holds the static text
+  `n of 9`, with `OPTIONAL` after it on page 6's first ask, page 7 and page 8, then the title and the body.
+  Its buttons are `Skip the tour` (not on page 9), `Back`, `Next` (not on a page that waits for the
+  reader's action) and, on page 9 only, `Start using Ideator`. In `cv ax windows` it is 322 points wide on a
+  screen 1300 points wide or more, and narrower on a smaller one. `press Next` needs no window name,
+  since only one tour button of each name is on screen. A waiting page has no `Next`: its handle is the
+  real control, such as `press New`, `press "Hide all"`, `press Spread` or `press "Return to stack"
+  "card=<title>"`.
+- Tour overlay: one window as large as the screen that draws the rings, the lit cells and the notch, and
+  takes no mouse events. `cv ax tree` lists it as a window with no elements, so the `w` indices shift while
+  a tour runs and `doctor` counts it. `cv shot` captures it as a transparent PNG that holds only the rings,
+  the lit cells and the notch. Read that PNG beside the stack's and the panel's. For one picture of a ring
+  on its control, add a whole-display `screencapture -x` taken while nothing private is on screen.
 - Count badge: a button. `tree` prints it as `AXButton "2" | "2 cards in the stack" | "Arrange the stack"`
   (title = number of stacked cards, then its VoiceOver label, then its tooltip), `[disabled]` at
   zero. `press "Arrange the stack"` opens the arranger; at zero it fails with `is disabled`.
@@ -222,8 +242,16 @@ owner's Xcode run is also called Cards. Run `stop` after every failed attempt to
   default) and never reads or writes the owner's saved shortcut, so it cannot take the shortcut from
   the owner's Ideator. The harness also cannot press it. Prove Hide all with the ribbon button, not
   the hotkey.
-- The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has New Spread, then the
-  same Settings… and Quit. Check for Updates… is only in the menu bar icon's menu; Settings' Check Now does the same.
+- The menu bar icon is not driven by this skill. The ribbon's ⋯ menu has New Spread, Show the Tour,
+  Settings… and Quit, and the menu bar icon's menu has Show the Tour above Settings… too. Neither
+  menu is driven, so report Show the Tour as not verified. Check for Updates… is only in the menu bar
+  icon's menu; Settings' Check Now does the same.
+- The welcome's `Skip the tour` and the panel's `Skip the tour` are never on screen together. When Back
+  on page 1 shows the welcome again, the tour orders the panel and the overlay out instead of leaving them
+  behind it. `press` takes the first button of that name, so two in `tree` would be a defect to report,
+  not to press around.
+- `cards-ax` finds the stack as the first window with an element named exactly `New`. No tour element
+  is named `New`. If one is, `stack` points at the wrong window and every recipe that names it fails.
 - A `cv` run never starts Sparkle: no build `cv build` makes is stamped by `scripts/package.sh`,
   and a scratch run of a stamped build does not start it either (only `verify-update.sh`'s test
   copy, marked `IdeatorUpdateTest`, does). No Sparkle object exists, so nothing goes to GitHub and no
