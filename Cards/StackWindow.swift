@@ -93,6 +93,17 @@ final class StackWindow: NSWindow {
         let point = NSPoint(x: location.x - placed.minX, y: location.y - placed.minY)
         stackView.hover(at: isVisible && placed.contains(location) ? point : nil)
     }
+
+    /// A ribbon button's rect in screen points, at the frame the window is going to, so a slide in
+    /// progress never misleads; nil before the button is laid out.
+    func screenRect(of control: RibbonControl) -> CGRect? {
+        contentView?.layoutSubtreeIfNeeded()
+        let button = stackView.button(for: control)
+        guard !placed.isEmpty, !button.frame.isEmpty else { return nil }
+        let inWindow = button.convert(button.bounds, to: nil)
+        return CGRect(x: placed.minX + inWindow.minX, y: placed.minY + inWindow.minY,
+                      width: inWindow.width, height: inWindow.height)
+    }
 }
 
 /// A toolbar symbol drawn once into a bitmap at its window's pixel density, and the blank points it
@@ -307,6 +318,16 @@ private final class StackView: NSView {
     func editingStateChanged() { cardView.editingStateChanged() }
 
     func focusEditor() { cardView.focusEditor() }
+
+    func button(for control: RibbonControl) -> NSButton {
+        switch control {
+        case .new: newButton
+        case .hideShow: toggleButton
+        case .spread: spreadButton
+        case .clarity: clarityButton
+        case .more: menuButton
+        }
+    }
 
     var editingSelection: NSRange? { cardView.editingSelection }
 

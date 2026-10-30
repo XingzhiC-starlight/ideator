@@ -12,7 +12,7 @@ final class DeskController {
     private(set) var grid: Grid
     /// What "Hide all" / the global shortcut has hidden. Presentation only: not part of the desk,
     /// not persisted.
-    private var visibility = Visibility.all
+    private(set) var visibility = Visibility.all
     /// Why the last Spread click changed nothing, for the button's tooltip. Presentation only, like
     /// `visibility`.
     private var spreadRefusal: SpreadRefusal?
@@ -195,6 +195,24 @@ final class DeskController {
         return present(alert) == .alertSecondButtonReturn
     }
 
+    // MARK: What the tour reads (Core workstream)
+
+    /// Told, with nothing, whenever the world may have changed: after every `render()`, so after
+    /// every command, Hide all and Show all included, and at each step of a window drag. The tour
+    /// looks at the desk itself and finds what changed. Nil unless a tour is running.
+    var onSettle: (() -> Void)?
+
+    /// This card shows its hover buttons whatever the pointer does (the tour's page 4).
+    var heldHover: CardID? {
+        didSet { updateHover() }
+    }
+
+    /// A ribbon button's rect in screen points, at the stack window's destination.
+    func rect(of control: RibbonControl) -> CGRect? { stackWindow.screenRect(of: control) }
+
+    /// The card's hover row in screen points; nil while its window is ordered out.
+    func hoverCorner(of id: CardID) -> CGRect? { cardWindows[id]?.hoverCornerRect() }
+
     // MARK: Derived side effects
 
     /// Reconciles every window with the desk. Compares against the windows' real state, not
@@ -217,6 +235,7 @@ final class DeskController {
                           visibility: visibility, spreadRefusal: spreadRefusal)
         setVisible(stackWindow, true)   // Hide all keeps the ribbon
         updateHover()   // a card can appear or move under a pointer that rests
+        onSettle?()
     }
 
     private func setVisible(_ window: NSWindow, _ visible: Bool) {
@@ -241,6 +260,7 @@ final class DeskController {
             moved: { [unowned self] frame in
                 let target = Place.guide(at: center(of: frame))
                 guide.show(grid.frame(of: target.slot), snaps: target.snaps)
+                onSettle?()
             },
             dropped: { [unowned self] frame in
                 guide.hide()
@@ -286,7 +306,10 @@ final class DeskController {
 
     private func updateHover() {
         let location = pointer()
-        for window in cardWindows.values { window.pointerMoved(to: location) }
+        for (id, window) in cardWindows {
+            window.holdsHover = id == heldHover
+            window.pointerMoved(to: location)
+        }
         stackWindow.pointerMoved(to: location)
     }
 

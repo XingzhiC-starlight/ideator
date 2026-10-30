@@ -8,6 +8,8 @@ final class CardWindow: NSWindow {
     /// Where the last `apply` put the window. The window slides there, and hover goes by where it
     /// is going, so a card that arrives under a resting pointer shows its buttons.
     private var placed = CGRect.zero
+    /// While true the hover buttons show wherever the pointer is: the tour's page 4 points at them.
+    var holdsHover = false
 
     init(send: @escaping (Command) -> Void, drag: WindowDrag) {
         cardView = CardView(home: .desktop(drag), send: send)
@@ -50,7 +52,16 @@ final class CardWindow: NSWindow {
     /// The pointer is at `location`, in screen coordinates. The hover buttons show while it is
     /// over this card.
     func pointerMoved(to location: NSPoint) {
-        cardView.setHovering(isVisible && placed.contains(location))
+        cardView.setHovering(isVisible && (holdsHover || placed.contains(location)))
+    }
+
+    /// The hover buttons' row in screen points, at the frame the window is going to; nil while the
+    /// window is ordered out. Its width is live: Refresh shows only on a collapsed card.
+    func hoverCornerRect() -> CGRect? {
+        guard isVisible else { return nil }
+        contentView?.layoutSubtreeIfNeeded()
+        let row = cardView.convert(cardView.hoverButtonsFrame, to: nil)
+        return CGRect(x: placed.minX + row.minX, y: placed.minY + row.minY, width: row.width, height: row.height)
     }
 }
 
@@ -100,13 +111,13 @@ enum CardShape {
         return image
     }()
 
-    /// The glass surface up to its sheen: the tint, the tinted `ribbon` strip if any, and the
+    /// The glass surface up to its sheen: the `tint`, the tinted `ribbon` strip if any, and the
     /// light at the top edge. A caller with more to lay between this and the edge (`strokeEdge`)
     /// does so after.
-    static func fillGlass(in bounds: NSRect, lineWidth: CGFloat, ribbon: NSRect? = nil) {
+    static func fillGlass(in bounds: NSRect, lineWidth: CGFloat, ribbon: NSRect? = nil, tint: NSColor = Palette.paper) {
         NSGraphicsContext.saveGraphicsState()
         path(in: bounds, lineWidth: lineWidth).addClip()
-        Palette.paper.setFill()
+        tint.setFill()
         bounds.fill()
         if let ribbon {
             Palette.ribbon.setFill()
@@ -386,6 +397,9 @@ final class CardView: NSView {
     }
 
     func setHovering(_ on: Bool) { hoverButtons.shown = on }
+
+    /// Where the hover buttons sit, in this view's coordinates, for the tour's ring.
+    var hoverButtonsFrame: NSRect { hoverButtons.frame }
 
     /// Header press: drag the window if the pointer moves; report a plain click otherwise.
     private func dragIfMoved(_ event: NSEvent) -> Bool {

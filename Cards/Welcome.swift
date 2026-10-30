@@ -165,3 +165,64 @@ private final class WelcomeView: NSView {
         window?.invalidateShadow()
     }
 }
+
+// MARK: Tour welcome copy (Core workstream; replaces WelcomeCopy, whose `version` stays the one record)
+
+/// The welcome before the tour: the prototype's `#welcome` block, exact. The disclosures say what the
+/// older card said Ideator sends or asks (GitHub once a day and asks before installing; a card's text
+/// leaves only with your own key) in fewer words, so `WelcomeCopy.version` stays 3.
+struct TourWelcomeCopy: Equatable {
+    struct Paragraph: Equatable {
+        let lead: String
+        let text: String
+    }
+
+    let title = "Welcome to Ideator"
+    let intro = "Every note is a small card on your screen. The tour takes two minutes on your real desk, "
+        + "and nothing happens until you click."
+    /// Always the default folder, even in a scratch run, so a forced welcome shows what a stranger sees.
+    let folder = Library.defaultFolder
+    let disclosures: [Paragraph]
+
+    init() {
+        let path = (Library.defaultFolder.path as NSString).abbreviatingWithTildeInPath
+        disclosures = [
+            Paragraph(lead: "Your notes are files.",
+                      text: "Each card is a Markdown file in \(path). When you continue, macOS asks whether Ideator "
+                          + "may use your Documents folder. Choose Allow."),
+            Paragraph(lead: "Updates come from GitHub.",
+                      text: "Once a day Ideator asks GitHub whether a newer version exists, and asks you before "
+                          + "installing. Turn the check off in Settings."),
+            Paragraph(lead: "AI is optional.",
+                      text: "Summaries and cards from Claude Code need your own API key in Settings. Only then does "
+                          + "a card's text leave your Mac."),
+        ]
+    }
+}
+
+// MARK: Tour welcome (UI workstream fills these in; replaces WelcomeWindow)
+
+/// The welcome: 446 pt window (440 visible plus the gaps), centered, the card look with the tour's
+/// tint. "Skip the tour" link and "Start the tour" for `.fullTour`; "Continue" alone otherwise.
+final class TourWelcomeWindow: NSWindow {
+    /// "Start the tour" (`.fullTour`) or "Continue": Return presses it.
+    var defaultButton: NSButton { fatalError("not implemented") }
+    /// "Skip the tour", an underlined link at the footer's left; nil unless `.fullTour`.
+    var skipButton: NSButton? { fatalError("not implemented") }
+
+    init(copy: TourWelcomeCopy, kind: WelcomeKind, choose: @escaping (WelcomeChoice) -> Void) {
+        fatalError("not implemented")
+    }
+
+    override var canBecomeKey: Bool { true }
+
+    @discardableResult
+    func fit(width: CGFloat) -> NSSize { fatalError("not implemented") }
+
+    /// Centered on the screen. `takingFocus: false` orders it front without making it key, as today.
+    /// `floating`: the welcome shown again by Back from page 1 sits at the panel's level, so the
+    /// cards' raise never buries it; at launch it is `.normal`.
+    func present(takingFocus: Bool, floating: Bool) { fatalError("not implemented") }
+
+    func bringForward() { fatalError("not implemented") }
+}
