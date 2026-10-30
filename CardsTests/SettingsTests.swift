@@ -78,6 +78,20 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(window.selected, .shortcut)
     }
 
+    func testFocusInAPaneThatGoesAwayMovesToTheSidebar() throws {
+        let window = settings()
+        window.select(.aiSummary)
+        let field = try XCTUnwrap(descendants(of: window.pane(.aiSummary)).compactMap { $0 as? NSSecureTextField }.first)
+        let table = try XCTUnwrap(descendants(of: window.contentView!).compactMap { $0 as? NSTableView }.first)
+        XCTAssertTrue(window.makeFirstResponder(field))
+
+        window.select(.updates)
+
+        XCTAssertTrue(window.firstResponder === table, "keys never go to the hidden key field")
+        window.select(.aiSummary)
+        XCTAssertTrue(window.firstResponder === table, "and the pane coming back does not take focus")
+    }
+
     func testEachPaneIsAGroupNamedForItsSectionSoVoiceOverSaysWhereItIs() {
         let window = settings()
         for section in SettingsSection.allCases {

@@ -72,16 +72,21 @@ final class SettingsWindow: NSWindow {
         select(.opening)
         refresh()
         fitScreen()
-        makeFirstResponder(sidebar.table)
     }
 
     /// Shows `section`'s pane from its top, selects its row and links Tab through it. Focus stays where
-    /// it is (A3): an arrow key in the sidebar changes the pane and leaves the sidebar focused.
+    /// it is (A3): an arrow key in the sidebar changes the pane and leaves the sidebar focused. A
+    /// VoiceOver press on a row changes the section without moving focus, and when the pane that had it
+    /// hides, AppKit gives focus to the window itself; it goes to the sidebar instead, so Tab carries on.
     func select(_ section: SettingsSection) {
         selected = section
         sidebar.select(section)
         host.show(section)
         linkKeyViews()
+        let focused = firstResponder as? NSView
+        if focused.map({ $0.isDescendant(of: sidebar) || $0.isDescendant(of: pane(section)) }) != true {
+            makeFirstResponder(sidebar.table)
+        }
     }
 
     /// The pane for a section, shown or not.
@@ -109,7 +114,6 @@ final class SettingsWindow: NSWindow {
     override func close() {
         super.close()
         select(.opening)
-        makeFirstResponder(sidebar.table)
     }
 
     /// The main menu has no Close item, so ⌘W is this window's alone and never reaches a card. While
