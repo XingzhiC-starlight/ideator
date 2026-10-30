@@ -219,9 +219,74 @@ final class DeskControllerTests: XCTestCase {
         cells = SpreadCells(indices: [0])
         controller.spread(fresh: false)
         XCTAssertEqual(beeps, 2, "a click that spreads makes no sound")
-        XCTAssertEqual(try spreadButton().toolTip, "Gather cards")
+        XCTAssertEqual(try spreadButton().toolTip, "Delete empty cards", "the new card is empty")
         controller.spread(fresh: false)
         XCTAssertEqual(try spreadButton().toolTip, "Spread cards", "the reason went with the click that changed the desk")
+    }
+
+    func testASecondClickWithNothingWrittenDeletesTheCardWithoutAlertOrBeepAndItsFileLeavesTheFolder() async throws {
+        let controller = makeController(spreadCells: { SpreadCells(indices: [0]) })
+        controller.spread(fresh: false)
+        XCTAssertTrue(controller.flush())
+        XCTAssertEqual(try markdownFiles().count, 2, "the new card was saved beside the one on the stack")
+        XCTAssertEqual(try spreadButton().toolTip, "Delete empty cards", "the tooltip says what the click will do")
+
+        controller.spread(fresh: false)
+
+        XCTAssertEqual(NSApp.windows.compactMap { $0 as? CardWindow }.filter(\.isVisible), [], "its window closed")
+        XCTAssertEqual(controller.desk.allCards.map(\.id), [card], "only the card outside the set is left")
+        XCTAssertEqual(beeps, 0, "a click that changes the desk is no refusal")
+        XCTAssertEqual(shown, [], "and it asks nothing")
+        XCTAssertEqual(try spreadButton().toolTip, "Spread cards")
+        XCTAssertTrue(controller.flush())
+        // The file goes to the Trash, the user's own, so the test checks only that it left the folder.
+        XCTAssertEqual(try markdownFiles(), ["card.md"])
+    }
+
+    func testTwoClicksInsideTheSaveDelayLeaveNoFileBehind() async throws {
+        let controller = makeController(spreadCells: { SpreadCells(indices: [0, 1]) })
+        controller.spread(fresh: false)
+        controller.spread(fresh: false)
+
+        XCTAssertTrue(controller.flush())
+
+        XCTAssertEqual(try markdownFiles(), ["card.md"], "cards that never reached the disk have nothing to move")
+    }
+
+    func testAClickWithTextInOneCardGathersAndKeepsTheEmptyOnes() async throws {
+        let controller = makeController(spreadCells: { SpreadCells(indices: [0, 1]) })
+        controller.spread(fresh: false)
+        let made = controller.desk.popped.map(\.card.id)
+        controller.send(.edit(made[1], Note(header: "Written", body: [])))
+        XCTAssertEqual(try spreadButton().toolTip, "Gather cards")
+
+        controller.spread(fresh: false)
+
+        XCTAssertEqual(controller.desk.popped, [], "both left the desktop")
+        XCTAssertEqual(Set(controller.desk.stack.map(\.id)), Set([card] + made), "and the empty one is kept")
+        XCTAssertEqual(beeps, 0)
+    }
+
+    func testSpreadCommitsAnInputMethodsCompositionFirstSoTheCardIsNotDeleted() async throws {
+        let controller = makeController(spreadCells: { SpreadCells(indices: [0]) })
+        controller.spread(fresh: false)
+        let made = try XCTUnwrap(controller.desk.popped.first?.card.id)
+        let window = try XCTUnwrap(NSApp.windows.compactMap { $0 as? CardWindow }.first { $0.isVisible })
+        let editor = try XCTUnwrap(window.firstResponder as? NSTextView, "the new card has the cursor")
+        editor.setMarkedText("ni", selectedRange: NSRange(location: 2, length: 0),
+                             replacementRange: NSRange(location: NSNotFound, length: 0))
+        XCTAssertTrue(editor.hasMarkedText())
+        XCTAssertEqual(note(of: made, in: controller), .blank, "the desk has not heard of the composition")
+
+        controller.spread(fresh: false)
+
+        XCTAssertEqual(note(of: made, in: controller)?.header, "ni", "the composition was committed, so it counted as text")
+        XCTAssertEqual(controller.desk.popped, [], "and the click gathered the card")
+        XCTAssertNotNil(controller.desk.spreadSet)
+    }
+
+    private func markdownFiles() throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".md") }.sorted()
     }
 
     private func spreadButton() throws -> NSButton {

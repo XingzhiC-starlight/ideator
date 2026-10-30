@@ -40,6 +40,11 @@ final class SpreadTests: XCTestCase {
         desk.popped.first { $0.place == slot(cell) }!.card.id
     }
 
+    /// Types into a card, so a Gather of its set keeps the set instead of deleting it.
+    private func write(_ id: CardID, in desk: inout Desk) {
+        desk.apply(.edit(id, Note(header: "written", body: [])))
+    }
+
     @discardableResult
     private func spread(_ desk: inout Desk, _ cells: SpreadCells = .standard, fresh: Bool = false) -> CardID? {
         desk.apply(.spread(cells, fresh: fresh, at: now))
@@ -92,6 +97,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk(stack: ["x"])
         spread(&desk, cells(0, 1, 2))
         let (c0, c1, c2) = (card(in: 0, of: desk), card(in: 1, of: desk), card(in: 2, of: desk))
+        write(c1, in: &desk)
         desk.apply(.move(.card(c0), to: slot(13)))
         desk.apply(.move(.card(c2), to: .free(GridPoint(x: 0.7, y: 0.1))))   // over cell 3
         XCTAssertNil(spread(&desk))
@@ -102,6 +108,7 @@ final class SpreadTests: XCTestCase {
     func testGatherKeepsTheStackOnItsPageCardOrBlank() {
         var desk = desk(stack: ["x", "y"])
         spread(&desk)
+        write(card(in: 0, of: desk), in: &desk)
         spread(&desk)
         XCTAssertEqual(shown(desk), "x", "the card it showed")
         spread(&desk)
@@ -114,10 +121,11 @@ final class SpreadTests: XCTestCase {
         var desk = desk(stack: ["x"])
         spread(&desk, cells(0, 1, 2))
         let c1 = card(in: 1, of: desk)
+        write(c1, in: &desk)
         spread(&desk)
         desk.apply(.showStacked(c1))
         desk.apply(.pop)
-        XCTAssertEqual(desk.stackFace(hasKey: false).spreadButton, .gather, "one card of the set is out")
+        XCTAssertEqual(desk.stackFace(hasKey: false).spreadButton, .gather(deletes: false), "one card of the set is out")
         spread(&desk, cells(0, 1, 2))
         XCTAssertEqual(desk.popped, [], "the click gathers it")
         XCTAssertEqual(desk.stack.count, 4, "and brings nothing out")
@@ -127,6 +135,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk(stack: ["x"])
         spread(&desk, cells(0, 1, 2))
         let (c0, c1) = (card(in: 0, of: desk), card(in: 1, of: desk))
+        write(c0, in: &desk)
         let spot = GridPoint(x: 0.47, y: 0.71)
         desk.apply(.move(.card(c0), to: .free(spot)))
         desk.apply(.move(.card(c1), to: slot(13)))
@@ -141,6 +150,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk(stack: ["x"])
         spread(&desk, cells(0, 1))
         let (c0, c1) = (card(in: 0, of: desk), card(in: 1, of: desk))
+        write(c0, in: &desk)
         spread(&desk)
         let blocker = desk.apply(.new(at: now.addingTimeInterval(60)))!
         XCTAssertEqual(desk.place(of: .card(blocker)), slot(0), "New takes c0's cell")
@@ -179,6 +189,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk()
         spread(&desk, cells(0))
         let c0 = card(in: 0, of: desk)
+        write(c0, in: &desk)
         spread(&desk)
         let blocker = desk.apply(.new(at: now.addingTimeInterval(60)))!
         desk.apply(.showStacked(c0))
@@ -194,6 +205,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk()
         spread(&desk, cells(0, 1, 2))
         let made = [0, 1, 2].map { card(in: $0, of: desk) }
+        write(made[0], in: &desk)
         spread(&desk, cells(10, 11, 12))
         XCTAssertEqual(desk.popped, [], "a click with a card out gathers, whatever the cells")
         XCTAssertEqual(desk.spreadSet?.cells, cells(0, 1, 2), "and the set is not moved yet")
@@ -206,6 +218,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk()
         spread(&desk, cells(0, 1))
         let made = [0, 1].map { card(in: $0, of: desk) }
+        write(made[0], in: &desk)
         spread(&desk)
         let first = spread(&desk, cells(0, 1, 2, 3))
         XCTAssertEqual([0, 1].map { card(in: $0, of: desk) }, made, "the old cards keep their order")
@@ -218,6 +231,7 @@ final class SpreadTests: XCTestCase {
         var desk = desk()
         spread(&desk)
         let made = [0, 1, 2, 5, 6, 7].map { card(in: $0, of: desk) }
+        write(made[5], in: &desk)
         spread(&desk)
         spread(&desk, cells(10, 11))
         XCTAssertEqual([10, 11].map { card(in: $0, of: desk) }, Array(made.prefix(2)), "the first two in reading order come out")
@@ -257,10 +271,109 @@ final class SpreadTests: XCTestCase {
         XCTAssertEqual(desk.popped.map(\.place), [slot(0), slot(1)])
     }
 
+    func testAClickOnASetWithNothingWrittenDeletesEveryCardAndEndsTheSet() {
+        var desk = desk(stack: ["x"])
+        spread(&desk, cells(0, 1, 2))
+        let (c0, c2) = (card(in: 0, of: desk), card(in: 2, of: desk))
+        desk.apply(.move(.card(c0), to: .free(GridPoint(x: 0.47, y: 0.71))))
+        desk.apply(.returnToStack(c2))
+        XCTAssertNil(spread(&desk), "no card comes out, so none gets the cursor")
+        XCTAssertEqual(desk.popped, [], "the desktop cards are gone")
+        XCTAssertEqual(desk.stack.map(\.id), [id("x")], "the stacked one too, and a card outside the set stays")
+        XCTAssertNil(desk.spreadSet, "the set ended with its last card")
+        XCTAssertNotNil(spread(&desk, cells(0, 1)), "so the next click makes a fresh set")
+        XCTAssertEqual(desk.popped.map(\.place), [slot(0), slot(1)])
+        XCTAssertEqual(desk.spreadSet?.homes, out(desk), "of the new cards only")
+    }
+
+    func testOneWrittenCardAnywhereInTheSetKeepsEveryEmptyOneAndGathersAsToday() {
+        for inStack in [false, true] {
+            var desk = desk(stack: ["x"])
+            spread(&desk, cells(0, 1, 2))
+            let made = [0, 1, 2].map { card(in: $0, of: desk) }
+            write(made[1], in: &desk)
+            if inStack { desk.apply(.returnToStack(made[1])) }
+            XCTAssertNil(spread(&desk))
+            XCTAssertEqual(desk.popped, [], "the set's desktop cards are gathered")
+            XCTAssertEqual(Set(desk.stack.map(\.id)), Set([id("x")] + made), "and every empty card is kept")
+            XCTAssertEqual(desk.spreadSet?.homes.keys.sorted(), made.sorted(), "in the set")
+        }
+    }
+
+    func testACardTypedInAndClearedCountsAsEmpty() {
+        let cleared: [Note] = [.blank, Note(header: " ", body: [Line(kind: .todo(done: true), runs: [])]),
+                               Note(header: "", body: [Line(kind: .bullet, runs: [Run(text: " ")])])]
+        for note in cleared {
+            var desk = desk()
+            spread(&desk, cells(0, 1))
+            let (c0, c1) = (card(in: 0, of: desk), card(in: 1, of: desk))
+            write(c0, in: &desk)
+            write(c1, in: &desk)
+            desk.apply(.edit(c0, note))
+            desk.apply(.edit(c1, .blank))
+            spread(&desk)
+            XCTAssertEqual(desk.allCards, [], "nothing is left of a set that was typed in and cleared")
+        }
+    }
+
+    func testTextBelowAnEmptyHeaderCountsAsWritten() {
+        var desk = desk()
+        spread(&desk, cells(0, 1))
+        desk.apply(.edit(card(in: 1, of: desk), Note(header: "", body: [Line(runs: [Run(text: "the body")])])))
+        spread(&desk)
+        XCTAssertEqual(desk.stack.count, 2, "gathered, not deleted")
+    }
+
+    func testAFreshClickNeverDeletesAnEmptySet() {
+        var desk = desk(stack: ["x"])
+        spread(&desk, cells(0, 1, 2))
+        let made = [0, 1, 2].map { card(in: $0, of: desk) }
+        desk.apply(.returnToStack(made[2]))
+        spread(&desk, cells(5, 6), fresh: true)
+        XCTAssertEqual(desk.stack.map(\.id).filter(made.contains).sorted(), made.sorted(), "every old card is stacked, as an ordinary card")
+        XCTAssertEqual(desk.popped.count, 2, "beside the new set")
+        XCTAssertEqual(desk.spreadSet?.homes, out(desk))
+    }
+
+    func testDeletingAnEmptySetKeepsTheStackOnItsPage() {
+        var desk = desk(stack: ["x", "y"])
+        spread(&desk, cells(0, 1))
+        spread(&desk)
+        XCTAssertEqual(shown(desk), "x", "the card it showed")
+
+        spread(&desk, cells(0, 1))
+        let returned = card(in: 1, of: desk)
+        desk.apply(.returnToStack(returned))
+        XCTAssertEqual(shown(desk), returned.rawValue, "Return to stack shows the card it returned")
+        spread(&desk)
+        XCTAssertEqual(shown(desk), "x", "a shown card that is deleted gives the page to the card under it")
+
+        spread(&desk, cells(0, 1))
+        desk.apply(.flipStack(.previous))
+        XCTAssertEqual(shown(desk), "blank")
+        spread(&desk)
+        XCTAssertEqual(shown(desk), "blank", "the blank page stays")
+        XCTAssertEqual(desk.stack.map(\.id), [id("x"), id("y")])
+    }
+
+    func testDeletingTouchesNothingOutsideTheSet() {
+        var desk = desk(stack: ["x"])
+        spread(&desk, cells(0, 1))
+        let blank = desk.apply(.new(at: now.addingTimeInterval(60)))!
+        desk.apply(.move(.stack, to: slot(13)))
+        desk.apply(.setClarity(true))
+        spread(&desk)
+        XCTAssertEqual(desk.allCards.map(\.id).sorted(), [blank, id("x")].sorted(), "another empty card is not in the set")
+        XCTAssertEqual(desk.place(of: .card(blank)), slot(2), "and it stays where it is")
+        XCTAssertEqual(desk.stackPlace, slot(13))
+        XCTAssertTrue(desk.clarity, "Clarity stays as it was")
+    }
+
     func testNewCardsTurnClarityOffAndPuttingBackLeavesIt() {
         var desk = desk(clarity: true)
         spread(&desk)
         XCTAssertFalse(desk.clarity, "new cards open expanded, as New's do")
+        write(card(in: 0, of: desk), in: &desk)
         desk.apply(.setClarity(true))
         spread(&desk)
         XCTAssertTrue(desk.clarity, "Gather leaves Clarity alone")
@@ -268,16 +381,20 @@ final class SpreadTests: XCTestCase {
         XCTAssertTrue(desk.clarity, "and so does putting cards back")
     }
 
-    func testTheFaceSaysGatherExactlyWhileASetCardIsOut() {
+    func testTheFaceSaysGatherWhileASetCardIsOutAndDeleteWhileNoCardOfItHasText() {
         var desk = desk()
         func face() -> SpreadButton { desk.stackFace(hasKey: false).spreadButton }
         XCTAssertEqual(face(), .spread, "no set")
         spread(&desk, cells(0, 1))
-        XCTAssertEqual(face(), .gather, "the set is out")
-        let c0 = card(in: 0, of: desk)
-        desk.apply(.returnToStack(card(in: 1, of: desk)))
-        XCTAssertEqual(face(), .gather, "one card is still out")
+        XCTAssertEqual(face(), .gather(deletes: true), "the set is out and empty")
+        let (c0, c1) = (card(in: 0, of: desk), card(in: 1, of: desk))
+        desk.apply(.returnToStack(c1))
+        XCTAssertEqual(face(), .gather(deletes: true), "one card is still out")
+        write(c1, in: &desk)
+        XCTAssertEqual(face(), .gather(deletes: false), "text in a stacked card of the set counts")
+        desk.apply(.edit(c1, .blank))
+        XCTAssertEqual(face(), .gather(deletes: true), "and clearing it counts the other way")
         desk.apply(.returnToStack(c0))
-        XCTAssertEqual(face(), .spread, "none is")
+        XCTAssertEqual(face(), .spread, "none is out")
     }
 }

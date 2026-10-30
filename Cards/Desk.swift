@@ -122,12 +122,17 @@ struct PoppedCard: Equatable {
 }
 
 /// What a click on the stack ribbon's Spread button does now. Derived from the desk on every render
-/// (`Desk.spreadIsOut`), never stored, so it can't drift from where the set's cards are.
+/// (`Desk.spreadButton`), never stored, so it can't drift from where the set's cards are. The face
+/// and the click both read it.
 enum SpreadButton: Equatable {
     /// Lay the set out, or make one ("Spread cards").
     case spread
-    /// A card of the set is on the desktop, so a click gathers ("Gather cards").
-    case gather
+    /// A card of the set is on the desktop, so a click takes the set off it: it gathers the cards ("Gather
+    /// cards"), or, with `deletes`, when no card of the set has text, deletes the whole set ("Delete empty
+    /// cards").
+    case gather(deletes: Bool)
+
+    var isOut: Bool { self != .spread }
 }
 
 /// The Spread button's batch of cards: which cards are in it, where each goes back to, and the
@@ -228,6 +233,9 @@ enum Command {
     /// - Not fresh, with any card of the set on the desktop: Gather. Those cards go to the bottom of
     ///   the stack in reading order of their places, each remembering its place, and the stack keeps
     ///   its page. `cells` is not read, so a Settings change waits for the next Spread.
+    /// - The same click when no card of the set has text (`Note.isBlank`), on the desktop or in the
+    ///   stack, deletes the whole set instead, stacked cards too. The set ends with its last card, so
+    ///   the next click makes a fresh set. Fresh never deletes.
     /// - Otherwise the set is laid out on `cells`. Fresh first sends the old set's desktop cards to
     ///   the bottom of the stack as ordinary cards and drops the set. A set laid out for these same
     ///   cells puts each card back at its home. With other cells, or no set, the card in the first
@@ -341,11 +349,12 @@ struct Desk: Equatable {
         return Slot.all.first(where: room.admits)
     }
 
-    /// Whether any card of the set is on the desktop. Both the Spread button's face and the Gather
-    /// branch of `Command.spread` ask this, so the tooltip and the click never disagree.
-    var spreadIsOut: Bool {
-        guard let set = spreadSet else { return false }
-        return popped.contains { set.contains($0.card.id) }
+    /// What a plain Spread click does. Both the button's face and `Command.spread` read it, so the
+    /// tooltip and the click never disagree. Whether the set has text counts every card of it, on the
+    /// desktop or in the stack.
+    var spreadButton: SpreadButton {
+        guard let set = spreadSet, popped.contains(where: { set.contains($0.card.id) }) else { return .spread }
+        return .gather(deletes: allCards.allSatisfy { !set.contains($0.id) || $0.note.isBlank })
     }
 
     var allCards: [Card] { poppedCards + stack }
@@ -494,8 +503,8 @@ struct Desk: Equatable {
     }
 
     /// Deleting the selected stacked card shows the one under it (the blank page after the last).
-    /// The only way a card leaves the Spread set, other than Spread itself; `syncFiles` comes here
-    /// for a file that vanished.
+    /// The only way a card leaves the Spread set, other than a layout onto fewer cells and the fresh
+    /// sweep; `syncFiles` comes here for a file that vanished, and so does Gather of a set with no text.
     private mutating func delete(_ id: CardID) {
         spreadSet = spreadSet?.removing(id)
         if let i = popped.firstIndex(where: { $0.card.id == id }) {
@@ -540,8 +549,12 @@ struct Desk: Equatable {
     /// See `Command.spread`. Lays out on a copy, so a layout that puts nothing out leaves the desk
     /// exactly as it was, the fresh sweep included.
     private mutating func pressSpread(_ cells: SpreadCells, fresh: Bool, at date: Date) -> CardID? {
-        if !fresh, spreadIsOut, let set = spreadSet {
-            stackAtBottom(popped.map(\.card.id).filter(set.contains))
+        if !fresh, case .gather(let deletes) = spreadButton, let set = spreadSet {
+            if deletes {
+                for id in set.homes.keys { delete(id) }   // the last one ends the set
+            } else {
+                stackAtBottom(popped.map(\.card.id).filter(set.contains))
+            }
             return nil
         }
         var next = self
@@ -724,7 +737,7 @@ struct StackFace: Equatable {
     let clarity: Bool
     /// Derived from `firstFreeSlot`, so there is no "full" flag to set or clear.
     let desktopFull: Bool
-    /// What the Spread button does on a click. Derived from `spreadIsOut`.
+    /// What the Spread button does on a click. Derived from `Desk.spreadButton`.
     var spreadButton = SpreadButton.spread
 }
 
@@ -738,7 +751,7 @@ extension Desk {
         StackFace(stacked: stack.map { StackRow(id: $0.id, title: $0.note.title) },
                   selected: selectedCard.map { face(of: $0, hasKey: hasKey) },
                   clarity: clarity, desktopFull: firstFreeSlot == nil,
-                  spreadButton: spreadIsOut ? .gather : .spread)
+                  spreadButton: spreadButton)
     }
 
     private func face(of card: Card, hasKey: Bool) -> CardFace {

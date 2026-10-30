@@ -103,7 +103,8 @@ Stable handles in this app, all from the code:
 
 - Stack ribbon buttons, left to right: `New` (a plus, tooltip `New card`), `Hide all` / `Show all`
   (a chevron, up or down), `Spread` (a 2 × 2 grid; `value="in"` and tooltip `Spread cards`, or
-  `value="out"` and `Gather cards` while a card of its set is out; its `New spread` action is the
+  `value="out"` and `Gather cards` (`Delete empty cards` while no card of the set has text) while a
+  card of its set is out; its `New spread` action is the
   fresh path, see [features/spread.md](features/spread.md)), `Clarity` (a filter icon), then
   `Settings and quit` (the ⋯ menu) at the right. They are icons; these are their accessibility names. Clarity always has that name. Its
   state is the `value="off"` or `value="on"` that `tree` prints on its line (its tooltip, `Clarity

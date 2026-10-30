@@ -112,6 +112,7 @@ enum SettingsCopy {
 
     enum Spread {
         static let caption = "Its next click gathers them into the stack, and the one after puts them back. "
+            + "If they are all still empty, that click deletes them instead. "
             + "Option-click starts a new set. The dimmed cell is the stack's."
         static let stackCell = "The stack, dimmed"
 

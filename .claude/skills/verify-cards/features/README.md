@@ -58,8 +58,8 @@ commands and observable proof.
 - [Hide all](./hide-all.md): the ribbon's Hide all / Show all toggle, the ribbon-only stack, and
   New while hidden.
 - [Spread](./spread.md): the ribbon's Spread button that lays blank cards into the cells ticked
-  in Settings, gathers them into the stack and puts them back, the refusal tooltips, the fresh set,
-  the Settings grid and the set the sidecar saves.
+  in Settings, gathers them into the stack and puts them back (or deletes them while none has any
+  text), the refusal tooltips, the fresh set, the Settings grid and the set the sidecar saves.
 - [Arrange the stack](./arrange-stack.md): the count badge's popover that lists the stacked cards,
   reorders them by grip drag, ⌥↑ and ⌥↓ or VoiceOver actions, and shows one on the stack.
 - [Clarity](./clarity.md): the one global Clarity switch, what turns it off (a click on a collapsed

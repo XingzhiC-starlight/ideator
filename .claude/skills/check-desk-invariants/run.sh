@@ -2,7 +2,7 @@
 # Bounded exhaustive check of the real Desk rules. See SKILL.md.
 #
 #   run.sh [DEPTH]        build against the current Cards/*.swift and check (default depth 3, ~10 s)
-#   run.sh --mutants      break the code forty known ways; each must be caught by its property
+#   run.sh --mutants      break the code every way in MUTANTS; each must be caught by its property
 #   run.sh --reviewed     record the current Desk/Grid/Note sources as reviewed against the properties
 #   run.sh --require-reviewed   fail while those sources differ from the reviewed ones (CI runs this)
 #   run.sh --inputs-key   print a hash of everything the search and the mutants read (CI skips them on a pass of it)
@@ -35,8 +35,8 @@ staleness() {
   fi
 }
 
-# Each mutant: property it must break | exact text in Cards/Desk.swift | replacement. A "\n" in a text
-# stands for a line break.
+# Each mutant: property it must break | exact text in the file | replacement | the file under Cards/
+# (Desk.swift when the column is left out). A "\n" in a text stands for a line break.
 MUTANTS=(
   "P1 conservation|insertCard(removePopped(at: i), at: 0)|_ = removePopped(at: i)"
   "P2 places|            setPlace(of: occupant, to: from)|            _ = occupant"
@@ -75,22 +75,37 @@ MUTANTS=(
   "P8 spread|guard let laid = next.layOut(cells, at: date) else { return nil }|guard let laid = next.layOut(cells, at: date) else { self = next; return nil }"
   "P8 spread|if let set = spreadSet, set.cells == cells {|if spreadSet != nil {"
   "P2 places|room.take(cell)|"
-  "P8 spread|spreadButton: spreadIsOut ? .gather : .spread)|spreadButton: .spread)"
+  "P8 spread|spreadButton: spreadButton)|spreadButton: .spread)"
   "P5 save and reload|where homes[m.card] == nil && notes[m.card] != nil {|where homes[m.card] == nil {"
   "P5 save and reload|where homes[m.card] == nil && notes[m.card] != nil {|where notes[m.card] != nil {"
+  "P1 conservation|            if deletes {|            if false {"
+  "P1 conservation|            if deletes {|            if true {"
+  "P8 spread|\$0.note.isBlank|\$0.note == .blank"
+  "P8 spread|return .gather(deletes: allCards.allSatisfy|return .gather(deletes: poppedCards.allSatisfy"
+  "P1 conservation|for id in set.homes.keys { delete(id) }|for id in popped.map(\\.card.id).filter(set.contains) { delete(id) }"
+  "P8 spread|spreadButton: spreadButton)|spreadButton: spreadButton.isOut ? .gather(deletes: false) : .spread)"
+  "P6 clarity|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; clarity = false"
+  "P1 conservation|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; for card in allCards where card.note.isBlank { delete(card.id) }"
+  "P3 stack page|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; selection = 0"
+  "P1 conservation|for id in set.homes.keys { delete(id) }|for id in set.homes.keys { delete(id) }; _ = layOut(cells, at: date)"
+  "P8 spread|if fresh { next.dropSpreadSet() }|if fresh { if case .gather(deletes: true) = spreadButton, let set = spreadSet { for id in set.homes.keys { next.delete(id) } } else { next.dropSpreadSet() } }"
+  "P8 spread|var isBlank: Bool { header.allSatisfy(\\.isWhitespace) && body.allSatisfy(\\.isBlank) }|var isBlank: Bool { body.allSatisfy(\\.isBlank) }|Note.swift"
+  "P8 spread|var isBlank: Bool { header.allSatisfy(\\.isWhitespace) && body.allSatisfy(\\.isBlank) }|var isBlank: Bool { header.allSatisfy(\\.isWhitespace) }|Note.swift"
+  "P8 spread|var isBlank: Bool { text.allSatisfy(\\.isWhitespace) }|var isBlank: Bool { !kind.isList && text.allSatisfy(\\.isWhitespace) }|Note.swift"
 )
 
 mutants() {
   local caught=0 n=0
   for m in "${MUTANTS[@]}"; do
-    IFS='|' read -r property from to <<< "$m"
+    IFS='|' read -r property from to file <<< "$m"
+    file="${file:-Desk.swift}"
     from="${from//\\n/$'\n'}" to="${to//\\n/$'\n'}"
     n=$((n + 1))
     local dir="$OUT/mutant-$n"
     rm -rf "$dir"; mkdir -p "$dir"
     cp "${SOURCES[@]/#/$REPO/Cards/}" "$dir/"
-    if ! FROM="$from" TO="$to" perl -0 -i -pe 'BEGIN { $n = 0 } $n += s/\Q$ENV{FROM}\E/$ENV{TO}/g; END { exit($n == 1 ? 0 : 3) }' "$dir/Desk.swift"; then
-      echo "mutant $n ($property): its text is no longer in Desk.swift exactly once; update MUTANTS in run.sh"
+    if ! FROM="$from" TO="$to" perl -0 -i -pe 'BEGIN { $n = 0 } $n += s/\Q$ENV{FROM}\E/$ENV{TO}/g; END { exit($n == 1 ? 0 : 3) }' "$dir/$file"; then
+      echo "mutant $n ($property): its text is no longer in $file exactly once; update MUTANTS in run.sh"
       continue
     fi
     build "$dir" "$dir/desk-check"

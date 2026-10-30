@@ -166,6 +166,40 @@ final class NoteTests: XCTestCase {
         XCTAssertEqual(Note(markdown: Note.blank.markdown), Note.blank, "a new card reads back as a new card")
     }
 
+    func testANoteIsBlankWhenNoCharacterShowsHoweverItIsBuilt() {
+        let blank: [(String, Note)] = [
+            ("nothing", .blank),
+            ("a header of spaces", Note(header: "   ", body: [])),
+            ("an ideographic space", Note(header: "\u{3000}", body: [])),
+            ("empty lines", Note(header: "", body: [line(T, ""), line(T, "  ")])),
+            ("an empty bullet", Note(header: "", body: [line(B(), "")])),
+            ("an empty number", Note(header: "", body: [line(N(), "")])),
+            ("an empty checkbox", Note(header: "", body: [line(D(), "")])),
+            ("a ticked empty checkbox", Note(header: "", body: [line(D(done: true), "")])),
+            ("empty nested items", Note(header: "", body: [line(B(), ""), line(B(1), " ")])),
+        ]
+        for (what, note) in blank {
+            XCTAssertTrue(note.isBlank, what)
+            XCTAssertTrue(Note(markdown: note.markdown).isBlank, "\(what) is still blank after a save and load")
+        }
+        XCTAssertNotEqual(blank[4].1, .blank, "a cleared card can keep its list marker, which is why blank is not `== .blank`")
+    }
+
+    func testAnyCharacterThatShowsMakesANoteNotBlank() {
+        let written: [(String, Note)] = [
+            ("a header", Note(header: "x", body: [])),
+            ("a zero-width space", Note(header: "\u{200B}", body: [])),
+            ("body text under an empty header", Note(header: "", body: [line(T, "x")])),
+            ("text in a checkbox", Note(header: "", body: [line(D(), "x")])),
+            ("text after empty lines", Note(header: " ", body: [line(T, ""), line(B(1), "x")])),
+            ("bold text", Note(header: "", body: [Line(runs: [Run(text: "x", style: .bold)])])),
+        ]
+        for (what, note) in written {
+            XCTAssertFalse(note.isBlank, what)
+            XCTAssertFalse(Note(markdown: note.markdown).isBlank, "\(what) still shows after a save and load")
+        }
+    }
+
     func testSummaryIsWantedFromTwoParagraphsOn() {
         let one = Note(header: "h", body: [Line(runs: [Run(text: String(repeating: "word ", count: 200))])])
         let two = Note(header: "h", body: [Line(runs: [Run(text: "first")]), Line(runs: [Run(text: "second")])])

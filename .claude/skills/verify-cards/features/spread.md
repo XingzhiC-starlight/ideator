@@ -3,18 +3,25 @@
 The stack ribbon's Spread button, a 2 × 2 grid third from the left, lays a new blank card into
 each cell ticked in Settings › Spread, the left three cells of the top two rows by default. The
 first card has the cursor. The next click gathers those cards into the bottom of the stack, and
-the click after puts each back where it was. The button remembers its cards until they are
-deleted, across Return to stack, Pop and a relaunch. A cell another card or the stack takes is
-skipped, and a click that can bring out nothing changes nothing and says why in the tooltip.
+the click after puts each back where it was. If nothing was typed in any of them, the next click
+deletes them instead, with no alert, and the click after makes a new set. The button remembers
+its cards until they are deleted, across Return to stack, Pop and a relaunch. A cell another card
+or the stack takes is skipped, and a click that can bring out nothing changes nothing and says
+why in the tooltip.
 
 ## Sub-features
 
 - `spread-first` The first click makes one blank card per ticked cell, in reading order; the first
   has the cursor, and Clarity turns off.
-- `spread-face` The button reads `Spread cards` (value `in`) or `Gather cards` (value `out`, accent
-  color) while a card of its set is on the desktop.
-- `spread-gather` A click with any set card out moves those cards to the bottom of the stack, in
-  reading order, and the stack keeps showing the page it showed.
+- `spread-face` The button reads `Spread cards` (value `in`), or `Gather cards` or `Delete empty
+  cards` (value `out`, accent color) while a card of its set is on the desktop. It reads `Delete
+  empty cards` exactly while no card of the set, on the desktop or in the stack, has text.
+- `spread-gather` A click with any set card out and some card of the set holding text moves the
+  set's desktop cards to the bottom of the stack, in reading order, empty ones too, and the stack
+  keeps showing the page it showed.
+- `spread-delete` A click with a set card out and no text in any card of the set deletes every card
+  of the set, in the stack too, with no alert. The set ends, the stack keeps its page, and the next
+  click makes a new set. Option-click never deletes.
 - `spread-back` The click after puts each card back exactly where it last was, a slot or a free
   spot, and gives none the cursor.
 - `spread-taken` A card whose place is taken stays in the stack, in the set, and comes out at a
@@ -31,8 +38,8 @@ skipped, and a click that can bring out nothing changes nothing and says why in 
 
 ## How to get to it (user POV)
 
-- Click the grid icon on the stack's ribbon, third from the left (tooltip `Spread cards` or
-  `Gather cards`).
+- Click the grid icon on the stack's ribbon, third from the left (tooltip `Spread cards`, `Gather
+  cards` or `Delete empty cards`).
 - Option-click it for a fresh set (not driven: `cards-ax` sends no modifier).
 - **New Spread** in the stack ribbon's ⋯ menu (not driven: see Gotchas).
 - VoiceOver: the button's `New spread` action.
@@ -91,6 +98,14 @@ Preconditions:
   Run `cv ax act Spread "New spread" stack`. Those cards go to
   the bottom of the stack, and new blank cards fill the ticked cells; the sidecar's `spread.members`
   lists only the new ids.
+- **Delete.** Start a fresh run (`cv stop`, `cv launch --seed`), note the badge, click Spread and
+  type nothing. `cv ax tree` shows the Spread button with `value="out"` and the tooltip `Delete
+  empty cards`. Run `cv ax press Spread stack`: `cv ax windows` lists only the stack, the badge
+  reads what it read before the first click, the button is `value="in"` with the tooltip `Spread
+  cards`, and after 1.5 s `cv files spread-deleted` shows a sidecar with no `spread` key and only
+  the seed's `.md` files. Press Spread once more: six new cards come out in the same cells. Type
+  `Written` into the one with the cursor and look at `cv ax tree` again: the tooltip reads `Gather
+  cards`, and one click gathers all six.
 - **Relaunch.** Gather the set, note the frames of a first Spread (`cv ax windows`), and run `cv files
   NAME`. Then `cv stop`, and `cv launch --seed build/verify-evidence/<run>/NAME-files/.cards.json`,
   which brings the `.md` files beside it. The badge counts every card, the button reads `Spread cards`,
@@ -111,4 +126,5 @@ Preconditions:
 - `cv ax tree` prints a Settings cell with no ticked state, because `cards-ax` reads only string values.
   Read it from `cv shot` (a check mark in the cell), or from what a Spread does.
 - Each Spread can write up to six `.md` files (`# ` and a line break) into the scratch folder,
-  never the owner's.
+  never the owner's. A click that deletes them moves each file it saved to the user's real Trash, as
+  a Delete does; a click inside the 1 s save delay writes nothing and trashes nothing.

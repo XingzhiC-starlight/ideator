@@ -26,7 +26,7 @@ jobs:
   desk-invariants:
     name: Desk invariants
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Desk, Grid and Note match the reviewed fingerprint

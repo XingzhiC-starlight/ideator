@@ -162,6 +162,7 @@ final class LibraryTests: XCTestCase {
         let cells = SpreadCells(indices: [0, 1])
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         desk.apply(.spread(cells, fresh: false, at: now))
+        desk.apply(.edit(desk.popped[1].card.id, Note(header: "Written", body: [])))
         desk.apply(.move(.card(desk.popped[0].card.id), to: .free(GridPoint(x: 0.47, y: 0.71))))
         desk.apply(.spread(cells, fresh: false, at: now))
         XCTAssertTrue(library.save(desk))
