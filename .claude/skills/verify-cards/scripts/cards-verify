@@ -22,7 +22,7 @@ usage() {
 cards-verify build                  build Ideator into build/VerifyDerivedData and compile cards-ax, cards-clip and cards-mcp
 cards-verify launch [--welcome] [--seed [SIDECAR]]  take the live-UI lock, then start an isolated instance on an empty temp folder (refuses while another session holds the lock; --welcome: show the first-launch card, wait for Continue; --seed: two stacked cards; SIDECAR: a .cards.json to start from, with the .md files beside it when it is named .cards.json, as `files` saves it)
 cards-verify doctor                 read-only health check of the current run, and who holds the live-UI lock
-cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, where, mouse, dragat, listen)
+cards-verify ax COMMAND ARGS...     cards-ax against the current run's pid (tree, press, text, click, focus, type, key, scroll, drag, windows, act, section, where, mouse, dragat, listen)
 cards-verify shot NAME              screenshot every window + accessibility tree into the evidence folder
 cards-verify files NAME             copy the card folder (*.md and .cards.json) into the evidence folder and print it
 cards-verify note TEXT              append a line to the run's evidence log

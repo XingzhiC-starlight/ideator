@@ -53,7 +53,10 @@ func send(_ command: Command) {
 | `Welcome.swift` | the first-launch card and its copy |
 | `Build.swift` | what the build says about itself: version, number, the commit `package.sh` stamped and the update feed, parsed strictly, and `UpdatePlan`, whether this run checks for updates (pure) |
 | `Updates.swift` | Sparkle, and the only file that imports it: the updater's lifetime, the feed pin, and the menu title while an update waits |
-| `Settings.swift`, `App.swift` | the API key, the shortcut recorder, the Spread cell grid, the update controls with the version line, the AI tools rows (the instruction editor and the copy buttons) and the privacy line in one window as tall as its rows or the screen's room, scrolling when the rows are taller; entry point, menu bar, reopen |
+| `Settings.swift`, `App.swift` | the Settings window, 640 × 640: a sidebar of the six sections, the pane each one shows, which section is shown, ⌘W and the Tab order; entry point, menu bar, reopen |
+| `SettingsPanes.swift` | one pane per section, each the only reader and writer of its model: the shortcut recorder, the Spread cell grid, the API key, the AI tools rows (the copy buttons, the switch with Top / Bottom, the instruction editor), the update controls with the version line, and the privacy card |
+| `SettingsControls.swift` | the spacing, sizes and type roles Settings uses (`SettingsStyle`), the one factory its controls come from, the status line that announces its changes, the Spread cell picker, the shortcut recorder and the privacy card's view |
+| `SettingsCopy.swift`, `KeyStore.swift` | the six sections in order (`SettingsSection`) and every word Settings shows (pure); the API key in the login Keychain, or in memory for a scratch run |
 | `Spread.swift` | the Spread button's presentation: `SpreadChoice`, the ticked cells for this run, `SpreadRefusal`, why the last click changed nothing, and the button's tooltip |
 | `Palette.swift` | every color the app draws, and the glass material, as named tokens (see Color and glass) |
 | `MCP/` | compiled into the app and into the helper: `AddCard`, the one parser of an `add_card` call, and `ToolReply`; `MCPServer`, the JSON-RPC side; `Endpoint`, `Socket` and `LineReader`, the socket each instance listens on; `HandOff`, the helper's connect, start and wait (pure apart from the socket calls); `Instruction`, the text an AI tool gets at a session start and its preference key, and `InstructionSource`, how the helper learns it without starting the app |
@@ -747,6 +750,34 @@ Later changes, after trying the app:
     sidecar field. Membership on each `Card` lost: it splits the batch between cards and desk, and
     "no set" gets two spellings once the last card goes. An array of members lost to the
     dictionary, which makes one home per card a type fact.
+- 2026-10-30, Settings in sections (SETTINGS-DESIGN.md): the one scrolling column became a fixed
+  640 × 640 window with a sidebar of six sections and one pane each.
+  - `SettingsSection` is the only list. The sidebar's rows, the panes, their titles, leads and
+    accessibility labels come from it, and adding a case fails the build until it has a pane.
+  - Each pane takes only the model it serves and holds its own passing state (a refused shortcut,
+    a refused Keychain write, the copied setup). A click writes the model and refreshes every pane,
+    because Save changes the Privacy card's company; a keystroke refreshes its own pane.
+  - Every pane stays in the view tree and only the shown one is unhidden, so the unit tests still
+    reach any control while the accessibility tree, VoiceOver and the key view loop see one pane.
+    The harness switches sections with `cards-ax section`, an exact name on the sidebar's cells,
+    because `act` matches by prefix and "Spread" would hit the ribbon's button.
+  - The window opens on Shortcut: `close()` goes back to it, never `becomeKey`, which runs on every
+    app switch. ⌘W is the window's own key equivalent, since a Close item in the main menu would
+    reach card windows too.
+  - Tab runs from the sidebar through the shown pane in reading order and back, linked on every
+    section change, so §4 A2's order holds by construction. After a section change focus is in the sidebar or the shown pane: when a pane that had focus
+    hides, as after a VoiceOver press on a row, AppKit gives focus to the window itself.
+  - Save is the window's default button, and Return reaches it only while AI Summary shows: AppKit
+    skips the key equivalents of a hidden view (measured 2026-10-30 with a probe window: 0 fires
+    hidden, 1 shown).
+  - A status line announces its own changes to VoiceOver, never the first fill and never on a
+    hidden pane, so no pane has to remember to.
+  - Measured with the real fonts, the panes are 224 (Shortcut), 344 (Spread), 328 (AI Summary), 630
+    (MCP), 248 (Updates) and 632 (Privacy, no key saved) points tall. With the card's items 12 apart
+    Privacy measured 644 and scrolled by 4 points, so its items are 8 apart (SETTINGS-DESIGN.md
+    § Decisions). A unit test checks every pane against the 640-point window.
+  - Rejected: `NSTabView`, which keeps only the shown tab in the view tree, and six sidebar buttons,
+    which lose ↑↓ selection and "2 of 6".
 
 ## Tradeoffs accepted
 
@@ -817,7 +848,7 @@ Later changes, after trying the app:
   Settings changes or a fresh set is made, and putting Spread cards back gives none the cursor.
 - The menu bar menu adds "Settings…" so the API key has somewhere to go.
 - With no API key, a collapsed card shows "Summary unavailable" with the reason on hover ("No API key.
-  Add one in Settings.").
+  Add one in Settings › AI Summary.").
 - A collapsed card whose body is empty or one line shows that line in the lighter style.
 - The grid uses the menu-bar screen and does not subtract the Dock. Only the overhang limit
   does, so a header can't hide under it.

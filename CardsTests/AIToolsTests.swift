@@ -214,22 +214,20 @@ final class AIToolsTests: XCTestCase {
         XCTAssertFalse(Launch(arguments: [:], build: BuildInfo(info: [:]), environment: [:]).inBackground)
     }
 
-    func testSettingsHasTheTwoRowsAfterUpdatesAndBeforePrivacy() throws {
+    func testSettingsMCPPaneHasTheSwitchThenWhereCardsGo() throws {
         let choice = AIToolsChoice(preferences: Preferences(defaults: nil))
         let window = SettingsWindow(keys: KeyStore(inKeychain: false), hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
                                     updates: Updates(build: .current, isScratch: true), aiTools: choice) {}
-        let views = descendants(of: try XCTUnwrap(window.contentView))
+        let views = descendants(of: window.pane(.mcp))
         let labels = views.compactMap { view -> String? in
             if let button = view as? NSButton { return button.title }
             if let field = view as? NSTextField, !field.isEditable { return field.stringValue }
             return nil
         }
         func index(_ label: String) throws -> Int { try XCTUnwrap(labels.firstIndex(of: label), label) }
-        XCTAssertLessThan(try index("Updates"), try index("Let AI tools add cards"))
         XCTAssertLessThan(try index("Let AI tools add cards"), try index("Cards from AI tools go to:"))
         XCTAssertLessThan(try index("Cards from AI tools go to:"), try index("Top"))
         XCTAssertLessThan(try index("Top"), try index("Bottom"))
-        XCTAssertLessThan(try index("Bottom"), try index("Privacy"))
 
         let buttons = views.compactMap { $0 as? NSButton }
         let allow = try XCTUnwrap(buttons.first { $0.title == "Let AI tools add cards" })

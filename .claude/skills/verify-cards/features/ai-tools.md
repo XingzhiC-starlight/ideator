@@ -27,16 +27,16 @@ When Ideator is not running, the helper starts it in the background.
   keeps the default.
 - `mcp-instruction-limit` The instruction box takes up to 100,000 bytes, refuses a change past that with a note above
   the box, and a text of the limit reaches a fresh session whole.
-- `mcp-connect` Each Connect AI tools button copies its tool's setup, naming this build's helper and the run's
+- `mcp-connect` Each Connect an AI tool button copies its tool's setup, naming this build's helper and the run's
   `-CardsFolder`.
 
 ## How to get to it (user POV)
 
 - An AI tool configured with the helper's path, asked to "put this in Ideator". Not driven here: the three-app
   check is the operator's, and this skill never edits an AI tool's config.
-- Settings (the stack ribbon's ⋯ › Settings…, or ⌘,), rows "Let AI tools add cards" and "Cards from AI tools go
-  to: Top / Bottom", after Updates. Under them the "Instruction for AI tools" box with "Reset to Default", then
-  "Connect AI tools" with the buttons Claude Code, Codex and Claude Desktop, before Privacy.
+- Settings (the stack ribbon's ⋯ › Settings…, or ⌘,), section MCP, between AI Summary and Updates: first "Connect
+  an AI tool" with the buttons Claude Code, Codex and Claude Desktop, then "Let AI tools add cards" and "Cards from
+  AI tools go to: Top / Bottom", then the "Instruction for AI tools" box with "Reset to Default".
 
 ## Driving it with cards-verify
 
@@ -65,13 +65,14 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   has the new card first.
 - **mcp-top-settings.** `cv ax key cmd+,` opens Settings, which takes the key window from the stack: the stack's
   format bar leaves `cv ax tree`. `cv mcp add 'Top while Settings is key'` then switches the stack to the new card.
-- **mcp-bottom.** With Settings open, `cv ax act Bottom AXPress` (a radio button, which `press` does not find). Then
+- **mcp-bottom.** With Settings open, `cv ax section MCP`, then `cv ax act Bottom AXPress` (a radio button, which
+  `press` does not find). Then
   `cv mcp add 'Bottom card'`: the reply says bottom, the stack still shows what it showed, the badge is one higher,
   and the new id is last in `.cards.json`'s `stack`.
 - **mcp-hidden.** `cv ax act Top AXPress`, `cv ax press 'Hide all' stack`, `cv mcp add 'While hidden'`. `cv ax
   windows` lists the stack 46 points high, the badge in the ribbon counts the new card, and `cv files` has its file.
   `cv ax press 'Show all' stack`, and `cv ax text stack` shows the new card.
-- **mcp-off.** In Settings, `cv ax act 'Let AI tools add cards' AXPress`, then `cv mcp add 'Should not exist'`: the
+- **mcp-off.** In Settings › MCP, `cv ax act 'Let AI tools add cards' AXPress`, then `cv mcp add 'Should not exist'`: the
   reply is `Turned off in Ideator's Settings` with `"isError":true`, Top and Bottom are dimmed, and `cv files` lists
   no new file. Press it again to turn it back on.
 - **mcp-too-long.** `cv mcp add-bytes 1000000`: title and body are 1,000,008 bytes, the reply is the 1 MB error with
@@ -86,7 +87,7 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   tree <pid>`, then either `cards-ax press <pid> Continue` (the reply says Added and the folder has that card) or
   end the run by its pid (the reply says Ideator quit before it saved the card, and the folder has none).
 - **mcp-instruction.** Record `defaults export com.systemlabs.Ideator - | shasum` first. `cv ax key cmd+,` opens
-  Settings; its window index changes with the z-order (a macOS "Edit with Siri" panel once became `w0`), so find
+  Settings and `cv ax section MCP` shows the box; its window index changes with the z-order (a macOS "Edit with Siri" panel once became `w0`), so find
   Settings in `cv ax tree` by its "Reset to Default" button and its one text area, and read the index in the same
   script as each `cv ax focus`. `cv mcp initialize` prints `instructions
   (412 characters)` and the default text. `cv ax focus <Settings index>` clicks into the box (the window's only text area),
@@ -97,19 +98,19 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   starts no app. `cv ax press "Reset to Default"`, then `cv mcp initialize` prints the default. `cv ax focus <Settings index>`,
   `cv ax key cmd+a`, `cv ax key delete`, then `cv mcp initialize` prints `instructions (none)`. Press Reset to Default
   again. The preferences hash is the same as at the start: a scratch run saves no edit.
-- **mcp-instruction-limit.** `cv clip save` first, with Settings open. In one script, `cv clip set` a 120,000-byte
+- **mcp-instruction-limit.** `cv clip save` first, with Settings open on MCP. In one script, `cv clip set` a 120,000-byte
   text of `a` (made by `python3 -I -c`, never typed out), `cv ax focus <Settings index>`, `cv ax key cmd+a`, `cv ax key cmd+v`:
   `cv ax text | grep -c '^"aaaa'` prints 0 (the text from before is still there), and `cv ax tree` shows the line above the box reading "That change
   would pass the 100 KB limit, so Ideator did not make it." The same with exactly 100,000 bytes: `grep -c` prints 1, the box holds all of
   them, the line is its caption again, and `cv mcp initialize` prints `instructions (100000 characters)`. Press Reset to
   Default, then `cv clip restore`. Pipe `cv mcp` through `grep 'instructions ('` and `cut -c1-140`: it prints the
   whole text.
-- **mcp-connect.** `cv clip save` first. `cv ax press "Claude Code"` (no window: it finds the button in Settings), then `cv clip show` prints `claude mcp add
+- **mcp-connect.** `cv clip save` first. With Settings open, `cv ax section MCP`, then `cv ax press "Claude Code"` (no window: it finds the button in Settings), then `cv clip show` prints `claude mcp add
   --transport stdio --scope user ideator -- '<this build's .app>/Contents/Helpers/ideator-mcp' -CardsFolder
   <the run's folder>`. The same for `Codex` (a `[mcp_servers.ideator]` table with `command` and `args`) and `Claude
   Desktop` (a `mcpServers` object with an `ideator` entry). The button reads "Copied" for 2 seconds, and a `cv shot`
   in its own call starts later than that. Press and shoot in one script: `cv ax press Codex` then `cv shot copied`
-  ran in 0.82 s on 2026-10-28, and its tree and its Settings png show the button reading "Copied" and the line above
+  ran in 0.82 s on 2026-10-28, and its tree and its Settings png show the button reading "Copied" and the line under
   the buttons saying where to paste. `cv clip restore`, then `osascript -e 'clipboard
   info' | shasum` and `pbpaste | shasum` match their values from before `clip save`.
 - **mcp-connect-volume.** A build runs from a build folder on the startup volume, so its Connect buttons stay
@@ -119,8 +120,9 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   `hdiutil attach <scratch>.dmg -mountpoint <a folder under build/ or /private/tmp>`, `cp -R
   build/VerifyDerivedData/Build/Products/Debug/Ideator.app <mount>/`, then run `<mount>/Ideator.app/Contents/MacOS/Ideator
   -CardsFolder <a new temp folder> &` and find its pid with `pgrep -f -- "^<mount>/Ideator.app/Contents/MacOS/Ideator
-  -CardsFolder <folder>\$"`. Open Settings with `build/verify-tools/cards-ax key <pid> cmd+,`; `cards-ax tree <pid>`
-  shows the three Connect buttons `[disabled]` and the line above them saying to move Ideator to Applications. A
+  -CardsFolder <folder>\$"`. Open Settings with `build/verify-tools/cards-ax key <pid> cmd+,` and `cards-ax section
+  <pid> MCP`; `cards-ax tree <pid>` shows the three Connect buttons `[disabled]` and the line under them saying to
+  move Ideator to Applications. A
   mount point outside `/Volumes` gives the same answer, because the file system decides. Then `kill <pid>` (that
   pid only, never by name), `hdiutil detach <mount>`, delete the dmg and the temp folder, and `live_lock_release "<the same holder line>"`, also when a step failed
   (a `trap` on EXIT does it). The
@@ -130,6 +132,8 @@ reply quotes the title in full. Write card bodies to files under the run's evide
 
 - `cv clip show` prints whatever the clipboard holds: run it only after a press, never before, and never print the
   owner's clipboard.
+- Settings opens on Shortcut, and only the shown section is in `cv ax tree`, so `press` and `act` find the MCP
+  controls only after `cv ax section MCP`. The section stays chosen until Settings closes.
 - `cv mcp` prints the `instructions` of every initialize and discover reply in full on its own line; the reply
   line above it is cut at 300 characters.
 - Never start the helper without `-CardsFolder`: with no normal Ideator of this build listening, it would start
