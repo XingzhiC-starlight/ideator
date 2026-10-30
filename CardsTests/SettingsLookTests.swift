@@ -235,6 +235,24 @@ final class SettingsLookTests: XCTestCase {
         assertColor(color(), palette.ink)
     }
 
+    func testThePrivacyCardIsSlateWithIvoryTextAndHoldsTheWindowsOnlySerif() throws {
+        let window = settings()
+        window.contentView?.layoutSubtreeIfNeeded()
+        let card = try XCTUnwrap(descendants(of: window.pane(.privacy)).compactMap { $0 as? PrivacyCardView }.first)
+        let texts = descendants(of: try XCTUnwrap(window.contentView)).compactMap { $0 as? SettingsText }.filter { !$0.stringValue.isEmpty }
+        let attribute = { (text: SettingsText, key: NSAttributedString.Key) in text.attributedStringValue.attribute(key, at: 0, effectiveRange: nil) }
+        let serif = SettingsStyle.font(.display).familyName
+
+        assertColor(pixel(of: card, at: NSPoint(x: 4, y: 4)), palette.inverse)
+        let inCard = texts.filter { $0.isDescendant(of: card) }
+        XCTAssertEqual(inCard.count, 1 + 2 * 4, "the headline, then four terms over their texts")
+        for text in inCard {
+            assertColor(srgb(try XCTUnwrap(attribute(text, .foregroundColor) as? NSColor)), palette.inkInverse, text.stringValue)
+        }
+        let serifs = texts.filter { (attribute($0, .font) as? NSFont)?.familyName == serif }
+        XCTAssertEqual(serifs.map(\.stringValue), [SettingsCopy.Privacy.card(for: nil).headline])
+    }
+
     func testTheWindowKeepsItsLightLookWhenTheAppIsDark() throws {
         let appearance = NSApp.appearance
         NSApp.appearance = NSAppearance(named: .darkAqua)

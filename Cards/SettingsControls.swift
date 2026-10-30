@@ -515,10 +515,11 @@ final class ShortcutField: SettingsButton {
     }
 }
 
-/// The Privacy card (§3.11): a headline, then each term on its own line over its text.
+/// The Privacy card (§3.11): a slate block, the window's only serif as its headline, then each term on
+/// its own line over its text, all in ivory.
 final class PrivacyCardView: NSView {
     private static let inner = SettingsStyle.contentWidth - 2 * SettingsStyle.s5
-    private let headline = SettingsControl.text("", as: .display, width: inner)
+    private let headline = SettingsControl.text("", as: .display, tone: .inverse, width: inner)
     private let list = NSStackView()
     private var items: [(term: SettingsText, text: SettingsText)] = []
 
@@ -546,15 +547,15 @@ final class PrivacyCardView: NSView {
     required init?(coder: NSCoder) { fatalError("not used") }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.quaternarySystemFill.setFill()
+        Palette.Settings.inverse.setFill()
         bounds.fill()
     }
 
     func show(_ card: PrivacyCard) {
         headline.stringValue = card.headline
         while items.count < card.items.count {
-            let item = (term: SettingsControl.text("", as: .term, width: Self.inner),
-                        text: SettingsControl.text("", as: .body, width: Self.inner))
+            let item = (term: SettingsControl.text("", as: .term, tone: .inverse, width: Self.inner),
+                        text: SettingsControl.text("", as: .body, tone: .inverse, width: Self.inner))
             let pair = NSStackView(views: [item.term, item.text])
             pair.orientation = .vertical
             pair.alignment = .leading
