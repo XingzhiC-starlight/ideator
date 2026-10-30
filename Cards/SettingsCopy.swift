@@ -2,8 +2,8 @@ import Foundation
 
 /// The six sections in sidebar order. This is the one list: the sidebar's rows, the pane host's
 /// children, `SettingsWindow.pane(_:)` and the panes' titles and accessibility labels all derive from
-/// `allCases`. A new case fails the build at `title`, `lead` and `SettingsWindow.makePane(for:)`, so
-/// nothing can be half-added.
+/// `allCases`. A new case fails the build at `title`, `lead` and the pane switch in `SettingsWindow`'s
+/// initializer, so nothing can be half-added.
 enum SettingsSection: Int, CaseIterable {
     case shortcut, spread, aiSummary, mcp, updates, privacy
 
