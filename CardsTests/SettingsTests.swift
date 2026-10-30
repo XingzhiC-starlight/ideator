@@ -148,7 +148,7 @@ final class SettingsTests: XCTestCase {
         window.select(.aiSummary)
         let field = try XCTUnwrap(descendants(of: window.pane(.aiSummary)).compactMap { $0 as? NSSecureTextField }.first)
 
-        field.stringValue = "sk-ant-test"
+        type("sk-ant-test", into: field, in: window)
         try button("Save", in: window.pane(.aiSummary)).performClick(nil)
 
         XCTAssertEqual(said, ["Done: An Anthropic key is held for this run only. Paste a new one to replace it."])
@@ -181,12 +181,13 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(texts(in: key).contains("API key"), "the lead names both companies")
         XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic or OpenAI, whichever your key is for") })
 
-        field.stringValue = "sk-proj-test"
+        window.select(.aiSummary)
+        type("sk-proj-test", into: field, in: window)
         try button("Save", in: key).performClick(nil)
         XCTAssertTrue(texts(in: key).contains { $0.hasPrefix("An OpenAI key is held for this run only") })
         XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to OpenAI, using your own key") })
 
-        field.stringValue = "sk-ant-test"
+        type("sk-ant-test", into: field, in: window)
         try button("Save", in: key).performClick(nil)
         XCTAssertTrue(texts(in: key).contains { $0.hasPrefix("An Anthropic key is held for this run only") })
         XCTAssertTrue(texts(in: privacy).contains { $0.hasPrefix("With a key saved, Ideator sends a card's text to Anthropic, using your own key") })
@@ -247,6 +248,52 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(texts(in: window.pane(.aiSummary)).contains { $0.contains("No key saved") })
     }
 
+    func testSaveIsDimmedWhileTheFieldIsEmptyAndRemoveKeyWhileNoKeyIsSaved() throws {
+        let keys = KeyStore(inKeychain: false)
+        let window = settings(keys: keys)
+        window.select(.aiSummary)
+        let pane = window.pane(.aiSummary)
+        let field = try XCTUnwrap(descendants(of: pane).compactMap { $0 as? NSSecureTextField }.first)
+        let save = try button("Save", in: pane), remove = try button("Remove Key", in: pane)
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertFalse(remove.isEnabled)
+
+        type("   ", into: field, in: window)
+        XCTAssertFalse(save.isEnabled, "spaces are not a key")
+        type("sk-ant-test", into: field, in: window)
+        XCTAssertTrue(save.isEnabled)
+
+        save.performClick(nil)
+        XCTAssertEqual(keys.provider, .anthropic)
+        XCTAssertEqual(field.stringValue, "")
+        XCTAssertFalse(save.isEnabled, "the field is empty again")
+        XCTAssertTrue(remove.isEnabled)
+
+        remove.performClick(nil)
+        XCTAssertNil(keys.provider)
+        XCTAssertFalse(remove.isEnabled)
+    }
+
+    func testAKeychainRefusalSaysSoUntilAChangeGoesThrough() throws {
+        var said: [String] = []
+        let keys = RefusableKeyStore()
+        keys.set("sk-ant-test")
+        let window = settings(keys: keys, announce: { said.append($0) })
+        window.select(.aiSummary)
+        let pane = window.pane(.aiSummary)
+        let refused = "The Keychain refused the change. An Anthropic key is held for this run only. Paste a new one to replace it."
+
+        keys.refuses = true
+        try button("Remove Key", in: pane).performClick(nil)
+        XCTAssertTrue(texts(in: pane).contains(refused))
+        XCTAssertEqual(said, ["Error: \(refused)"])
+
+        keys.refuses = false
+        try button("Remove Key", in: pane).performClick(nil)
+        XCTAssertFalse(texts(in: pane).contains(refused))
+        XCTAssertEqual(said.last, "No key saved. Ideator works without one; collapsed cards show “Summary unavailable”.")
+    }
+
     func testRemoveKeyDeletesTheKeyAndTellsTheControllerOnce() async throws {
         let keys = RefusableKeyStore()
         keys.set("sk-ant-test")
@@ -276,6 +323,12 @@ final class SettingsTests: XCTestCase {
                           onChange: @escaping () -> Void = {}) -> SettingsWindow {
         SettingsWindow(keys: keys, hotKey: HotKey(preferences: Preferences(defaults: nil)) {},
                        updates: Updates(build: .current, isScratch: false), announce: announce, onChange: onChange)
+    }
+
+    /// Keystrokes through the field editor, as typing sends them, so the pane hears each change.
+    private func type(_ text: String, into field: NSTextField, in window: SettingsWindow) {
+        window.makeFirstResponder(field)
+        (field.currentEditor() as? NSTextView)?.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
     }
 
     private func shown(in window: SettingsWindow) -> [SettingsSection] {

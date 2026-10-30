@@ -175,14 +175,17 @@ final class SpreadPane: SettingsPane {
 }
 
 /// 3 · AI Summary: the key field, the key's status, then Remove Key and Save. `keyChanged` tells the
-/// desk, and runs only after the Keychain took the change.
-final class AISummaryPane: SettingsPane {
+/// desk, and runs only after the Keychain took the change. Save is dimmed while the field is empty,
+/// and Remove Key while no key is saved: neither would do anything.
+final class AISummaryPane: SettingsPane, NSTextFieldDelegate {
     private let keys: KeyStore
     private let keyChanged: () -> Void
     private let field = SettingsControl.secureField(placeholder: SettingsCopy.AISummary.placeholder)
     private lazy var status = statusLine()
     private lazy var remove = SettingsControl.button(SettingsCopy.AISummary.remove, target: self, action: #selector(removeKey))
     private lazy var save = SettingsControl.primaryButton(SettingsCopy.AISummary.save, target: self, action: #selector(saveKey))
+    /// The last Save or Remove Key the Keychain refused. Cleared by the next one it takes.
+    private var keychainRefused = false
 
     init(keys: KeyStore, keyChanged: @escaping () -> Void, refreshAll: @escaping () -> Void,
          announce: @escaping (String) -> Void) {
@@ -191,6 +194,7 @@ final class AISummaryPane: SettingsPane {
         super.init(section: .aiSummary, refreshAll: refreshAll, announce: announce)
         field.target = self
         field.action = #selector(saveKey)
+        field.delegate = self
         addGroup([.label(SettingsControl.text(SettingsCopy.AISummary.label, as: .label)), .control(field),
                   .caption(status), .control(SettingsControl.row([remove, save], .trailing))])
     }
@@ -198,8 +202,15 @@ final class AISummaryPane: SettingsPane {
     required init?(coder: NSCoder) { fatalError("not used") }
 
     override func refresh() {
-        status.show(SettingsCopy.AISummary.status(provider: keys.provider, inKeychain: keys.inKeychain, keychainRefused: false))
+        save.isEnabled = !typedKey.isEmpty
+        remove.isEnabled = keys.provider != nil
+        status.show(SettingsCopy.AISummary.status(provider: keys.provider, inKeychain: keys.inKeychain,
+                                                  keychainRefused: keychainRefused))
     }
+
+    func controlTextDidChange(_ notification: Notification) { refresh() }
+
+    private var typedKey: String { field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// Return saves only while this pane shows: Save is the window's default button, and a hidden one
     /// would take Return from every other pane.
@@ -214,18 +225,17 @@ final class AISummaryPane: SettingsPane {
     }
 
     @objc private func saveKey() {
-        guard !field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        if keys.set(field.stringValue) {
-            field.stringValue = ""
-            keyChanged()
-        } else {
-            NSSound.beep()
-        }
-        refreshAll()
+        guard !typedKey.isEmpty else { return }
+        let saved = keys.set(field.stringValue)
+        if saved { field.stringValue = "" }
+        finish(saved)
     }
 
-    @objc private func removeKey() {
-        if keys.set(nil) { keyChanged() } else { NSSound.beep() }
+    @objc private func removeKey() { finish(keys.set(nil)) }
+
+    private func finish(_ stored: Bool) {
+        keychainRefused = !stored
+        if stored { keyChanged() } else { NSSound.beep() }
         refreshAll()
     }
 }
