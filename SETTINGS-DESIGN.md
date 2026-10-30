@@ -1,8 +1,9 @@
 # Ideator Settings: design guideline
 
-Status: draft, 2026-10-29. The content and section order are the agreed plan. The visual rules come
-from the research-journal brand brief. Copy marked _[draft]_ is new wording and needs approval before
-it is built. Unmarked copy is today's text, unchanged.
+Status: approved, 2026-10-30, and ready to build. The content and section order are the agreed plan
+(2026-10-29). The visual rules come from the research-journal brand brief. The new wording and the
+three behavior changes were approved on 2026-10-30 (§1, Decisions). Quoted copy is final: build it
+word for word.
 
 **Intent:** Settings reads like a page from a research journal printed on warm stone: ivory paper,
 slate ink and a slate sidebar, flat hard-edged controls, one clay accent kept for a single job, and
@@ -28,7 +29,19 @@ welcome card keep their warm-paper palette (DESIGN.md › Color and glass).
 - No new settings. Launch at login, Show folder and About are separate proposals.
 - No Dark Mode variant. The window always uses the light look, as cards already do. The slate
   sidebar and the slate Privacy card already supply the dark half of the ivory ↔ slate rhythm.
-- No change to what any setting does. Only layout, drawing and the copy marked _[draft]_ change.
+- No change to what any setting does. Only layout, drawing, the approved copy and the three
+  behavior changes below change.
+
+**Decisions (2026-10-30)**
+
+- All new wording in §3.13 is approved as written. Each section opens with a summary line under its
+  title, and Shortcut's and Spread's old captions are split between that line and the caption.
+- Three behavior changes are in: a status line when the Keychain refuses the key (§3.13, AI
+  Summary), Save disabled while the key field is empty (§3.4), and Remove Key disabled while no key
+  is saved (§3.12).
+- The code font is SF Mono, not JetBrains Mono (§2.2).
+- The Privacy card opens with "Two things leave your Mac. Nothing else does.", and its update line
+  now says the daily check runs only while automatic checks are on.
 
 **Where the brief and the rules disagree.** Accessibility and macOS conventions won in each case:
 
@@ -36,7 +49,7 @@ welcome card keep their warm-paper palette (DESIGN.md › Color and glass).
 | --- | --- | --- |
 | Primary font: "use the existing one" | SF Pro, the system font the app already uses | It's already in the app. It also settles the Anthropic Sans license question, because no font needs licensing. |
 | Display serif: "use the existing one" | New York, the macOS system serif (`.withDesign(.serif)`) | The app has no serif. New York ships with macOS and needs no license. |
-| Mono: JetBrains Mono | JetBrains Mono, bundled (SIL OFL 1.1), with `monospacedSystemFont` as fallback | Used in two places only (§2.2). Trade-off: one font file for two strings. If that isn't worth it, SF Mono costs nothing. |
+| Mono: JetBrains Mono | SF Mono (`NSFont.monospacedSystemFont`) | Chosen 2026-10-30. It's macOS's own code font and matches SF Pro, and it's used in two places only (§2.2). JetBrains Mono would add a font file and a license for two strings. |
 | `text` = #111827 | Not used. All text is `ink` #141413. | #111827 is a cool blue-black, a second near-black that clashes with the warm slate. Contrast is the same (17.5:1 vs 16.9:1). |
 | `surface` = #FFFFFF, but "never pure white" | White only inside input wells (key field, shortcut recorder, instruction editor) | White marks the places you can type. No page, card or button is white. |
 | `success` #16A34A, `warning` #D97706 | Darker `*Strong` variants (§2.1) | The brief's values are 3.1:1 and 3.0:1 on ivory, which fails 4.5:1 for text and only just reaches 3:1 for a glyph. |
@@ -95,7 +108,7 @@ Rules:
 | `label` | SF Pro | 14 / 20 | 500 | group labels, buttons, sidebar rows, field labels |
 | `body` | SF Pro | 14 / 20 | 400 | checkbox and radio text, editor text, Privacy card text |
 | `caption` | SF Pro | 12 / 16 | 400 | captions and status lines |
-| `mono` | JetBrains Mono | 12 / 16 (version line), 14 / 20 (key field) | 400 | the version line and the API key field |
+| `mono` | SF Mono | 12 / 16 (version line), 14 / 20 (key field) | 400 | the version line and the API key field |
 
 - Sizes **must** come from 12 / 14 / 16 / 20 / 24 / 32. Settings uses 20 nowhere and keeps 32 in
   reserve, since a 408 pt column has no room for it.
@@ -225,7 +238,8 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
 - Placement: trailing, after Remove Key, and the row is right-aligned to the key field's trailing
   edge.
 - `keyEquivalent = "\r"`, so Return in the key field saves.
-- **Should** be disabled while the field is empty. Today it's enabled and does nothing.
+- **Must** be disabled while the field is empty (decided 2026-10-30). Today it's enabled and does
+  nothing.
 
 ### 3.5 Key field
 
@@ -237,7 +251,7 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
 
 - Keeps today's behavior: Esc, a click or leaving the window cancels, and the live shortcut is
   released while recording.
-- When recording starts, VoiceOver announces _[draft]_ "Recording. Press the new keys, or Escape to
+- When recording starts, VoiceOver announces "Recording. Press the new keys, or Escape to
   cancel."
 - Accessibility label "Shortcut". Value: the shortcut spelled out, for example "Control-Option-I".
 
@@ -299,7 +313,7 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
   instead of wrapping it.
 - **Overflow:** captions and status lines wrap and never get "…". The editor scrolls inside
   itself, and a pane taller than the window scrolls.
-- **Empty states:** no key (neutral status; Remove Key **should** be disabled); no Spread cell
+- **Empty states:** no key (neutral status; Remove Key **must** be disabled); no Spread cell
   ticked (neutral status, today's text); AI tools off (Top / Bottom disabled, editor still
   editable); a build that never checks for updates (both controls disabled, caption says why).
 - **Pointer and touch:** Ideator is a Mac app, so a trackpad tap is a click. Every target is at
@@ -312,54 +326,54 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
 Each pane is: `title`, then `lead` (8 below), then groups 24 apart.
 
 **1 · Shortcut** (opens first)
-- Lead _[draft]_: "Hides or shows every card, from any app."
+- Lead: "Hides or shows every card, from any app."
 - Row: the recorder, then Use Default (disabled while ⌃⌥I is in use).
-- Caption _[draft]_: "Click the shortcut, then press the new keys."
+- Caption: "Click the shortcut, then press the new keys."
 - Status, when needed: the macOS clash (warning), not registered (error) or a refused combination
   (error), all in today's words.
 
 **2 · Spread**
-- Lead _[draft]_: "Spread, on the stack's ribbon, puts a new card in each ticked cell."
+- Lead: "Spread, on the stack's ribbon, puts a new card in each ticked cell."
 - The picker.
-- Caption _[draft]_: "Its next click gathers them into the stack, and the one after puts them back.
+- Caption: "Its next click gathers them into the stack, and the one after puts them back.
   Option-click starts a new set. The dimmed cell is the stack's."
 - Status, when no cell is ticked (neutral): "No cell is ticked, so Spread makes no card. Tick the
   cells it should fill."
 
 **3 · AI Summary**
-- Lead _[draft]_: "A collapsed card shows a summary that Anthropic or OpenAI writes, using your own
+- Lead: "A collapsed card shows a summary that Anthropic or OpenAI writes, using your own
   key."
 - Label "API key", the key field, the status line, then the row Remove Key, Save.
 - Status: today's key status (success when a key is saved, neutral when none). If the Keychain
-  refuses _[draft]_: "The Keychain refused the change." followed by today's key status (error). Today
-  this case only beeps, so this is a spec change and needs approval.
+  refuses: "The Keychain refused the change." followed by today's key status (error). The beep
+  stays. This changes CARDS-SPEC.md › Settings, which today says only that it beeps.
 
 **4 · MCP**
-- Lead _[draft]_: "Let AI tools like Claude Code add cards to Ideator. They connect through MCP, a
+- Lead: "Let AI tools like Claude Code add cards to Ideator. They connect through MCP, a
   standard way for AI tools to reach apps."
-- Group: label _[draft]_ "Connect an AI tool", then the row Claude Code, Codex, Claude Desktop,
+- Group: label "Connect an AI tool", then the row Claude Code, Codex, Claude Desktop,
   then today's caption, or the "Copied for …" text, or the move-first warning.
 - Group: the checkbox "Let AI tools add cards", then the row "Cards from AI tools go to:" Top |
   Bottom.
 - Group: label "Instruction for AI tools", today's caption, the editor, Reset to Default.
 
 **5 · Updates**
-- Lead _[draft]_: "Ideator gets new versions from GitHub."
+- Lead: "Ideator gets new versions from GitHub."
 - Row: the checkbox "Check for updates automatically" on the left, Check Now on the right.
 - Caption: the version line in `mono`, selectable so it can be copied into a bug report. Then today's
   sentence about whether this run checks.
 
 **6 · Privacy**
 - The Privacy card, whose company names follow the saved key (as today):
-  - Headline _[draft]_: "Two things leave your Mac. Nothing else does."
+  - Headline: "Two things leave your Mac. Nothing else does."
   - **Card text**: "With a key saved, Ideator sends a card's text to ‹who›, using your own key, to
     write its summary. It does so whenever a card has no summary for its text as it is now: after
     you change a card, when you save a key, at launch after a failed try, and after an update that
     changes how Ideator asks for summaries."
-  - **Update checks** _[draft]_: "Once a day while automatic checks are on, and whenever you click
-    Check Now, Ideator asks GitHub whether a newer version exists. GitHub sees your IP address and
-    which version you have." ("while automatic checks are on" is new. Today's line doesn't say
-    that unticking the box stops the daily check.)
+  - **Update checks**: "Once a day while automatic checks are on, and whenever you click Check
+    Now, Ideator asks GitHub whether a newer version exists. GitHub sees your IP address and which
+    version you have." ("while automatic checks are on" is new. Today's line doesn't say that
+    unticking the box stops the daily check.)
   - **Your key**: "The key stays in your login Keychain."
   - **Nothing else**: "No analytics, no crash reports."
 - ‹who› is "Anthropic", "OpenAI", or "Anthropic or OpenAI, whichever your key is for" while no key
@@ -411,8 +425,8 @@ Messages elsewhere that point into Settings name the section, as text only, with
 - "No API key. Add one in Settings." → "No API key. Add one in Settings › AI Summary."
 - "Pick Spread cells in Settings" → "Pick Spread cells in Settings › Spread"
 
-Every _[draft]_ string in §3.13 needs approval before it is built. When one is approved, update
-CARDS-SPEC.md › Settings and the tests that quote it, in the same PR.
+The strings in §3.13 were approved on 2026-10-30. The build updates CARDS-SPEC.md › Settings and the
+tests that quote them in the same PR.
 
 ---
 
@@ -461,11 +475,12 @@ CARDS-SPEC.md › Settings and the tests that quote it, in the same PR.
 8. **Privacy.** One paragraph becomes the card's list. Keep the phrase "whenever you click Check Now,
    Ideator asks GitHub whether a newer version exists", which SettingsTests asserts, or update that
    test together with the approved copy.
-9. **Fonts.** Bundle JetBrains Mono, register it at launch, and add its OFL text to
-   `Cards/ThirdPartyNotices.txt`. Or take the SF Mono option (§1).
-10. **Spec changes that need approval:** the Keychain-refusal status line (§3.13, AI Summary), Save disabled
-    while the field is empty (§3.4), and Remove Key disabled with no key (§3.12). If any is
-    declined, keep today's behavior.
+9. **Fonts.** Use `NSFont.monospacedSystemFont(ofSize:weight:)` (SF Mono). There is nothing to
+   bundle or license.
+10. **Spec changes (approved 2026-10-30):** the Keychain-refusal status line (§3.13, AI Summary),
+    Save disabled while the field is empty (§3.4), and Remove Key disabled with no key (§3.12).
+    Update CARDS-SPEC.md › Settings for all three, and check which SettingsTests click Remove Key
+    or Save with no key.
 
 ---
 
@@ -487,5 +502,5 @@ CARDS-SPEC.md › Settings and the tests that quote it, in the same PR.
 - [ ] The longest caption and status string of each section wraps inside 408 with nothing truncated, and the MCP pane fits 640 without scrolling.
 - [ ] The Privacy card names the saved key's company, and switches at once on Save and Remove Key.
 - [ ] Opening Settings shows Shortcut. Closing and reopening shows Shortcut again.
-- [ ] Every _[draft]_ string is approved or reverted. CARDS-SPEC.md, DESIGN.md and the tests are updated in the same PR.
+- [ ] Every string matches §3.13 word for word. CARDS-SPEC.md, DESIGN.md and the tests are updated in the same PR.
 - [ ] `run-ideator-tests` passes, and `verify-cards` screenshots each of the six panes.
