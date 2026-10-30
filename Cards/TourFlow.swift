@@ -108,7 +108,18 @@ struct Stop: Equatable {
     var reading: Reading
 
     /// What the hint panel says: the reaction if there is one, else the phase's title and body.
-    func card(in world: TourWorld) -> HintCard { fatalError("not implemented") }
+    func card(in world: TourWorld) -> HintCard {
+        let script = phase.script
+        let context = TourContext(world: world, reading: reading)
+        var title = script.title(context)
+        var body = script.body(context)
+        if case .reacted(let event) = reading, let reaction = script.reactions[event] {
+            title = reaction.title
+            body = reaction.body
+        }
+        return HintCard(progress: "\(phase.page) of \(TourPhase.pageCount)", isOptional: script.isOptional,
+                        canSkip: phase.page < TourPhase.pageCount, title: title, body: body, footer: script.footer)
+    }
 }
 
 /// What the hint panel shows, as plain data.
@@ -152,5 +163,72 @@ struct TourFlow: Equatable {
     private var seen: TourFacts?
 
     /// Ignored while no tour runs, except `.begin`.
-    mutating func apply(_ input: TourInput, in world: TourWorld) -> TourEffect? { fatalError("not implemented") }
+    ///
+    /// - begin: the first page or the last; what is already on the desk is not news, so `seen`
+    ///   starts as this look.
+    /// - next: the next page's opening, with its neutral text. A phase that waits has no Next, so
+    ///   the input is ignored there, as the footer's missing button is.
+    /// - back: page 1 ends the tour for the welcome; any other page lands on the previous page's
+    ///   finished phase, neutral text, whatever phase it left.
+    /// - skip: the last page. finish: only the last page's button, and it ends the tour.
+    /// - happened and deskSettled: every event ends the wait that names it, or is answered in
+    ///   place by a page that reacts to it, and is otherwise ignored.
+    ///
+    /// After every input a phase sitting on its fresh opening is chosen again from the live world
+    /// (Settings changes Spread's cells with no notification). A finished wait never asks a gate.
+    mutating func apply(_ input: TourInput, in world: TourWorld) -> TourEffect? {
+        if case .begin(let start) = input {
+            let page = start == .firstPage ? 1 : TourPhase.pageCount
+            stop = Stop(phase: TourScript.entry(of: page, in: world), reading: .fresh)
+            seen = world.facts
+            return nil
+        }
+        guard let current = stop else { return nil }
+        switch input {
+        case .begin:
+            break
+        case .next:
+            if current.phase.script.waitsFor.isEmpty, let next = TourScript.following(current.phase, in: world) {
+                stop = Stop(phase: next, reading: .fresh)
+            }
+        case .back:
+            if current.phase.page == 1 {
+                self = TourFlow()
+                return .showWelcome
+            }
+            stop = Stop(phase: TourScript.landing(of: current.phase.page - 1, in: world), reading: .fresh)
+        case .skip:
+            stop = Stop(phase: TourScript.entry(of: TourPhase.pageCount, in: world), reading: .fresh)
+        case .finish:
+            if current.phase.script.footer == .backAndStartUsing {
+                self = TourFlow()
+                return .openNotesFolder
+            }
+        case .happened(let event):
+            handle(event)
+        case .deskSettled:
+            let now = world.facts
+            if let before = seen {
+                for event in TourFacts.events(from: before, to: now) { handle(event) }
+            }
+            seen = now
+        }
+        follow(world)
+        return nil
+    }
+
+    private mutating func handle(_ event: TourEvent) {
+        guard let current = stop else { return }
+        let script = current.phase.script
+        if script.waitsFor.contains(event) {
+            stop = Stop(phase: TourScript.after(current.phase), reading: .after(event))
+        } else if script.reactions[event] != nil {
+            stop?.reading = .reacted(event)
+        }
+    }
+
+    private mutating func follow(_ world: TourWorld) {
+        guard let current = stop, current.reading == .fresh, current.phase.script.followsWorld else { return }
+        stop?.phase = TourScript.entry(of: current.phase.page, in: world)
+    }
 }
