@@ -20,7 +20,7 @@ skipped, and a click that can bring out nothing changes nothing and says why in 
 - `spread-taken` A card whose place is taken stays in the stack, in the set, and comes out at a
   later Spread once the place is free.
 - `spread-refused` With no cell free, or none ticked, nothing changes and the tooltip reads `Your
-  Spread cells are taken` or `Pick Spread cells in Settings`.
+  Spread cells are taken` or `Pick Spread cells in Settings › Spread`.
 - `spread-hide-all` Under Hide all, a click shows everything first.
 - `spread-fresh` The `New spread` action (Option-click, New Spread in the ⋯ menu) sends the old
   set's desktop cards to the bottom of the stack as ordinary cards and makes a new set.
@@ -72,7 +72,7 @@ Preconditions:
 - **Refused.** Open Settings with `cv ax key cmd+,`. Press every ticked cell (`cv ax act "Spread
   cell 1" AXPress`, and the same for 2, 3, 6, 7 and 8) until none is ticked; the caption under the grid starts `No cell is ticked`.
   With the set gathered, Spread: `cv ax windows` does not change, and the button's tooltip in `cv ax
-  tree` is `Pick Spread cells in Settings`. Now tick only `Spread cell 1` (the same `act`), press New on the stack
+  tree` is `Pick Spread cells in Settings › Spread`. Now tick only `Spread cell 1` (the same `act`), press New on the stack
   so a card takes that cell, and Spread with the set gathered: still nothing changes, and the
   tooltip is `Your Spread cells are taken`.
 - **Settings grid.** In the Settings window's `cv ax tree`, a `Spread` heading follows the Shortcut

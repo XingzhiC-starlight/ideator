@@ -227,7 +227,7 @@ final class ProviderTests: XCTestCase {
     func testWithNoKeyACardSaysSoWithoutNamingACompany() {
         let card = Card(id: CardID(rawValue: "a"), note: note)
 
-        XCTAssertEqual(Desk.summaryFace(of: card, hasKey: false), .unavailable(reason: "No API key. Add one in Settings."))
+        XCTAssertEqual(Desk.summaryFace(of: card, hasKey: false), .unavailable(reason: "No API key. Add one in Settings › AI Summary."))
         XCTAssertEqual(Desk.summaryFace(of: card, hasKey: true), .loading)
     }
 }

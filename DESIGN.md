@@ -817,7 +817,7 @@ Later changes, after trying the app:
   Settings changes or a fresh set is made, and putting Spread cards back gives none the cursor.
 - The menu bar menu adds "Settings…" so the API key has somewhere to go.
 - With no API key, a collapsed card shows "Summary unavailable" with the reason on hover ("No API key.
-  Add one in Settings.").
+  Add one in Settings › AI Summary.").
 - A collapsed card whose body is empty or one line shows that line in the lighter style.
 - The grid uses the menu-bar screen and does not subtract the Dock. Only the overhang limit
   does, so a header can't hide under it.

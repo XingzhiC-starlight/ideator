@@ -60,7 +60,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
 - If Hide all is on, a click turns it off first.
 - First click: one new blank card per ticked cell, in reading order (left to right, top to bottom). They come out as New's card does: expanded, since Clarity turns off, and the first one has the cursor on its header line.
 - A ticked cell is skipped when Pop would call it taken: a snapped card or the stack in it, or a free card that covers it most. The 19-card ceiling counts too.
-- If no card can come out, nothing changes: Ideator beeps, and the tooltip reads "Your Spread cells are taken", or "Pick Spread cells in Settings" when no cell is ticked. It says so until a Spread or Gather click changes something, and only while the button reads Spread.
+- If no card can come out, nothing changes: Ideator beeps, and the tooltip reads "Your Spread cells are taken", or "Pick Spread cells in Settings › Spread" when no cell is ticked. It says so until a Spread or Gather click changes something, and only while the button reads Spread.
 - The set: the button remembers the cards it made. A card stays in the set until it is deleted, wherever it goes: moved, sent back with Return to stack, popped by hand or moved in the stack arranger.
 - Gather: a click while any card of the set is on the desktop moves those cards into the stack, at the bottom, in reading order of where they were. There they are stacked cards like any other: the stack shows them, they can be edited, and the badge counts them. The stack keeps showing the page it was on. Cards still empty are gathered too, and stay in the set.
 - Spread again: a click while none of the set is out puts each card back where it last was on the desktop, a slot or an exact free spot. That is where it was when it last left the desktop, by Gather or by Return to stack. A card whose place is now taken stays in the stack, still in the set, and is tried again at a later Spread. A free place counts as taken when the cell it covers most is. Putting cards back gives no card the cursor and leaves Clarity as it is.
@@ -164,7 +164,7 @@ macOS app, to be released publicly as a notarized direct download. Native Swift 
   - To-do lists name only the unchecked items and the count done ("2 of 5 done: hotel, charger, visa"), or say all done and name none (revised 2026-10-28).
   - A thin card gets a short summary, about half the limit: infer its intent, never invent or pad to fill the space (revised 2026-10-28).
   - The reply is the summary alone: it never explains itself or comments on the title or the prompt.
-- While generating: small spinner in the summary area. On failure: "Summary unavailable", hover shows the reason (revised 2026-10-28): the provider's own HTTP status and message, so a key it refuses shows its HTTP 401, or "No API key. Add one in Settings." while no key is saved.
+- While generating: small spinner in the summary area. On failure: "Summary unavailable", hover shows the reason (revised 2026-10-28): the provider's own HTTP status and message, so a key it refuses shows its HTTP 401, or "No API key. Add one in Settings › AI Summary." while no key is saved.
 
 ## Settings (new 2026-10-24)
 - Settings… (the menu bar icon, or the stack ribbon's ⋯ menu) opens one window. It is as tall as its rows need, or as the screen has room for below the menu bar, whichever is less. Where the rows are taller than that, the window scrolls, and it opens at the Shortcut row (revised 2026-10-28).

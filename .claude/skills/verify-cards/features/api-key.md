@@ -8,7 +8,7 @@ that starts with `sk-ant-` is Anthropic's and any other key is OpenAI's.
 ## Sub-features
 
 - `key-none` With no key, the status line says so, the privacy line names both companies, and a
-  collapsed card with two body lines shows `Summary unavailable` with `No API key. Add one in Settings.`
+  collapsed card with two body lines shows `Summary unavailable` with `No API key. Add one in Settings › AI Summary.`
 - `key-openai` A key that does not start with `sk-ant-` gives `An OpenAI key is held for this run only.`
   and a privacy line naming OpenAI alone. The collapsed card asks OpenAI and shows its HTTP 401.
 - `key-anthropic` A key that starts with `sk-ant-` replaces it: the lines name Anthropic, the failed
@@ -31,7 +31,7 @@ Preconditions:
   Never paste a real key, and a scratch run never touches the Keychain.
 
 - **key-none.** `cv ax press Clarity stack`, then `cv ax click stack 0.985 0.6` to show Beta.
-  `cv ax tree` has `AXStaticText "No API key. Add one in Settings." value="Summary unavailable"`. Open
+  `cv ax tree` has `AXStaticText "No API key. Add one in Settings › AI Summary." value="Summary unavailable"`. Open
   Settings with `cv ax key cmd+,`. `cv ax tree` shows the heading `API key (Anthropic or OpenAI)`, the
   line `No key saved. …`, and a privacy line starting `With a key saved, Ideator sends a card's text to
   Anthropic or OpenAI, whichever your key is for`. `cv shot key-none` is the proof image.
