@@ -527,7 +527,7 @@ final class PrivacyCardView: NSView {
         super.init(frame: .zero)
         list.orientation = .vertical
         list.alignment = .leading
-        list.spacing = SettingsStyle.s3
+        list.spacing = SettingsStyle.s2
         let column = NSStackView(views: [headline, list])
         column.orientation = .vertical
         column.alignment = .leading

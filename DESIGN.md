@@ -809,9 +809,10 @@ Later changes, after trying the app:
   - A status line announces its own changes to VoiceOver, never the first fill and never on a
     hidden pane, so no pane has to remember to.
   - Measured with the real fonts and the drawn controls, the panes are 224 (Shortcut), 344 (Spread),
-    328 (AI Summary), 640 (MCP), 248 (Updates) and 644 (Privacy, no key saved; 624 with one) points
-    tall. SETTINGS-DESIGN.md expected MCP to be the tallest; the privacy card's text makes Privacy 4
-    points taller than the window, so it scrolls by that much until a key names one company.
+    328 (AI Summary), 640 (MCP), 248 (Updates) and 632 (Privacy, no key saved; 612 with one) points
+    tall. With the card's items 12 apart Privacy measured 644 and scrolled by 4 points, so its items
+    are 8 apart (SETTINGS-DESIGN.md § Decisions). A unit test checks every pane against the 640-point
+    window.
   - Rejected: `NSTabView`, which keeps only the shown tab in the view tree, and six sidebar buttons,
     which lose ↑↓ selection and "2 of 6".
 - 2026-10-30, the Settings look (SETTINGS-DESIGN.md §2, §3): ivory panes, a slate sidebar and flat,

@@ -223,16 +223,20 @@ final class ConnectSettingsTests: XCTestCase {
         for tool in AITool.allCases { XCTAssertTrue(try button(tool.name, in: window).isEnabled, tool.name) }
     }
 
-    func testTheMCPPaneFitsTheWindowWithoutScrolling() throws {
+    /// With no key saved, the Privacy card names both companies, its longest text.
+    func testEveryPaneFitsTheWindowWithoutScrolling() throws {
         let window = settings(maxContentHeight: 5_000)
-        window.select(.mcp)
-        let pane = window.pane(.mcp)
-        let scroll = try XCTUnwrap(pane.enclosingScrollView)
-        window.contentView?.layoutSubtreeIfNeeded()
-
         XCTAssertEqual(window.contentRect(forFrameRect: window.frame).height, 640, "the window stays 640 where there is more room")
-        XCTAssertLessThanOrEqual(pane.fittingSize.height, 640, "the tallest pane, measured with its fonts")
-        XCTAssertLessThanOrEqual(try XCTUnwrap(scroll.documentView).frame.height, scroll.contentSize.height, "nothing to scroll")
+        for section in SettingsSection.allCases {
+            window.select(section)
+            let pane = window.pane(section)
+            let scroll = try XCTUnwrap(pane.enclosingScrollView)
+            window.contentView?.layoutSubtreeIfNeeded()
+
+            XCTAssertLessThanOrEqual(pane.fittingSize.height, 640, "\(section.title), measured with its fonts")
+            XCTAssertLessThanOrEqual(try XCTUnwrap(scroll.documentView).frame.height, scroll.contentSize.height,
+                                     "\(section.title) has nothing to scroll")
+        }
     }
 
     func testOnAShortScreenTheWindowStopsAtItsRoomAndThePaneScrollsFromItsTop() throws {
