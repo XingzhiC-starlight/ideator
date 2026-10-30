@@ -42,6 +42,8 @@ welcome card keep their warm-paper palette (DESIGN.md › Color and glass).
 - The code font is SF Mono, not JetBrains Mono (§2.2).
 - The Privacy card opens with "Two things leave your Mac. Nothing else does.", and its update line
   now says the daily check runs only while automatic checks are on.
+- The Privacy card's items are 8 apart, not 12 (decided 2026-10-30): with 12, the pane measured 644 pt
+  with no key saved and scrolled by 4 pt. With 8 it fits the 640 pt window (§2.5).
 
 **Where the brief and the rules disagree.** Accessibility and macOS conventions won in each case:
 
@@ -121,8 +123,8 @@ Rules:
 | Token | Value | Use |
 | --- | --- | --- |
 | `s1` | 4 | label → its caption |
-| `s2` | 8 | title → lead; control → its caption; between controls in a row; checkbox → its label |
-| `s3` | 12 | between rows within a group; between Privacy card items |
+| `s2` | 8 | title → lead; control → its caption; between controls in a row; checkbox → its label; between Privacy card items |
+| `s3` | 12 | between rows within a group |
 | `s4` | 16 | sidebar row inset; Privacy card headline → list |
 | `s5` | 24 | lead → first group; between groups; Privacy card padding |
 | `s6` | 32 | pane side and bottom padding |
@@ -303,7 +305,7 @@ Cursor: always the arrow. macOS controls don't show a pointing hand.
 
 - An `inverse` block, full column width, padding 24, square corners.
 - Headline in `display` (New York 24) `inkInverse`. Then a list with 16 between headline and list.
-  Each item is a term (14/600) on its own line, then text (14/400), with 12 between items.
+  Each item is a term (14/600) on its own line, then text (14/400), with 8 between items.
 - The only serif in the window, and the only dark block inside a pane.
 
 ### 3.12 Edge cases
