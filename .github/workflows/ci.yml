@@ -31,10 +31,33 @@ jobs:
       - uses: actions/checkout@v7
       - name: Desk, Grid and Note match the reviewed fingerprint
         run: .claude/skills/check-desk-invariants/run.sh --require-reviewed
+      # Re-recording the fingerprint makes it match, so a match can't say the search ran on this code.
+      # The marker can: it is only saved after a pass of these exact inputs. A manual run ignores it.
+      - name: Hash what the search and the mutants read
+        id: inputs
+        run: echo "key=$(.claude/skills/check-desk-invariants/run.sh --inputs-key)" >> "$GITHUB_OUTPUT"
+      - name: Look for an earlier pass of these inputs
+        id: passed
+        uses: actions/cache/restore@v6
+        with:
+          path: build/desk-check/passed
+          key: desk-invariants-passed-${{ steps.inputs.outputs.key }}
+          lookup-only: true
       - name: Every command sequence up to depth 3
+        if: steps.passed.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
         run: .claude/skills/check-desk-invariants/run.sh
       - name: Every mutant is caught
+        if: steps.passed.outputs.cache-hit != 'true' || github.event_name == 'workflow_dispatch'
         run: .claude/skills/check-desk-invariants/run.sh --mutants
+      - name: Write the pass marker
+        if: steps.passed.outputs.cache-hit != 'true'
+        run: mkdir -p build/desk-check && echo "${{ steps.inputs.outputs.key }}" > build/desk-check/passed
+      - name: Save the pass marker
+        if: steps.passed.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/desk-check/passed
+          key: desk-invariants-passed-${{ steps.inputs.outputs.key }}
 
   package:
     name: Disk image
