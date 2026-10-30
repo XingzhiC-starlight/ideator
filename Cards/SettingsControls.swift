@@ -191,7 +191,8 @@ enum SettingsControl {
         field.focusRingType = .none
         field.font = SettingsStyle.font(.monoInput)
         field.textColor = Palette.Settings.ink
-        field.placeholder = placeholder
+        field.placeholderString = placeholder
+        field.restyle()
         field.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             field.widthAnchor.constraint(equalToConstant: SettingsStyle.contentWidth),
@@ -373,7 +374,6 @@ final class SpreadCellPicker: NSView {
         self.stackCell = stackCell
         for (slot, button) in zip(Slot.all, buttons) {
             let ticked = slot != stackCell && cells.contains(slot)
-            button.isEnabled = slot != stackCell
             button.state = ticked ? .on : .off
             button.image = slot == stackCell ? NSImage(systemSymbolName: "rectangle.stack", accessibilityDescription: nil)
                 : ticked ? NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) : nil
@@ -432,7 +432,8 @@ final class SpreadCellPicker: NSView {
 }
 
 final class SpreadCellButton: SettingsButton {
-    var isStack = false
+    /// The stack's cell is dimmed and can't be ticked, so this also sets `isEnabled`.
+    var isStack = false { didSet { isEnabled = !isStack } }
     weak var picker: SpreadCellPicker?
 
     init() { super.init(.spreadCell) }

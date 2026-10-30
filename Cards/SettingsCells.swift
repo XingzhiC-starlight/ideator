@@ -369,12 +369,9 @@ final class SettingsKeyField: NSSecureTextField {
     /// The well is the whole control, so it lines up with the column; a label's 2 pt insets don't apply.
     override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
-    var placeholder = "" {
-        didSet { restyle() }
-    }
-
     func restyle() {
-        placeholderAttributedString = NSAttributedString(string: placeholder, attributes: [
+        let words = placeholderAttributedString?.string ?? placeholderString ?? ""
+        placeholderAttributedString = NSAttributedString(string: words, attributes: [
             .font: SettingsStyle.font(.monoInput), .foregroundColor: Palette.Settings.inkMuted,
         ])
     }
