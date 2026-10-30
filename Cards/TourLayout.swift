@@ -23,8 +23,9 @@ struct Surfaces: Equatable {
     init(_ world: TourWorld, aim: Aim, measure: (Measure) -> CGRect?) { fatalError("not implemented") }
 }
 
-/// The three things only a live window or the status item can say.
-enum Measure: Equatable { case control(RibbonControl), hoverCorner(CardID), menuBarIcon }
+/// The things only a live window or the status item can say. `stack` and `card` are the windows'
+/// frames, live while the reader drags them, and not the grid's.
+enum Measure: Equatable { case control(RibbonControl), hoverCorner(CardID), menuBarIcon, stack, card(CardID) }
 
 /// `at`: the offset along the panel's edge, from its leading end.
 enum Notch: Equatable { case left(at: CGFloat), right(at: CGFloat), top(at: CGFloat) }

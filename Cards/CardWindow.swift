@@ -10,6 +10,12 @@ final class CardWindow: NSWindow {
     private var placed = CGRect.zero
     /// While true the hover buttons show wherever the pointer is: the tour's page 4 points at them.
     var holdsHover = false
+    /// The header is dragging the window, which follows the pointer while `placed` stays where it was.
+    fileprivate var isDragging = false
+
+    /// Where the window is for whoever points at it: under the pointer while it is dragged, else
+    /// where `apply` is taking it, so a slide in progress never misleads.
+    var liveFrame: CGRect { isDragging ? frame : placed }
 
     init(send: @escaping (Command) -> Void, drag: WindowDrag) {
         cardView = CardView(home: .desktop(drag), send: send)
@@ -55,13 +61,14 @@ final class CardWindow: NSWindow {
         cardView.setHovering(isVisible && (holdsHover || placed.contains(location)))
     }
 
-    /// The hover buttons' row in screen points, at the frame the window is going to; nil while the
-    /// window is ordered out. Its width is live: Refresh shows only on a collapsed card.
+    /// The hover buttons' row in screen points, at `liveFrame`; nil while the window is ordered out.
+    /// Its width is live: Refresh shows only on a collapsed card.
     func hoverCornerRect() -> CGRect? {
         guard isVisible else { return nil }
         contentView?.layoutSubtreeIfNeeded()
         let row = cardView.convert(cardView.hoverButtonsFrame, to: nil)
-        return CGRect(x: placed.minX + row.minX, y: placed.minY + row.minY, width: row.width, height: row.height)
+        let window = liveFrame
+        return CGRect(x: window.minX + row.minX, y: window.minY + row.minY, width: row.width, height: row.height)
     }
 }
 
@@ -403,8 +410,12 @@ final class CardView: NSView {
 
     /// Header press: drag the window if the pointer moves; report a plain click otherwise.
     private func dragIfMoved(_ event: NSEvent) -> Bool {
-        guard case .desktop(let drag) = home, let window,
-              let frame = trackWindowDrag(from: event, in: window, moved: drag.moved) else { return false }
+        guard case .desktop(let drag) = home, let window else { return false }
+        let card = window as? CardWindow
+        card?.isDragging = true
+        let tracked = trackWindowDrag(from: event, in: window, moved: drag.moved)
+        card?.isDragging = false
+        guard let frame = tracked else { return false }
         drag.dropped(frame)
         return true
     }

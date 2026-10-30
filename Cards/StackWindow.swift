@@ -11,6 +11,12 @@ final class StackWindow: NSWindow {
     private var cardFrame = CGRect.zero
     /// The window's frame from the last `apply`. A snap slides there, and hover goes by where it is going.
     private var placed = CGRect.zero
+    /// The ribbon is dragging the window, which follows the pointer while `placed` stays where it was.
+    private var isDragging = false
+
+    /// Where the window is for whoever points at it: under the pointer while it is dragged, else
+    /// where `apply` is taking it, so a slide in progress never misleads.
+    var liveFrame: CGRect { isDragging ? frame : placed }
 
     /// `spread` gets true for a fresh set: Option-click, or the button's "New spread" action.
     init(send: @escaping (Command) -> Void, menu: @escaping () -> NSMenu, toggleHidden: @escaping () -> Void,
@@ -25,7 +31,10 @@ final class StackWindow: NSWindow {
                 CGRect(x: frame.minX, y: frame.maxY - self.cardFrame.height,
                        width: self.cardFrame.width, height: self.cardFrame.height)
             }
-            guard let frame = trackWindowDrag(from: event, in: self, moved: { drag.moved(card($0)) }) else { return false }
+            self.isDragging = true
+            let tracked = trackWindowDrag(from: event, in: self, moved: { drag.moved(card($0)) })
+            self.isDragging = false
+            guard let frame = tracked else { return false }
             drag.dropped(card(frame))
             return true
         }
@@ -94,14 +103,16 @@ final class StackWindow: NSWindow {
         stackView.hover(at: isVisible && placed.contains(location) ? point : nil)
     }
 
-    /// A ribbon button's rect in screen points, at the frame the window is going to, so a slide in
-    /// progress never misleads; nil before the button is laid out.
+    /// A ribbon button's rect in screen points, at `liveFrame`: the frame the window is going to, so
+    /// a slide in progress never misleads, or the one a drag has put it at; nil before the button
+    /// is laid out.
     func screenRect(of control: RibbonControl) -> CGRect? {
         contentView?.layoutSubtreeIfNeeded()
         let button = stackView.button(for: control)
-        guard !placed.isEmpty, !button.frame.isEmpty else { return nil }
+        let window = liveFrame
+        guard !window.isEmpty, !button.frame.isEmpty else { return nil }
         let inWindow = button.convert(button.bounds, to: nil)
-        return CGRect(x: placed.minX + inWindow.minX, y: placed.minY + inWindow.minY,
+        return CGRect(x: window.minX + inWindow.minX, y: window.minY + inWindow.minY,
                       width: inWindow.width, height: inWindow.height)
     }
 }

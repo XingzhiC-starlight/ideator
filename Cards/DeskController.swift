@@ -213,6 +213,15 @@ final class DeskController {
     /// The card's hover row in screen points; nil while its window is ordered out.
     func hoverCorner(of id: CardID) -> CGRect? { cardWindows[id]?.hoverCornerRect() }
 
+    /// The stack window's frame in screen points: its cell, or the ribbon-only strip under Hide all.
+    /// While the stack is dragged it is where the drag has put it, so the tour follows the pointer
+    /// and not the drop; at rest it is where the window is going, never mid-slide.
+    var stackFrame: CGRect { stackWindow.liveFrame }
+
+    /// A card window's frame in screen points, live like `stackFrame`; nil for a card with no
+    /// window. A card hidden by Hide all keeps its frame: it is where the card would be.
+    func cardFrame(of id: CardID) -> CGRect? { cardWindows[id]?.liveFrame }
+
     // MARK: Derived side effects
 
     /// Reconciles every window with the desk. Compares against the windows' real state, not
