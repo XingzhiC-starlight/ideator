@@ -892,5 +892,3 @@ private extension Place {
     var savedSlot: Int? { if case .slot(let slot) = self { slot.index } else { nil } }
     var savedFree: GridPoint? { if case .free(let point) = self { point } else { nil } }
 }
-
-// Throwaway comment: proves CI fails until reviewed.sha256 is re-recorded.
