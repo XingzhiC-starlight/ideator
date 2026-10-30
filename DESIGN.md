@@ -835,6 +835,31 @@ Later changes, after trying the app:
   - Without Keyboard navigation, buttons, checkboxes and segments still take focus from VoiceOver
     (AXFocused), which is how their rings were checked; the Spread grid's ring needs Keyboard
     navigation.
+- 2026-10-30, Gather deletes a Spread set with no text, so a Spread made by mistake is undone by
+  clicking again before typing. The owner's rule: "delete the cards if none of the cards is edited".
+  - Derived, never stored. `Note.isBlank` says no character shows, and `Desk.spreadButton` is
+    `.spread` or `.gather(deletes:)`. The face and the click both read it, and the old `== .gather`
+    stopped compiling, so no caller can keep the old meaning. There is no flag and no new `Command`.
+  - Blank is not `== .blank`: a card cleared by hand keeps empty lines and list markers. An empty
+    ticked checkbox is blank. A zero-width space is text: when unsure, the click keeps a card.
+  - The whole set counts, in the stack too. One card of the set with text, wherever it is, makes the
+    click an ordinary Gather that keeps every empty card. Counting only the desktop would delete a
+    card of the set while the text sat in the stack.
+  - The deletion goes through `delete`, the one way a card leaves the desk, so the set ends with its
+    last card and the next click is fresh. The stack keeps its page by the same rule as any delete.
+  - The tooltip says "Delete empty cards". The tint and VoiceOver's value stay "out", since the
+    cards still are. There is no alert: the cards are empty, and each saved file goes to the Trash
+    when `Library.save` makes the folder match the desk. A click inside the 1 s save delay writes
+    nothing.
+  - Open decision for the owner: Option-click never deletes, because the rule says "at Gather". It
+    still sweeps an empty old set into the stack as ordinary cards. A sketch that let it delete too
+    was set aside.
+  - An input method's marked text is not in the desk, which hears of an edit only once it is
+    committed, so a composition in an empty card read as empty. `DeskController.spread(fresh:)`
+    commits the composition in the card that has the cursor before it sends the command.
+  - The desk check states it. P1 names the deletion as Spread's one removal of cards, and P8 has a
+    delete arm and checks the button's face against a list of empty notes that does not call
+    `Note.isBlank`.
 
 ## Tradeoffs accepted
 
@@ -868,8 +893,9 @@ Later changes, after trying the app:
   exchange for a form whose presence says Ideator wrote it and whose value is the data, with
   nothing to pair across two entries. A paste of Ideator's own copy keeps a blank last line that
   the plain-text rules would drop.
-- We accept that Spread is one command that toggles (press twice: gather, then put back), in
-  exchange for the desk alone deciding Gather or lay out, so the face and the click never disagree.
+- We accept that Spread is one command that toggles (press twice: gather, then put back; a set
+  with no text is deleted by the first press), in exchange for the desk alone deciding Gather,
+  delete or lay out, so the face and the click never disagree.
 - We accept that a Spread card on the desktop carries a stale home, in memory and in the sidecar,
   in exchange for one place that writes homes. Nothing reads a home while its card is out.
 - We accept that a fresh Spread that can make no card does not even send the old set's cards back,

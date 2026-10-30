@@ -344,7 +344,8 @@ Each pane is: `title`, then `lead` (8 below), then groups 24 apart.
 - Lead: "Spread, on the stack's ribbon, puts a new card in each ticked cell."
 - The picker.
 - Caption: "Its next click gathers them into the stack, and the one after puts them back.
-  Option-click starts a new set. The dimmed cell is the stack's."
+  If they are all still empty, that click deletes them instead. Option-click starts a new set.
+  The dimmed cell is the stack's."
 - Status, when no cell is ticked (neutral): "No cell is ticked, so Spread makes no card. Tick the
   cells it should fill."
 
