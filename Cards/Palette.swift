@@ -32,6 +32,37 @@ enum Palette {
     static let danger = NSColor(hex: 0x9A2818)
     /// Text selection background in the editor.
     static let highlight = NSColor(hex: 0xE8D5AE)
+
+    /// The Settings window's own palette (SETTINGS-DESIGN.md §2.1): ivory paper, slate ink, one clay
+    /// accent. Settings draws with these and nothing else; cards keep the warm paper above.
+    enum Settings {
+        static let canvas = NSColor(hex: 0xFAF9F6)
+        static let inverse = NSColor(hex: 0x141413)
+        /// Inside input wells only.
+        static let surface = NSColor(hex: 0xFFFFFF)
+        static let ink = NSColor(hex: 0x141413)
+        static let inkInverse = NSColor(hex: 0xFAF9F6)
+        static var inkMuted: NSColor { increaseContrast ? ink : NSColor(hex: 0x5E5D59) }
+        static var inkInverseMuted: NSColor { increaseContrast ? inkInverse : NSColor(hex: 0xA3A198) }
+        static var border: NSColor { increaseContrast ? ink : NSColor(hex: 0x858379) }
+        static let inkDisabled = NSColor(hex: 0xABA9A1)
+        /// Slate at 6 % over canvas.
+        static let wash = NSColor(hex: 0xECEBE8)
+        static let inverseRaised = NSColor(hex: 0x3D3D3A)
+        /// The fill of a ticked Spread cell, and nothing else.
+        static let accent = NSColor(hex: 0xC15F3C)
+        static let successStrong = NSColor(hex: 0x15803D)
+        static let warningStrong = NSColor(hex: 0xB45309)
+        static let dangerStrong = NSColor(hex: 0xB91C1C)
+
+        /// Replaces System Settings › Accessibility › Display › Increase Contrast, for a test.
+        static var increaseContrastOverride: Bool?
+
+        /// Read at draw time, so a drawing site can't forget the rule; the window redraws when it changes.
+        static var increaseContrast: Bool {
+            increaseContrastOverride ?? NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        }
+    }
 }
 
 private extension NSColor {

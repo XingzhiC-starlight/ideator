@@ -1,8 +1,8 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// SETTINGS-DESIGN.md's spacing (§2.3), sizes (§2.5) and type roles (§2.2) as names. A pane asks for
-/// a gap or a role, never a value. Its colors are system colors, not §2.1's palette.
+/// SETTINGS-DESIGN.md's spacing (§2.3), sizes (§2.5), type roles (§2.2) and colors by job (§2.1) as
+/// names. A pane asks for a gap, a role or a tone, never a value.
 enum SettingsStyle {
     static let s1: CGFloat = 4
     static let s2: CGFloat = 8
@@ -19,9 +19,15 @@ enum SettingsStyle {
     static let controlHeight: CGFloat = 28
     static let editorSize = NSSize(width: 408, height: 112)
     static let contentTop = titleBar + s5
+    /// Save's bottom corners; every other corner in the window is square.
+    static let ctaRadius: CGFloat = 8
+    /// The focus ring, and the focus and error borders of the input wells.
+    static let focusWidth: CGFloat = 2
+    static let focusOffset: CGFloat = 2
 
     enum TextRole { case title, display, lead, label, term, body, caption, mono, monoInput }
-    enum Tone { case ink, muted }
+    /// `inverse` and `inverseMuted` are for text on the slate sidebar and the Privacy card.
+    enum Tone { case ink, muted, inverse, inverseMuted }
 
     static func font(_ role: TextRole) -> NSFont {
         switch role {
@@ -48,17 +54,20 @@ enum SettingsStyle {
 
     static func color(_ tone: Tone) -> NSColor {
         switch tone {
-        case .ink: .labelColor
-        case .muted: .secondaryLabelColor
+        case .ink: Palette.Settings.ink
+        case .muted: Palette.Settings.inkMuted
+        case .inverse: Palette.Settings.inkInverse
+        case .inverseMuted: Palette.Settings.inkInverseMuted
         }
     }
 
+    /// The status glyph's color. Status text stays `ink` (§2.1).
     static func tint(_ kind: SettingsStatus.Kind) -> NSColor? {
         switch kind {
         case .neutral: nil
-        case .success: .systemGreen
-        case .warning: .systemOrange
-        case .error: .systemRed
+        case .success: Palette.Settings.successStrong
+        case .warning: Palette.Settings.warningStrong
+        case .error: Palette.Settings.dangerStrong
         }
     }
 
