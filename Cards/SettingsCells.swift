@@ -241,7 +241,7 @@ final class SettingsButtonCell: NSButtonCell {
 
     /// The leading segment draws the shared middle line as its right edge; the trailing one leaves its
     /// left edge open. While either has focus the ring goes around the selected one (§3.1), so it
-    /// crosses onto the other, canvas segment and never onto slate; each segment draws the part on it.
+    /// crosses onto the other, canvas segment and never onto spruce; each segment draws the part on it.
     private func drawSegment(_ rect: NSRect, edge: Look.Edge, hovered: Bool, in view: NSView) {
         let selected = state == .on
         let fillColor: NSColor = switch (isEnabled, selected) {

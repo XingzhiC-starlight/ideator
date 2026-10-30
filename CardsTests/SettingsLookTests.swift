@@ -119,7 +119,7 @@ final class SettingsLookTests: XCTestCase {
         assertColor(pixel(of: stack, at: corner(of: stack, inset: 0.5)), palette.inkDisabled, "the stack's cell is dimmed")
     }
 
-    func testSaveIsSlateWhenItWouldSaveAndAnOutlineWhenNot() throws {
+    func testSaveIsSpruceWhenItWouldSaveAndAnOutlineWhenNot() throws {
         let window = settings()
         window.select(.aiSummary)
         let pane = window.pane(.aiSummary)
@@ -204,7 +204,7 @@ final class SettingsLookTests: XCTestCase {
         XCTAssertTrue(shown())
     }
 
-    func testTypingShowsAnInkCaretAndSlateSelectionNeverTheAccentColor() throws {
+    func testTypingShowsAnInkCaretAndSpruceSelectionNeverTheAccentColor() throws {
         let window = settings()
         let field = try XCTUnwrap(descendants(of: window.pane(.aiSummary)).compactMap { $0 as? SettingsKeyField }.first)
         let editor = try XCTUnwrap(descendants(of: window.pane(.mcp)).compactMap { $0 as? NSTextView }.first)
@@ -234,22 +234,24 @@ final class SettingsLookTests: XCTestCase {
         assertColor(color(), palette.ink)
     }
 
-    func testThePrivacyCardIsSlateWithIvoryTextAndHoldsTheWindowsOnlySerif() throws {
+    func testThePrivacyPageIsInkOnPaperWithRulesAndHoldsTheWindowsOnlySerif() throws {
         let window = settings()
         window.contentView?.layoutSubtreeIfNeeded()
-        let card = try XCTUnwrap(descendants(of: window.pane(.privacy)).compactMap { $0 as? PrivacyCardView }.first)
+        let page = try XCTUnwrap(descendants(of: window.pane(.privacy)).compactMap { $0 as? PrivacyPageView }.first)
         let texts = descendants(of: try XCTUnwrap(window.contentView)).compactMap { $0 as? SettingsText }.filter { !$0.stringValue.isEmpty }
         let attribute = { (text: SettingsText, key: NSAttributedString.Key) in text.attributedStringValue.attribute(key, at: 0, effectiveRange: nil) }
         let serif = SettingsStyle.font(.display).familyName
 
-        assertColor(pixel(of: card, at: NSPoint(x: 4, y: 4)), palette.inverse)
-        let inCard = texts.filter { $0.isDescendant(of: card) }
-        XCTAssertEqual(inCard.count, 1 + 2 * 4, "the headline, then four terms over their texts")
-        for text in inCard {
-            assertColor(srgb(try XCTUnwrap(attribute(text, .foregroundColor) as? NSColor)), palette.inkInverse, text.stringValue)
+        let onPage = texts.filter { $0.isDescendant(of: page) }
+        XCTAssertEqual(onPage.count, 1 + 2 * 4, "the headline, then four terms over their texts")
+        for text in onPage {
+            assertColor(srgb(try XCTUnwrap(attribute(text, .foregroundColor) as? NSColor)), palette.ink, text.stringValue)
         }
+        let rules = descendants(of: page).compactMap { $0 as? PrivacyRule }
+        XCTAssertEqual(rules.count, 4, "a rule above each item")
+        assertColor(pixel(of: try XCTUnwrap(rules.first), at: NSPoint(x: 4, y: 0.5)), palette.border)
         let serifs = texts.filter { (attribute($0, .font) as? NSFont)?.familyName == serif }
-        XCTAssertEqual(serifs.map(\.stringValue), [SettingsCopy.Privacy.card(for: nil).headline])
+        XCTAssertEqual(serifs.map(\.stringValue), [SettingsCopy.Privacy.page(for: nil).headline])
     }
 
     func testTheWindowKeepsItsLightLookWhenTheAppIsDark() throws {

@@ -35,7 +35,7 @@ enum SettingsStyle {
     static let checkSize: CGFloat = 11
 
     enum TextRole { case title, display, lead, label, term, body, caption, mono, monoInput }
-    /// `inverse` and `inverseMuted` are for text on the slate sidebar and the Privacy card.
+    /// `inverse` and `inverseMuted` are for text on the spruce sidebar and on any `inverse` fill.
     enum Tone { case ink, muted, inverse, inverseMuted }
 
     static func font(_ role: TextRole) -> NSFont {
@@ -99,7 +99,7 @@ enum SettingsStyle {
         return [.font: font, .paragraphStyle: paragraph, .baselineOffset: (line - (font.ascender - font.descender)) / 2]
     }
 
-    /// The caret and selected text in `ink` and slate, never the system's blue.
+    /// The caret and selected text in `ink` and spruce, never the system's blue.
     static func styleEditing(_ textView: NSTextView) {
         textView.insertionPointColor = Palette.Settings.ink
         textView.selectedTextAttributes = [.backgroundColor: Palette.Settings.inverse, .foregroundColor: Palette.Settings.inkInverse]
@@ -515,11 +515,12 @@ final class ShortcutField: SettingsButton {
     }
 }
 
-/// The Privacy card (§3.11): a slate block, the window's only serif as its headline, then each term on
-/// its own line over its text, all in ivory.
-final class PrivacyCardView: NSView {
-    private static let inner = SettingsStyle.contentWidth - 2 * SettingsStyle.s5
-    private let headline = SettingsControl.text("", as: .display, tone: .inverse, width: inner)
+/// The Privacy page (§3.11): printed on the paper like every other pane. The window's only serif leads,
+/// then each term sits over its text, with a rule above each pair.
+final class PrivacyPageView: NSView {
+    /// Narrow enough that the headline breaks between its two sentences.
+    private static let headlineWidth: CGFloat = 320
+    private let headline = SettingsControl.text("", as: .display, tone: .ink, width: headlineWidth)
     private let list = NSStackView()
     private var items: [(term: SettingsText, text: SettingsText)] = []
 
@@ -527,12 +528,11 @@ final class PrivacyCardView: NSView {
         super.init(frame: .zero)
         list.orientation = .vertical
         list.alignment = .leading
-        list.spacing = SettingsStyle.s2
+        list.spacing = SettingsStyle.s3
         let column = NSStackView(views: [headline, list])
         column.orientation = .vertical
         column.alignment = .leading
         column.spacing = SettingsStyle.s4
-        column.edgeInsets = NSEdgeInsets(top: SettingsStyle.s5, left: SettingsStyle.s5, bottom: SettingsStyle.s5, right: SettingsStyle.s5)
         column.translatesAutoresizingMaskIntoConstraints = false
         addSubview(column)
         NSLayoutConstraint.activate([
@@ -546,26 +546,32 @@ final class PrivacyCardView: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    override func draw(_ dirtyRect: NSRect) {
-        Palette.Settings.inverse.setFill()
-        bounds.fill()
-    }
-
-    func show(_ card: PrivacyCard) {
-        headline.stringValue = card.headline
-        while items.count < card.items.count {
-            let item = (term: SettingsControl.text("", as: .term, tone: .inverse, width: Self.inner),
-                        text: SettingsControl.text("", as: .body, tone: .inverse, width: Self.inner))
+    func show(_ page: PrivacyPage) {
+        headline.stringValue = page.headline
+        while items.count < page.items.count {
+            let item = (term: SettingsControl.text("", as: .term, tone: .ink, width: SettingsStyle.contentWidth),
+                        text: SettingsControl.text("", as: .body, tone: .ink, width: SettingsStyle.contentWidth))
             let pair = NSStackView(views: [item.term, item.text])
             pair.orientation = .vertical
             pair.alignment = .leading
             pair.spacing = 0
+            list.addArrangedSubview(PrivacyRule())
             list.addArrangedSubview(pair)
             items.append(item)
         }
-        for (shown, item) in zip(items, card.items) {
+        for (shown, item) in zip(items, page.items) {
             shown.term.stringValue = item.term
             shown.text.stringValue = item.text
         }
+    }
+}
+
+/// The 1 pt line above each item on the Privacy page.
+final class PrivacyRule: NSView {
+    override var intrinsicContentSize: NSSize { NSSize(width: SettingsStyle.contentWidth, height: 1) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        Palette.Settings.border.setFill()
+        bounds.fill()
     }
 }

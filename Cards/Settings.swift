@@ -256,7 +256,7 @@ final class SettingsSidebar: NSView, NSTableViewDataSource, NSTableViewDelegate 
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Slate, with no line at its edge: the ivory ↔ slate edge alone parts it from the pane (§2.4).
+    /// Spruce, with no line at its edge: the ivory ↔ spruce edge alone parts it from the pane (§2.4).
     override func draw(_ dirtyRect: NSRect) {
         Palette.Settings.inverse.setFill()
         bounds.fill()
@@ -400,7 +400,7 @@ final class PaneHost: NSScrollView {
     }
 }
 
-/// The panes' ivory, drawn like the sidebar's slate. The scroll view's own background only shows past
+/// The panes' ivory, drawn like the sidebar's spruce. The scroll view's own background only shows past
 /// the ends while it bounces. Its origin is its top left, so a pane opens on its first row.
 private final class PaneDocument: NSView {
     override var isFlipped: Bool { true }

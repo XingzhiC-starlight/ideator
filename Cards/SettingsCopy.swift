@@ -69,7 +69,7 @@ struct SettingsStatus: Equatable {
     static func error(_ text: String) -> SettingsStatus { SettingsStatus(kind: .error, text: text) }
 }
 
-struct PrivacyCard: Equatable {
+struct PrivacyPage: Equatable {
     struct Item: Equatable {
         let term: String
         let text: String
@@ -188,9 +188,9 @@ enum SettingsCopy {
     }
 
     enum Privacy {
-        static func card(for provider: Provider?) -> PrivacyCard {
+        static func page(for provider: Provider?) -> PrivacyPage {
             let who = provider?.name ?? "Anthropic or OpenAI, whichever your key is for"
-            return PrivacyCard(headline: "Two things leave your Mac. Nothing else does.", items: [
+            return PrivacyPage(headline: "Two things leave your Mac. Nothing else does.", items: [
                 .init(term: "Card text",
                       text: "With a key saved, Ideator sends a card's text to \(who), using your own key, to write its "
                           + "summary. It does so whenever a card has no summary for its text as it is now: after you "

@@ -67,7 +67,7 @@ commands and observable proof.
 - [API key](./api-key.md): the Settings field for an Anthropic or an OpenAI key, the lines that name
   its company, and the HTTP 401 a refused key leaves on a collapsed card.
 - [First launch](./first-launch.md): the welcome card and the folder it keeps closed until Continue,
-  and Settings: its six sections, ⌘W, the shortcut recorder, the update controls and the privacy card.
+  and Settings: its six sections, ⌘W, the shortcut recorder, the update controls and the privacy page.
 - [Updates](./updates.md): Check Now and Sparkle's windows, the refused forged feed and disk image,
   and the install that relaunches as the next build, proved by `scripts/verify-update.sh`.
 - [Delete a card](./delete-card.md): the trash button, its confirmation, and the file leaving the
