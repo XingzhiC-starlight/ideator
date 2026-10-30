@@ -75,17 +75,19 @@ From the repo root:
 .claude/skills/check-desk-invariants/run.sh
 ```
 
-About 10 seconds. It prints one `ok` line per starting desk and `PASS P1–P8, depth 3, …`, exit 0.
-Use `run.sh 4` for depth 4 before merging a large change to `Desk.swift` (about four million
-steps, most of them on the 20-card near-full desk and the Spread desk; 220 seconds on 2026-10-29
-while two test builds shared the Mac).
+About 30 seconds with the compile (18 seconds of search on 2026-10-30). It prints one `ok` line per
+starting desk and `PASS P1–P8, depth 3, …`, exit 0. Use `run.sh 4` for depth 4 before merging a large
+change to `Desk.swift` (about 8.6 million steps, most of them on the 20-card near-full desk and the
+Spread desks; 367 seconds and 1.3 GB at most on 2026-10-30, while a few test builds shared the Mac).
+`run.sh --mutants` took 8.7 minutes the same day.
 
-Last synced with the code of the change that added Spread (2026-10-29). Find its commit with
-`git log -S"case spread(SpreadCells" -- Cards/Desk.swift`. Depth 3 and depth 4 passed, and 40 of 40
-mutants were caught. Covered code read for that sync: `Desk.swift`, `Grid.swift`, `Note.swift`,
-`Library.load` (how P5 reads back), `DeskController.send`, the only caller of `Desk.apply`,
-`DeskController.spread`, the only sender of `.spread`, and `StackWindow.swift` and `App.swift`, the
-only callers of that. The next sync diffs those from that commit.
+Last synced with the code of the change that made Gather delete a Spread set with no text
+(2026-10-30). Find its commit with `git log -S"case gather(deletes" -- Cards/Desk.swift`. Depth 3
+and depth 4 passed, and 54 of 54 mutants were caught. Covered code read for that sync: `Desk.swift`,
+`Grid.swift`, `Note.swift`, `Library.load` (how P5 reads back), `DeskController.send`, the only
+caller of `Desk.apply`, `DeskController.spread`, the only sender of `.spread`, and
+`StackWindow.swift` and `App.swift`, the only callers of that. The next sync diffs those from that
+commit.
 
 A failure prints the property, the starting desk and the shortest command sequence that breaks
 it, then exits 1:
@@ -140,10 +142,10 @@ unless the user asked for a fix.
     check. Run the workflow by hand (`gh workflow run CI --ref <branch>`) to force both steps.
   - A new file the checker compiles or reads must go into `inputs_key` in `run.sh`, or a change to it
     won't rerun them.
-- `run.sh --mutants` breaks `Desk.swift` forty known ways in a scratch copy under
-  `build/desk-check/` (never the real file) and needs every property to catch its break. If a
-  mutant's text no longer exists in `Desk.swift`, update that line in `MUTANTS` in `run.sh` to an
-  equivalent break of the new code. If a mutant is not caught, the check has lost its teeth: fix
+- `run.sh --mutants` breaks `Desk.swift` or `Note.swift` 54 known ways in a scratch copy under
+  `build/desk-check/` (never the real files) and needs every property to catch its break. If a
+  mutant's text no longer exists in its file (a fourth column names it when it is not `Desk.swift`),
+  update that line in `MUTANTS` in `run.sh` to an equivalent break of the new code. If a mutant is not caught, the check has lost its teeth: fix
   the check before trusting a pass.
 - Each clause a property row in the table claims needs a `MUTANTS` entry in `run.sh` that breaks
   only that clause. A clause with no caught mutant goes under "What a pass does not cover" until it
