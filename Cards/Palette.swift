@@ -63,6 +63,17 @@ enum Palette {
             increaseContrastOverride ?? NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         }
     }
+
+    /// The tour's hint panel and welcome window: the cards' paper, denser so the text reads over
+    /// whatever is behind them.
+    enum Tour {
+        /// The panel's and the welcome's tint over the glass.
+        static let hintPaper = NSColor(hex: 0xF4ECDE, alpha: 0.93)
+        /// The opaque notch the overlay draws over the panel's edge.
+        static let notch = NSColor(hex: 0xF3EBDC)
+        /// Lit Spread cells: the dashed border and the faint fill take alpha variants of it.
+        static let litBase = NSColor(hex: 0xF4ECDE)
+    }
 }
 
 private extension NSColor {

@@ -167,7 +167,7 @@ final class BuildTests: XCTestCase {
 
         XCTAssertEqual(plist["SUScheduledCheckInterval"] as? Int, 86400)
         XCTAssertTrue(SettingsCopy.Privacy.page(for: nil).allText.contains("Once a day"))
-        let welcome = WelcomeCopy(shortcut: .standard, shortcutWorks: true).paragraphs.map(\.text).joined()
+        let welcome = WelcomeCopy().disclosures.map(\.text).joined()
         XCTAssertTrue(welcome.contains("Once a day"))
     }
 

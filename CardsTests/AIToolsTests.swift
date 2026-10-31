@@ -155,7 +155,7 @@ final class AIToolsTests: XCTestCase {
 
         XCTAssertEqual(replies.all, [.waitingForContinue])
         XCTAssertTrue(ToolReply.waitingForContinue.isError)
-        XCTAssertTrue(ToolReply.waitingForContinue.text.contains("press Continue in Ideator, then try again"),
+        XCTAssertTrue(ToolReply.waitingForContinue.text.contains("Ask the user to press it in Ideator, then try again"),
                       "it says what to do: \(ToolReply.waitingForContinue.text)")
         var saved: [String] = []
         held.release { saved.append($0.title); return .done("saved") }

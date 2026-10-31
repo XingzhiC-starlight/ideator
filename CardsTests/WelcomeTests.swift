@@ -3,101 +3,108 @@ import Carbon.HIToolbox
 @testable import Ideator
 
 final class WelcomeTests: XCTestCase {
-    private func copy(shortcutWorks: Bool = true, shortcut: Shortcut = .standard) -> WelcomeCopy {
-        WelcomeCopy(shortcut: shortcut, shortcutWorks: shortcutWorks)
+    private let copy = WelcomeCopy()
+
+    private func window(_ kind: WelcomeKind = .fullTour, choose: @escaping (WelcomeChoice) -> Void = { _ in }) -> WelcomeWindow {
+        WelcomeWindow(copy: copy, kind: kind, choose: choose)
     }
 
-    func testTheCopyNamesTheCurrentShortcutAndTheDefaultFolder() {
-        let f13 = Shortcut(keyCode: UInt32(kVK_F13), modifiers: UInt32(controlKey | cmdKey))!
-        let text = copy(shortcut: f13).paragraphs.map { $0.lead + " " + $0.text }.joined(separator: "\n")
+    private var text: String { ([copy.intro] + copy.disclosures.map { $0.lead + " " + $0.text }).joined(separator: "\n") }
 
-        XCTAssertTrue(text.contains("Press ⌃⌘F13 from any app"), "the user's shortcut, not a literal")
+    func testTheCopyNamesTheDefaultFolderAndAnnouncesTheDocumentsPrompt() {
         XCTAssertTrue(text.contains("~/Documents/Ideator"))
-        XCTAssertTrue(text.contains("Choose Allow."), "the Documents prompt is announced")
+        XCTAssertTrue(text.contains("Choose Allow."), "the Documents prompt comes right after the button")
     }
 
-    func testTheCopyDoesNotPromiseAShortcutThatFailed() {
-        let text = copy(shortcutWorks: false).paragraphs.map(\.text).joined(separator: "\n")
-
-        XCTAssertTrue(text.contains("Ideator couldn't claim ⌃⌥I, so there is no shortcut yet."))
-        XCTAssertFalse(text.contains("Press ⌃⌥I"))
-    }
-
-    func testTheCopyAnnouncesTheDailyCheckWithGitHubAndPromisesNothingElseLeavesAfterBothServices() throws {
-        let paragraphs = copy().paragraphs
-        let text = paragraphs.map { $0.lead + " " + $0.text }.joined(separator: "\n")
-
-        XCTAssertTrue(text.contains("Only a card's text goes to that company."))
-        XCTAssertTrue(text.contains("Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it installs one."))
-        XCTAssertTrue(text.contains("You can turn the daily check off in Settings."))
-        XCTAssertTrue(try XCTUnwrap(paragraphs.last).text.hasSuffix("Nothing else leaves your Mac."))
-        XCTAssertEqual(text.components(separatedBy: "Nothing else leaves your Mac").count, 2, "said once, last")
-    }
-
-    func testTheVersionIsRaisedWithTheParagraphsThatSayWhatLeavesTheMac() {
-        let disclosed = copy().paragraphs
-            .filter { ["Summaries are optional.", "Updates come from GitHub."].contains($0.lead) }.map(\.text)
+    func testTheVersionStaysWithTheParagraphsThatSayWhatLeavesTheMac() {
+        let disclosed = copy.disclosures.filter { ["Updates come from GitHub.", "AI is optional."].contains($0.lead) }.map(\.text)
 
         XCTAssertEqual(WelcomeCopy.version, 3)
         XCTAssertEqual(disclosed, [
-            "To show a short summary on each card when you turn on Clarity, add your own Anthropic or OpenAI API key "
-                + "in Settings. Ideator then sends a card's text to Anthropic or OpenAI, whichever your key is for, "
-                + "whenever the card has no summary for its text as it is now, such as when you save the key or "
-                + "change the card. Only a card's text goes to that company.",
-            "Once a day Ideator asks GitHub whether a newer version exists, and it asks you before it "
-                + "installs one. You can turn the daily check off in Settings. Nothing else leaves your Mac.",
+            "Once a day Ideator asks GitHub whether a newer version exists, and asks you before installing. "
+                + "Turn the check off in Settings.",
+            "Summaries need your own API key in Settings. Only then does a card's text "
+                + "leave your Mac.",
         ], "These paragraphs are what an owner agreed to. If they now say something else, raise "
             + "WelcomeCopy.version and the number above together, so a Mac that saw the old card sees this one.")
     }
 
-    func testTheCopyAndSettingsSayWhenACardIsSentInTheSameWordsAndNameBothCompanies() {
-        let rule = "has no summary for its text as it is now"
-        let summaries = copy().paragraphs.first { $0.lead == "Summaries are optional." }
+    func testTheWelcomeIsAsLargeAsThePrototypesAndEverythingFitsInside() {
+        for kind in [WelcomeKind.fullTour, .noTour] {
+            let window = window(kind)
 
-        XCTAssertTrue(summaries?.text.contains(rule) == true)
-        XCTAssertTrue(summaries?.text.contains("Anthropic or OpenAI API key") == true)
-        XCTAssertTrue(SettingsCopy.Privacy.page(for: nil).allText.contains(rule))
-    }
+            let size = window.fit(width: 446)
+            window.contentView?.layoutSubtreeIfNeeded()
 
-    func testTheCardFitsItsCopyAtTheStackWidth() {
-        let window = WelcomeWindow(copy: copy()) {}
-
-        let size = window.fit(width: 342)
-        window.contentView?.layoutSubtreeIfNeeded()
-
-        let content = window.contentView!
-        XCTAssertEqual(content.frame.size, size, accuracy: 0.5)
-        XCTAssertLessThan(size.height, NSScreen.screens.first?.visibleFrame.height ?? 800)
-        for view in descendants(of: content) where view is NSTextField || view is NSButton {
-            let frame = content.convert(view.bounds, from: view)
-            XCTAssertTrue(content.bounds.contains(frame), "\(type(of: view)) sits inside the card, not clipped: \(frame)")
+            XCTAssertEqual(size, NSSize(width: 446, height: 326),
+                           "the prototype's welcome measures 440 × 338 visible; its AI paragraph had a third line, "
+                               + "cut when the sentence about Claude Code cards (they need no key) went")
+            let content = window.contentView!
+            XCTAssertEqual(content.frame.size, size)
+            let face = content.bounds.insetBy(dx: CardShape.gap + 1, dy: CardShape.gap + 1)
+            for view in descendants(of: content) where !view.isHidden && (view is TourText || view is NSControl) {
+                let frame = (view as? TourText).map { content.convert($0.textFrame, from: $0.superview) }
+                    ?? content.convert(view.bounds, from: view)
+                XCTAssertTrue(face.contains(frame), "\(type(of: view)) sits inside the face: \(frame)")
+            }
         }
     }
 
-    func testContinueRunsTheHandlerForTheButtonAndForReturn() {
-        var continued = 0
-        let window = WelcomeWindow(copy: copy()) { continued += 1 }
-        window.fit(width: 342)
+    func testTheFullTourOffersStartAndSkipAndReturnStarts() {
+        var choices: [WelcomeChoice] = []
+        let window = window(.fullTour) { choices.append($0) }
+        window.fit(width: 446)
 
-        window.continueButton.performClick(nil)
-        XCTAssertEqual(continued, 1)
-
-        let returnKey = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-                                         windowNumber: window.windowNumber, context: nil, characters: "\r",
-                                         charactersIgnoringModifiers: "\r", isARepeat: false,
-                                         keyCode: UInt16(kVK_Return))!
-        XCTAssertTrue(window.performKeyEquivalent(with: returnKey))
-        XCTAssertEqual(continued, 2)
+        XCTAssertEqual(window.defaultButton.title, "Start the tour")
+        XCTAssertEqual(window.skipButton?.title, "Skip the tour")
+        window.skipButton?.performClick(nil)
+        window.defaultButton.performClick(nil)
+        XCTAssertTrue(window.performKeyEquivalent(with: returnKey(for: window)))
+        XCTAssertEqual(choices, [.skip, .start, .start])
     }
 
-    func testABackgroundStartShowsTheCardWithoutTakingTheKeyWindow() {
-        let window = WelcomeWindow(copy: copy()) {}
+    func testTheOtherKindsOfferContinueAlone() {
+        for kind in [WelcomeKind.endOnly, .noTour] {
+            var choices: [WelcomeChoice] = []
+            let window = window(kind) { choices.append($0) }
+            window.fit(width: 446)
+            window.contentView?.layoutSubtreeIfNeeded()
+
+            XCTAssertEqual(window.defaultButton.title, "Continue")
+            XCTAssertNil(window.skipButton)
+            XCTAssertEqual(descendants(of: window.contentView!).compactMap { $0 as? NSButton }.map(\.title), ["Continue"])
+            XCTAssertTrue(window.performKeyEquivalent(with: returnKey(for: window)))
+            XCTAssertEqual(choices, [.proceed])
+        }
+    }
+
+    func testTheWelcomeIsCenteredOnTheMenuBarScreenAndFloatsOnlyWhenAsked() throws {
+        let screen = try XCTUnwrap(NSScreen.screens.first).frame
+        let atLaunch = window()
+        defer { atLaunch.close() }
+
+        atLaunch.present(takingFocus: false, floating: false)
+
+        XCTAssertEqual(atLaunch.frame.midX, screen.midX, accuracy: 1)
+        let face = atLaunch.frame.insetBy(dx: CardShape.gap, dy: CardShape.gap)
+        XCTAssertEqual(screen.maxY - face.maxY, screen.height / 2 - 0.52 * face.height, accuracy: 1,
+                       "a little above the middle, as the prototype's translate(-50%, -52%)")
+        XCTAssertEqual(atLaunch.level, .normal)
+
+        let again = window()
+        defer { again.close() }
+        again.present(takingFocus: false, floating: true)
+        XCTAssertEqual(again.level, .floating, "shown again over cards that keep reordering")
+    }
+
+    func testABackgroundStartShowsTheWelcomeWithoutTakingTheKeyWindow() {
+        let window = window(.endOnly)
         defer { window.close() }
         let keyBefore = NSApp.keyWindow
 
-        window.present(takingFocus: false)
+        window.present(takingFocus: false, floating: false)
 
-        XCTAssertTrue(window.isVisible, "the welcome card still shows")
+        XCTAssertTrue(window.isVisible, "the welcome still shows")
         XCTAssertFalse(window.isKeyWindow, "so a Return typed in the AI tool can never press Continue")
         XCTAssertTrue(NSApp.keyWindow === keyBefore)
     }
@@ -109,12 +116,13 @@ final class WelcomeTests: XCTestCase {
         XCTAssertTrue(byUser.welcomeTakesFocus)
     }
 
+    private func returnKey(for window: NSWindow) -> NSEvent {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                         context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false,
+                         keyCode: UInt16(kVK_Return))!
+    }
+
     private func descendants(of view: NSView) -> [NSView] {
         view.subviews + view.subviews.flatMap(descendants(of:))
     }
-}
-
-private func XCTAssertEqual(_ a: NSSize, _ b: NSSize, accuracy: CGFloat, file: StaticString = #filePath, line: UInt = #line) {
-    XCTAssertEqual(a.width, b.width, accuracy: accuracy, file: file, line: line)
-    XCTAssertEqual(a.height, b.height, accuracy: accuracy, file: file, line: line)
 }

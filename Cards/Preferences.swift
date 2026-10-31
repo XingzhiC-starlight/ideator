@@ -22,7 +22,19 @@ struct Preferences {
     /// was versioned reads as 1, because `integer(forKey:)` turns a stored true into 1.
     var welcomeSeen: Bool { defaults.map { $0.integer(forKey: "WelcomeSeen") >= WelcomeCopy.version } ?? true }
 
-    func markWelcomeSeen() { defaults?.set(WelcomeCopy.version, forKey: "WelcomeSeen") }
+    /// Whether this Mac has been offered the tour. Reads as seen in a scratch run, like `welcomeSeen`,
+    /// so only `CARDS_SHOW_WELCOME=1` shows the welcome there.
+    var tourSeen: Bool { defaults.map { $0.bool(forKey: "TourSeen") } ?? true }
+
+    var records: LaunchRecords { LaunchRecords(disclosureCurrent: welcomeSeen, tourSeen: tourSeen) }
+
+    /// Writes both records at once, right after the notes open. The acknowledged version never goes
+    /// down, so an older build forced after a newer one keeps the newer acknowledgement.
+    func markWelcomeSeen() {
+        guard let defaults else { return }
+        defaults.set(max(defaults.integer(forKey: "WelcomeSeen"), WelcomeCopy.version), forKey: "WelcomeSeen")
+        defaults.set(true, forKey: "TourSeen")
+    }
 
     /// Settings › Spread's ticked cells, as slot indices. A missing key reads as the factory cells.
     /// Junk is dropped, since defaults can be edited by hand, and an empty list stays empty, since
@@ -51,4 +63,12 @@ struct Preferences {
             }
         }
     }
+}
+
+/// The two records that decide a launch, read together so the decision is one function of them.
+struct LaunchRecords: Equatable {
+    /// The acknowledged disclosure version is at least `WelcomeCopy.version`.
+    var disclosureCurrent: Bool
+    /// The tour has been offered once on this Mac.
+    var tourSeen: Bool
 }

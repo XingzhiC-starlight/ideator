@@ -38,8 +38,9 @@ extension ToolReply {
 
     static let turnedOff = failed("Turned off in Ideator's Settings")
 
-    static let waitingForContinue = failed("Ideator is showing its welcome card and saves no card until the user "
-        + "presses Continue on it. Nothing was saved. Ask the user to press Continue in Ideator, then try again.")
+    static let waitingForContinue = failed("Ideator is showing its welcome window and saves no card until the user "
+        + "presses its button (Continue, Start the tour or Skip the tour). Nothing was saved. Ask the user to press it "
+        + "in Ideator, then try again.")
 
     /// The card is on the desk, so a second call would add it twice.
     static func notSaved(_ title: String, folder: URL) -> ToolReply {
@@ -48,7 +49,7 @@ extension ToolReply {
     }
 }
 
-/// Cards that arrive while the welcome card waits for Continue. Each waits as long as its request
+/// Cards that arrive while the welcome window waits for its button. Each waits as long as its request
 /// allows, then is answered "press Continue" and dropped: the AI tool gets an answer before its own
 /// timeout, and a card it was told is not saved never appears later.
 final class HeldCards {

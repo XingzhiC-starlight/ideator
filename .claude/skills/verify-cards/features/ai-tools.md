@@ -20,8 +20,8 @@ When Ideator is not running, the helper starts it in the background.
 - `mcp-off` With "Let AI tools add cards" off, the reply is "Turned off in Ideator's Settings" and nothing is saved.
 - `mcp-too-long` A title and body past 1 MB are refused with an error and nothing is saved.
 - `mcp-launch` With Ideator not running, the helper starts it in the background and the card is saved.
-- `mcp-welcome` While the welcome card waits for Continue, the card waits too: Continue within 40 s saves it, and
-  after 40 s the reply says to press Continue and nothing is saved.
+- `mcp-welcome` While the welcome waits for Continue, the card waits too: Continue within 40 s saves it and starts
+  the tour at page 9, and after 40 s the reply says to press the welcome's button and nothing is saved.
 - `mcp-instruction` The instruction box in Settings: a fresh session's `initialize` returns the default text, then
   an edit, then the default again after Reset to Default, and nothing for a blank box. A helper for another folder
   keeps the default.
@@ -81,11 +81,13 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   'Isolation check'`: the reply says Added, the current run's folder gains nothing, and a second Ideator runs on the
   other folder. End it by its pid after checking its command line is this build on that folder.
 - **mcp-welcome.** `cv stop`, then `CARDS_SHOW_WELCOME=1 CARDS_MCP_TIMEOUT=90 cv mcp-launch initialize add 'During
-  welcome'`: the welcome card shows, and after about 40 s the reply says to press Continue and that nothing was
-  saved, and no card file appears after Continue. For the two other outcomes, start `cards-mcp` with
-  `CARDS_SHOW_WELCOME=1` on a new folder in the background, wait for the run's `Continue` button in `cards-ax
-  tree <pid>`, then either `cards-ax press <pid> Continue` (the reply says Added and the folder has that card) or
-  end the run by its pid (the reply says Ideator quit before it saved the card, and the folder has none).
+  welcome'`: the welcome shows with `Continue` as its one button, because a background start never offers Start the
+  tour or Skip the tour. After about 40 s the reply says to press the welcome's button and that nothing was saved, and no card
+  file appears after Continue. Continue then opens the stack and starts the tour at page 9: `cv ax tree` lists `9 of
+  9`, `Back` and `Start using Ideator`. For the two other outcomes, start `cards-mcp` with `CARDS_SHOW_WELCOME=1` on a
+  new folder in the background, wait for the run's `Continue` button in `cards-ax tree <pid>`, then either
+  `cards-ax press <pid> Continue` (the reply says Added, the folder has that card, and the tree has page 9) or end
+  the run by its pid (the reply says Ideator quit before it saved the card, and the folder has none).
 - **mcp-instruction.** Record `defaults export com.systemlabs.Ideator - | shasum` first. `cv ax key cmd+,` opens
   Settings and `cv ax section MCP` shows the box; its window index changes with the z-order (a macOS "Edit with Siri" panel once became `w0`), so find
   Settings in `cv ax tree` by its "Reset to Default" button and its one text area, and read the index in the same
@@ -148,16 +150,16 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   Make the temp folder under `/tmp` or `$TMPDIR`, or match the path with its `/private` removed.
 - `cv mcp-launch` has no `--seed`, and the app it starts has no `app.log`: Launch Services starts it, not `open
   --stdout`.
-- The welcome card of a background start comes to the front with `orderFrontRegardless` and does not activate
-  Ideator. The frontmost app before and after a press on Continue cannot by itself prove a background start took
-  no focus on every Mac: macOS decides whether an app may activate, and three verifiers measured a foreground
-  start differently (Ideator frontmost after 61 ms once and about 220 ms once, and unchanged after a foreground
-  `cv launch --welcome` plus Continue on a later day). Run a foreground control in the same session
-  (`cv launch --welcome`, Continue): when Ideator does come to the front there, the same check on the background
-  run discriminates; when it does not, the check says nothing on this Mac. The guarantee is the code path, tested
-  in `WelcomeTests`: `testABackgroundStartShowsTheCardWithoutTakingTheKeyWindow` (the card shows and is not the
-  key window) and `testOnlyAStartByTheHelperShowsTheWelcomeWithoutFocus` (only the helper's environment turns
-  focus off).
+- The welcome of a background start comes to the front with `orderFrontRegardless` and does not activate
+  Ideator, and the tour's page 9, which follows Continue, takes no key window while Ideator is inactive. The
+  frontmost app before and after a press on Continue cannot by itself prove a background start took no focus on
+  every Mac: macOS decides whether an app may activate, and three verifiers measured a foreground start
+  differently (Ideator frontmost after 61 ms once and about 220 ms once, and unchanged after a foreground
+  `cv launch --welcome` plus its button on a later day). Run a foreground control in the same session
+  (`cv launch --welcome`, Start the tour): when Ideator does come to the front there, the same check on the
+  background run discriminates; when it does not, the check says nothing on this Mac. The guarantee is the code
+  path, tested in `WelcomeTests`: in a background start the welcome shows and is not the key window, and only
+  the helper's environment turns focus off.
 - `cv stop` ends the run with SIGTERM, and the app removes its socket file, `ideator-mcp-<hash>.sock`, in the
   user's temporary folder before it ends. SIGINT, SIGHUP, SIGKILL and a crash leave the file (the handler covers SIGTERM only); the next run that finds nothing answering on it replaces it.
 - `mcp-isolation` names the folder as given; a helper given the same folder with `/private` in front, or in other
