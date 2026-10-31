@@ -121,7 +121,7 @@ enum TourLayout {
                         notch: spot.notch(on: panel),
                         rings: ringed.map { [$0] } ?? [],
                         lit: aim.litCells ? s.litFaces : [],
-                        needsMenuBarLevel: aim.ring == .menuBarIcon && ring != nil)
+                        needsMenuBarLevel: aim.ring == .menuBarIcon && ringed != nil)
     }
 
     /// Where the face goes before the screen clamps, and what its notch points at.
