@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminationSource: DispatchSourceSignal?
     private var controller: DeskController?
     /// Whichever welcome is on screen, the first or the one Back from page 1 shows again.
-    private var welcome: TourWelcomeWindow?
+    private var welcome: WelcomeWindow?
     /// Built right after the controller, so it exists exactly when there is a desk to tour.
     private var tour: TourSession?
     private var statusItem: NSStatusItem?
@@ -109,7 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// frozen under it. With a desk already on screen (Back from page 1) it floats, so a click on a
     /// card, which raises the cards as a group, never buries it.
     private func showWelcome(_ kind: WelcomeKind, _ choose: @escaping (WelcomeChoice) -> Void) {
-        let window = TourWelcomeWindow(copy: TourWelcomeCopy(), kind: kind) { [unowned self] choice in
+        let window = WelcomeWindow(copy: WelcomeCopy(), kind: kind) { [unowned self] choice in
             welcome?.close()
             welcome = nil
             DispatchQueue.main.async { choose(choice) }

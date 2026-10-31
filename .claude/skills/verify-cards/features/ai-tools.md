@@ -21,7 +21,7 @@ When Ideator is not running, the helper starts it in the background.
 - `mcp-too-long` A title and body past 1 MB are refused with an error and nothing is saved.
 - `mcp-launch` With Ideator not running, the helper starts it in the background and the card is saved.
 - `mcp-welcome` While the welcome waits for Continue, the card waits too: Continue within 40 s saves it and starts
-  the tour at page 9, and after 40 s the reply says to press Continue and nothing is saved.
+  the tour at page 9, and after 40 s the reply says to press the welcome's button and nothing is saved.
 - `mcp-instruction` The instruction box in Settings: a fresh session's `initialize` returns the default text, then
   an edit, then the default again after Reset to Default, and nothing for a blank box. A helper for another folder
   keeps the default.
@@ -82,7 +82,7 @@ reply quotes the title in full. Write card bodies to files under the run's evide
   other folder. End it by its pid after checking its command line is this build on that folder.
 - **mcp-welcome.** `cv stop`, then `CARDS_SHOW_WELCOME=1 CARDS_MCP_TIMEOUT=90 cv mcp-launch initialize add 'During
   welcome'`: the welcome shows with `Continue` as its one button, because a background start never offers Start the
-  tour or Skip the tour. After about 40 s the reply says to press Continue and that nothing was saved, and no card
+  tour or Skip the tour. After about 40 s the reply says to press the welcome's button and that nothing was saved, and no card
   file appears after Continue. Continue then opens the stack and starts the tour at page 9: `cv ax tree` lists `9 of
   9`, `Back` and `Start using Ideator`. For the two other outcomes, start `cards-mcp` with `CARDS_SHOW_WELCOME=1` on a
   new folder in the background, wait for the run's `Continue` button in `cards-ax tree <pid>`, then either

@@ -3,10 +3,10 @@ import Carbon.HIToolbox
 @testable import Ideator
 
 final class WelcomeTests: XCTestCase {
-    private let copy = TourWelcomeCopy()
+    private let copy = WelcomeCopy()
 
-    private func window(_ kind: WelcomeKind = .fullTour, choose: @escaping (WelcomeChoice) -> Void = { _ in }) -> TourWelcomeWindow {
-        TourWelcomeWindow(copy: copy, kind: kind, choose: choose)
+    private func window(_ kind: WelcomeKind = .fullTour, choose: @escaping (WelcomeChoice) -> Void = { _ in }) -> WelcomeWindow {
+        WelcomeWindow(copy: copy, kind: kind, choose: choose)
     }
 
     private var text: String { ([copy.intro] + copy.disclosures.map { $0.lead + " " + $0.text }).joined(separator: "\n") }
@@ -19,14 +19,14 @@ final class WelcomeTests: XCTestCase {
     func testTheVersionStaysWithTheParagraphsThatSayWhatLeavesTheMac() {
         let disclosed = copy.disclosures.filter { ["Updates come from GitHub.", "AI is optional."].contains($0.lead) }.map(\.text)
 
-        XCTAssertEqual(TourWelcomeCopy.version, 3)
+        XCTAssertEqual(WelcomeCopy.version, 3)
         XCTAssertEqual(disclosed, [
             "Once a day Ideator asks GitHub whether a newer version exists, and asks you before installing. "
                 + "Turn the check off in Settings.",
-            "Summaries and cards from Claude Code need your own API key in Settings. Only then does a card's text "
+            "Summaries need your own API key in Settings. Only then does a card's text "
                 + "leave your Mac.",
         ], "These paragraphs are what an owner agreed to. If they now say something else, raise "
-            + "TourWelcomeCopy.version and the number above together, so a Mac that saw the old card sees this one.")
+            + "WelcomeCopy.version and the number above together, so a Mac that saw the old card sees this one.")
     }
 
     func testTheWelcomeIsAsLargeAsThePrototypesAndEverythingFitsInside() {
@@ -36,7 +36,9 @@ final class WelcomeTests: XCTestCase {
             let size = window.fit(width: 446)
             window.contentView?.layoutSubtreeIfNeeded()
 
-            XCTAssertEqual(size, NSSize(width: 446, height: 344), "the prototype's welcome measures 440 × 338 visible")
+            XCTAssertEqual(size, NSSize(width: 446, height: 326),
+                           "the prototype's welcome measures 440 × 338 visible; its AI paragraph had a third line, "
+                               + "cut when the sentence about Claude Code cards (they need no key) went")
             let content = window.contentView!
             XCTAssertEqual(content.frame.size, size)
             let face = content.bounds.insetBy(dx: CardShape.gap + 1, dy: CardShape.gap + 1)
