@@ -90,8 +90,7 @@ final class WelcomeWindow: NSWindow {
     }
 }
 
-/// The prototype's `.welcome` box: the icon and title, the intro, the three disclosures with their
-/// semibold leads, and the footer.
+/// The prototype's `.welcome` box.
 private final class WelcomeView: NSView {
     /// 440 visible, plus the gap on each side.
     static let width: CGFloat = 440 + 2 * CardShape.gap

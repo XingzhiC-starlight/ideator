@@ -147,8 +147,8 @@ final class TourSession {
         }
     }
 
-    /// Card, then surfaces, then layout, then scene. Shows nothing new when the scene equals the last,
-    /// so a keystroke that moved no window costs a world and a comparison.
+    /// Shows nothing new when the scene equals the last, so a keystroke that moved no window costs a
+    /// world and a comparison.
     private func redraw(_ world: TourWorld) {
         guard let stop = flow.stop else { return end() }
         let card = stop.card(in: world)

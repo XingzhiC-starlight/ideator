@@ -61,7 +61,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         terminationSource = inbox.map { Self.removeOnSIGTERM($0.file) }
         // Building the controller is the first touch of the notes folder, which starts macOS's
         // Documents prompt, so only `Launch.run` may do it: after the welcome, when one is due.
-        // The tour starts after that, where the welcome's button sends it.
         launch.run(
             preferences: preferences,
             welcome: { [unowned self] kind, choose in showWelcome(kind, choose) },

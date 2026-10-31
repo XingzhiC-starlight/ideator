@@ -4,7 +4,7 @@ import Foundation
 
 // MARK: Copy with inline chips
 
-/// Text with inline control chips and key caps, written the way the prototype writes it:
+/// Text with inline control chips and key caps:
 /// `"Click \(glyph: .plus) on the stack"`, `"\(key: shortcut) does the same from any app."`.
 /// The shell draws each chip as the control's SF Symbol.
 struct TourLine: Equatable, ExpressibleByStringInterpolation {
@@ -49,15 +49,28 @@ struct TourLine: Equatable, ExpressibleByStringInterpolation {
     }
 
     /// The flattened string for VoiceOver and for width tests: a chip reads as its control's name, a
-    /// key cap as its text. An attachment alone would read as U+FFFC.
+    /// key cap as its text. An attachment alone would read as U+FFFC. A chip drawn right before its
+    /// own name ("[grid] Spread", "[filter] Clarity") is read once, not "Spread Spread".
     var spoken: String {
-        runs.map { run in
+        var text = ""
+        var dropSpaces = false
+        for (i, run) in runs.enumerated() {
             switch run {
-            case .text(let text): text
-            case .chip(let glyph): glyph.spoken
-            case .key(let key): key
+            case .text(let part):
+                text += dropSpaces ? String(part.drop(while: { $0 == " " })) : part
+            case .key(let key):
+                text += key
+            case .chip(let glyph):
+                let next: String? = if i + 1 < runs.count, case .text(let following) = runs[i + 1] { following } else { nil }
+                if next?.drop(while: { $0 == " " }).hasPrefix(glyph.spoken) == true {
+                    dropSpaces = true
+                    continue
+                }
+                text += glyph.spoken
             }
-        }.joined()
+            dropSpaces = false
+        }
+        return text
     }
 }
 
@@ -174,15 +187,15 @@ extension PhaseScript {
 /// Every phase of every page, in the prototype's order. The declaration order is the walking order,
 /// and `TourScript.make` switches over it exhaustively, so a phase without an entry does not compile.
 enum TourPhase: CaseIterable {
-    case stack                                              // 1
-    case clickNew, typeIn                                   // 2
-    case clickHide, clickShow, allBack                      // 3
-    case clickReturn, afterReturn                           // 4
-    case follow                                             // 5
-    case spreadOff, clickSpread, clickGather, afterGather   // 6
-    case clarity                                            // 7
-    case aiTool                                             // 8
-    case done                                               // 9
+    case stack
+    case clickNew, typeIn
+    case clickHide, clickShow, allBack
+    case clickReturn, afterReturn
+    case follow
+    case spreadOff, clickSpread, clickGather, afterGather
+    case clarity
+    case aiTool
+    case done
 
     var script: PhaseScript { TourScript.table[self]! }
     var page: Int { script.page }

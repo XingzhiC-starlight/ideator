@@ -292,7 +292,7 @@ final class TourFlowWalkTests: XCTestCase {
         var walk = Walk()
         walk.toPage6()
         XCTAssertEqual(walk.stop, stop(.clickSpread))
-        XCTAssertEqual(walk.title, "Click Spread Spread: 6 blank cards")
+        XCTAssertEqual(walk.title, "Click Spread: 6 blank cards")
         XCTAssertTrue(walk.card!.isOptional)
 
         walk.send(.spread(.standard, fresh: false, at: Fixtures.now))

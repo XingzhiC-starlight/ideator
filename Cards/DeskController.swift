@@ -195,7 +195,7 @@ final class DeskController {
         return present(alert) == .alertSecondButtonReturn
     }
 
-    // MARK: What the tour reads (Core workstream)
+    // MARK: What the tour reads
 
     /// Told, with nothing, whenever the world may have changed: after every `render()`, so after
     /// every command, Hide all and Show all included, and at each step of a window drag. The tour

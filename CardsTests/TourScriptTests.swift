@@ -167,12 +167,12 @@ final class TourScriptTests: XCTestCase {
         XCTAssertEqual(titles(.follow, world), "Your cards follow you")
         XCTAssertEqual(titles(.spreadOff, spreadOff()), "Spread is off")
         XCTAssertEqual(titles(.spreadOff, spreadTaken()), "Spread needs free cells")
-        XCTAssertEqual(titles(.clickSpread, world), "Click Spread Spread: 5 blank cards")
+        XCTAssertEqual(titles(.clickSpread, world), "Click Spread: 5 blank cards")
         XCTAssertEqual(titles(.clickGather, setOut()), "Click Spread again to put them away")
         XCTAssertEqual(titles(.afterGather, world, .after(.gathered)), "In the stack, back in one click")
         XCTAssertEqual(titles(.afterGather, world, .after(.vanished)), "Gone, nothing was kept")
         XCTAssertEqual(titles(.afterGather, world), "Spread, then Gather")
-        XCTAssertEqual(titles(.clarity, world), "Clarity Clarity: a summary per card")
+        XCTAssertEqual(titles(.clarity, world), "Clarity: a summary per card")
         XCTAssertEqual(titles(.aiTool, world), "Your AI tool can add cards")
         XCTAssertEqual(titles(.done, world), "Done: replay from the menu bar")
     }
@@ -222,7 +222,7 @@ final class TourScriptTests: XCTestCase {
     func testPage6CountsTheFreeTickedCellsAndNamesWhyTheButtonIsOff() {
         let someTaken = Fixtures.world(Fixtures.desk(popped: [("a", slot(0)), ("b", slot(6))]))
 
-        XCTAssertEqual(titles(.clickSpread, someTaken), "Click Spread Spread: 4 blank cards")
+        XCTAssertEqual(titles(.clickSpread, someTaken), "Click Spread: 4 blank cards", "the chip before its own name is read once")
         XCTAssertTrue(bodies(.spreadOff, spreadOff()).contains("None are ticked"))
         XCTAssertTrue(bodies(.spreadOff, spreadTaken()).contains("Every one of them is taken right now"))
     }
