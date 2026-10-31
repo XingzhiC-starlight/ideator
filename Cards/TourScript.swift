@@ -140,7 +140,9 @@ struct Reaction {
 /// finished wait always proceeds.
 enum Gate: Equatable {
     case open
-    /// Page 4's ask: skipped when none of the reader's cards is on the desktop.
+    /// Page 2's ask: skipped when New would make no card, because the desktop is full.
+    case deskHasRoom
+    /// Page 4's ask: skipped when the card New made is no longer on the desktop.
     case readerCardOut
     /// Page 6: a Spread click would put cards out, or a set is out to gather.
     case spreadCanAct
@@ -150,6 +152,7 @@ enum Gate: Equatable {
     func admits(_ world: TourWorld) -> Bool {
         switch self {
         case .open: true
+        case .deskHasRoom: world.desk.firstFreeSlot != nil
         case .readerCardOut: world.readerCard != nil
         case .spreadCanAct: world.spreadCanAct
         case .spreadBlocked: !world.spreadCanAct
@@ -163,7 +166,8 @@ struct PhaseScript {
     let page: Int
     var gate: Gate = .open
     /// While the reader sits here with nothing happened, the opening is chosen again from the live
-    /// world (page 6's "Click Spread" or "Spread needs free cells").
+    /// world (page 6's "Click Spread" or "Spread needs free cells", page 2's ask once the desktop is
+    /// full).
     var followsWorld = false
     var isOptional = false
     var aim: Aim
@@ -247,7 +251,8 @@ enum TourScript {
                 body: { _ in "The tan strip is its ribbon, with the buttons. Below it, one stacked card shows at a time." })
 
         case .clickNew:
-            PhaseScript(page: 2, aim: Aim(anchor: .control(.new), ring: .control(.new)), waitsFor: [.new],
+            PhaseScript(page: 2, gate: .deskHasRoom, followsWorld: true,
+                aim: Aim(anchor: .control(.new), ring: .control(.new)), waitsFor: [.new],
                 title: { _ in "Click \(glyph: .plus) on the stack" },
                 body: { _ in "One new card appears at the top left, ready to type. Paste a line from this chat, or type; the first line is its title." })
         case .typeIn:

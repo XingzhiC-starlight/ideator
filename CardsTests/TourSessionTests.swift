@@ -73,16 +73,18 @@ final class TourSessionTests: XCTestCase {
         var scenes: [TourScene] { screen.shown.map(\.scene) }
         var title: String? { screen.shown.last?.scene.card.title.spoken }
 
+        /// The card the reader's last New made, as the desk reported it.
+        private(set) var made: CardID?
+
         /// The reader acts on the desk and the controller tells the session it settled.
         func act(_ command: Command) {
-            _ = desk.apply(command)
+            let arrived = desk.apply(command)
+            if case .new = command, let arrived { made = arrived }
             send?(.deskSettled)
         }
 
         func hideAll() { visibility = .hideAll; send?(.deskSettled) }
         func showAll() { visibility = .all; send?(.deskSettled) }
-
-        var reader: CardID? { Fixtures.world(desk).readerCard }
 
         func toPage3() {
             session.start(.firstPage)
@@ -100,7 +102,7 @@ final class TourSessionTests: XCTestCase {
 
         func toPage5() {
             toPage4()
-            act(.returnToStack(reader!))
+            act(.returnToStack(made!))
             session.receive(.next)
         }
     }
@@ -225,7 +227,7 @@ final class TourSessionTests: XCTestCase {
     func testPage4HoldsTheReadersCardsHoverButtonsOnlyWhileItAsks() {
         let app = Harness()
         app.toPage4()
-        let reader = app.reader
+        let reader = app.made
         XCTAssertNotNil(reader)
         XCTAssertEqual(app.held, [reader], "held once, however many looks follow")
         XCTAssertEqual(app.scenes.last?.heldHover, reader)
@@ -238,10 +240,39 @@ final class TourSessionTests: XCTestCase {
         XCTAssertNil(app.scenes.last?.heldHover)
     }
 
+    func testPage4HoldsTheCardNewMadeAndNotAnOlderCardThatWasOutFirst() {
+        let app = Harness()
+        let older = Fixtures.id("old")
+        app.desk = Fixtures.desk(popped: [("old", Fixtures.slot(0))], stack: ["s"])
+        app.toPage4()
+        XCTAssertNotEqual(app.made, older)
+        XCTAssertEqual(app.held, [app.made], "the hover buttons are on the card the reader made")
+
+        app.act(.returnToStack(older))
+        XCTAssertEqual(app.held, [app.made], "the older card leaving changes nothing")
+        XCTAssertEqual(app.title, "Hover your card, click Return to stack")
+
+        app.act(.returnToStack(app.made!))
+        XCTAssertEqual(app.held, [app.made, nil])
+        XCTAssertEqual(app.title, "Your card is in the stack")
+    }
+
+    func testOnAFullDesktopPage2SaysEachNewMakesOneCardAndNothingIsHeld() {
+        let app = Harness()
+        app.desk = Fixtures.fullDesk()
+        app.session.start(.firstPage)
+
+        app.session.receive(.next)
+
+        XCTAssertEqual(app.title, "Each New makes one card")
+        XCTAssertEqual(app.scenes.last?.card.footer, .backAndNext, "no card can come, so there is a Next to press")
+        XCTAssertEqual(app.held, [])
+    }
+
     func testEndingTheTourReleasesAHeldHoverAndStopsListening() {
         let app = Harness()
         app.toPage4()
-        let reader = app.reader
+        let reader = app.made
 
         app.session.receive(.back)   // page 3: the hover is released by the next look
         XCTAssertEqual(app.held, [reader, nil])

@@ -31,9 +31,11 @@ final class TourWorld {
         self.now = now
     }
 
-    /// The reader's card: the first desktop card, in reading order, that is not in the Spread set.
-    /// Hidden cards still count (Hide all orders windows out; the desk is unchanged).
-    var readerCard: CardID? { facts.loose.first }
+    /// The reader's card: the card New made while the tour ran. A world cannot tell it from the cards
+    /// that were already out, so `TourFlow.apply` sets it before anything reads it: nil before New
+    /// and once the card has left the desktop. Hidden cards still count (Hide all orders windows
+    /// out; the desk is unchanged).
+    var readerCard: CardID?
 
     /// The cells a Spread click would put blank cards into right now, from a dry run of the desk's
     /// own rule on a copy, so the free-cell rule lives in `Desk.swift` alone. `fresh` leaves a set
@@ -71,7 +73,7 @@ final class TourWorld {
 /// What the tour remembers of the last look: just enough to tell what happened since.
 struct TourFacts: Equatable {
     var isHidden: Bool
-    /// Desktop cards outside the Spread set, in reading order. `first` is the reader's card.
+    /// Desktop cards outside the Spread set, in reading order.
     var loose: [CardID]
     /// Cards on the desktop plus cards in the stack. A card that leaves `loose` with this unchanged
     /// was returned to the stack; with it smaller, deleted.
@@ -79,20 +81,31 @@ struct TourFacts: Equatable {
     /// Some card of the Spread set is on the desktop (`spreadButton.isOut`).
     var setOut: Bool
 
+    /// What New made since `old`, in reading order: the loose cards that were not loose then, when
+    /// the total grew. A Pop keeps the total, an AI tool's card lands in the stack and never in
+    /// `loose`, and a Spread's blank cards belong to the set. More than one can appear in a look,
+    /// and the first of them, the earliest in reading order, is the one taken for New's.
+    func arrivals(since old: TourFacts) -> [CardID] {
+        total > old.total ? loose.filter { !old.loose.contains($0) } : []
+    }
+
+    func looseCard(_ id: CardID?) -> CardID? {
+        id.flatMap { loose.contains($0) ? $0 : nil }
+    }
+
     /// The events between two looks, found by comparing, the way `render()` compares the desk with
     /// its windows. Equal facts give none, so a second look at the same world, a refused Spread, a
     /// Hide all while hidden and typing are all silent.
     ///
-    /// Only the reader's card (the old `loose.first`) can return or delete. A new card is one more
-    /// card in total that is loose now and was not before: a Pop keeps the total, an AI tool's card
-    /// lands in the stack and never in `loose`, and a Spread's blank cards belong to the set.
-    static func events(from old: TourFacts, to new: TourFacts) -> [TourEvent] {
+    /// Only `reader`, the card New made, can return or delete; nil means the tour has none, and no
+    /// other card's Return or Delete is its business.
+    static func events(from old: TourFacts, to new: TourFacts, reader: CardID?) -> [TourEvent] {
         var events: [TourEvent] = []
         if old.isHidden != new.isHidden { events.append(new.isHidden ? .hidden : .shown) }
-        if let reader = old.loose.first, !new.loose.contains(reader) {
+        if let reader, old.loose.contains(reader), !new.loose.contains(reader) {
             events.append(new.total < old.total ? .deleted : .returned)
         }
-        if new.total == old.total + 1, new.loose.contains(where: { !old.loose.contains($0) }) { events.append(.new) }
+        if !new.arrivals(since: old).isEmpty { events.append(.new) }
         if !old.setOut && new.setOut { events.append(.spreadOut) }
         if old.setOut && !new.setOut { events.append(new.total < old.total ? .vanished : .gathered) }
         return events
@@ -161,29 +174,39 @@ struct TourFlow: Equatable {
     /// Nil: no tour is running.
     private(set) var stop: Stop?
     private var seen: TourFacts?
+    /// The card New made while this tour ran, while it is loose; the one card whose Return or Delete
+    /// the tour hears. `TourFacts` cannot tell it from the cards that were out first, so the flow
+    /// remembers it between looks and starts with none.
+    private var reader: CardID?
 
     /// Ignored while no tour runs, except `.begin`.
     ///
     /// - begin: the first page or the last; what is already on the desk is not news, so `seen`
-    ///   starts as this look.
+    ///   starts as this look, and no card is the reader's until New makes one.
     /// - next: the next page's opening, with its neutral text. A phase that waits has no Next, so
     ///   the input is ignored there, as the footer's missing button is.
     /// - back: page 1 ends the tour for the welcome; any other page lands on the previous page's
     ///   finished phase, neutral text, whatever phase it left.
     /// - skip: the last page. finish: only the last page's button, and it ends the tour.
     /// - happened and deskSettled: every event ends the wait that names it, or is answered in
-    ///   place by a page that reacts to it, and is otherwise ignored.
+    ///   place by a page that reacts to it, and is otherwise ignored. A settle that shows New also
+    ///   picks the reader's card.
+    ///
+    /// Every input first tells `world` which card is the reader's.
     ///
     /// After every input a phase sitting on its fresh opening is chosen again from the live world
     /// (Settings changes Spread's cells with no notification). A finished wait never asks a gate.
     mutating func apply(_ input: TourInput, in world: TourWorld) -> TourEffect? {
         if case .begin(let start) = input {
+            reader = nil
+            inform(world)
             let page = start == .firstPage ? 1 : TourPhase.pageCount
             stop = Stop(phase: TourScript.entry(of: page, in: world), reading: .fresh)
             seen = world.facts
             return nil
         }
         guard let current = stop else { return nil }
+        inform(world)
         switch input {
         case .begin:
             break
@@ -209,12 +232,20 @@ struct TourFlow: Equatable {
         case .deskSettled:
             let now = world.facts
             if let before = seen {
-                for event in TourFacts.events(from: before, to: now) { handle(event) }
+                for event in TourFacts.events(from: before, to: now, reader: reader) { handle(event) }
+                reader = now.arrivals(since: before).first ?? now.looseCard(reader)
+                inform(world)
             }
             seen = now
         }
         follow(world)
         return nil
+    }
+
+    /// Tells `world` which card is the reader's, before anything reads it. A card that has left the
+    /// desktop is nobody's, whether or not a look has seen it go.
+    func inform(_ world: TourWorld) {
+        world.readerCard = world.facts.looseCard(reader)
     }
 
     private mutating func handle(_ event: TourEvent) {

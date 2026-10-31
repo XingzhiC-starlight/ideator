@@ -7,9 +7,13 @@ final class TourScriptTests: XCTestCase {
 
     private func slot(_ index: Int) -> Place { Fixtures.slot(index) }
 
-    /// A card out, Spread ticked on its factory cells, nothing else.
-    private func ordinary() -> TourWorld { Fixtures.world(Fixtures.desk(popped: [("a", slot(0))])) }
+    /// The card New made is out, Spread ticked on its factory cells, nothing else.
+    private func ordinary() -> TourWorld { Fixtures.world(Fixtures.desk(popped: [("a", slot(0))]), reader: "a") }
     private func noReaderCard() -> TourWorld { Fixtures.world(Fixtures.desk(stack: ["s"])) }
+    /// A card out that New did not make: the tour has no reader's card.
+    private func olderCardOnly() -> TourWorld { Fixtures.world(Fixtures.desk(popped: [("old", slot(0))])) }
+    /// Every cell taken: New makes no card.
+    private func fullDesktop() -> TourWorld { Fixtures.world(Fixtures.fullDesk()) }
     /// Nothing ticked in Settings, or every ticked cell taken: the Spread button would do nothing.
     private func spreadOff() -> TourWorld { Fixtures.world(Fixtures.desk(), cells: .empty) }
     private func spreadTaken() -> TourWorld {
@@ -19,7 +23,9 @@ final class TourScriptTests: XCTestCase {
         Fixtures.world(Fixtures.desk(popped: [("a", slot(0))], set: (cells: .standard, homes: [("a", slot(0))])))
     }
 
-    private var worlds: [TourWorld] { [ordinary(), noReaderCard(), spreadOff(), spreadTaken(), setOut()] }
+    private var worlds: [TourWorld] {
+        [ordinary(), noReaderCard(), olderCardOnly(), fullDesktop(), spreadOff(), spreadTaken(), setOut()]
+    }
 
     private let phases = TourPhase.allCases
 
@@ -92,12 +98,24 @@ final class TourScriptTests: XCTestCase {
                        "Next lands on each page's opening; the waits inside a page end by the reader's action")
     }
 
-    func testPage4IsSkippedBackToItsNeutralStateWhenNoCardOfTheReadersIsOut() {
-        let world = noReaderCard()
-
-        XCTAssertEqual(TourScript.following(.allBack, in: world), .afterReturn, "no card to return: straight to the stack text")
-        XCTAssertEqual(TourScript.entry(of: 4, in: world), .afterReturn)
+    func testPage4IsSkippedBackToItsNeutralStateWhenTheCardNewMadeIsNotOut() {
+        for world in [noReaderCard(), olderCardOnly()] {
+            XCTAssertEqual(TourScript.following(.allBack, in: world), .afterReturn, "no card to return: straight to the stack text")
+            XCTAssertEqual(TourScript.entry(of: 4, in: world), .afterReturn)
+        }
         XCTAssertEqual(TourScript.following(.allBack, in: ordinary()), .clickReturn)
+    }
+
+    func testPage2IsSkippedToItsNeutralTextWhenNewWouldMakeNoCard() {
+        let world = fullDesktop()
+
+        XCTAssertNil(world.desk.firstFreeSlot, "sanity: the desktop is full")
+        XCTAssertEqual(TourScript.following(.stack, in: world), .typeIn, "no card can come, so there is nothing to wait for")
+        XCTAssertEqual(TourScript.entry(of: 2, in: world), .typeIn)
+        XCTAssertEqual(TourScript.landing(of: 2, in: world), .typeIn)
+        XCTAssertEqual(TourScript.following(.stack, in: ordinary()), .clickNew)
+        XCTAssertEqual(TourScript.following(.stack, in: olderCardOnly()), .clickNew, "an older card does not stand in for New")
+        XCTAssertEqual(titles(.typeIn, world), "Each New makes one card")
     }
 
     func testPage6OpensOnTheAskOrTheOffPageAndNextNeverStepsIntoTheOtherOpening() {
@@ -157,6 +175,7 @@ final class TourScriptTests: XCTestCase {
         XCTAssertEqual(titles(.clickNew, world), "Click New on the stack")
         XCTAssertEqual(titles(.typeIn, world), "Type or paste into your card")
         XCTAssertEqual(titles(.typeIn, noReaderCard()), "Each New makes one card")
+        XCTAssertEqual(titles(.typeIn, olderCardOnly()), "Each New makes one card", "an older card is not the reader's")
         XCTAssertEqual(titles(.clickHide, world), "Click Hide all to hide every card")
         XCTAssertEqual(titles(.clickShow, world), "Click Show all to bring them back")
         XCTAssertEqual(titles(.allBack, world), "Hidden, not deleted: all back")

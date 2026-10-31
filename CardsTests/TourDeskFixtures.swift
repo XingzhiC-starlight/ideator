@@ -39,10 +39,19 @@ enum TourDeskFixtures {
                              }))
     }
 
+    /// Every cell but the stack's taken by a card, so New and Pop make nothing: "Desktop full".
+    static func fullDesk(stack: [String] = ["s"]) -> Desk {
+        desk(popped: Slot.all.filter { $0 != Slot.stackHome }.map { ("p\($0.index)", Place.slot($0)) }, stack: stack)
+    }
+
     static let shortcut = ShortcutReading(display: "⌃⌥I", works: true)
 
+    /// A look at `desk`. The flow tells a world which card is the reader's; a test that builds a
+    /// world without a flow says it with `reader`.
     static func world(_ desk: Desk, visibility: Visibility = .all, shortcut: ShortcutReading = shortcut,
-                      cells: SpreadCells = .standard) -> TourWorld {
-        TourWorld(desk: desk, grid: grid, visibility: visibility, shortcut: shortcut, spreadCells: cells, now: now)
+                      cells: SpreadCells = .standard, reader: String? = nil) -> TourWorld {
+        let world = TourWorld(desk: desk, grid: grid, visibility: visibility, shortcut: shortcut, spreadCells: cells, now: now)
+        world.readerCard = reader.map { id($0) }
+        return world
     }
 }

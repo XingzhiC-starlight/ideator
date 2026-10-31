@@ -13,10 +13,12 @@ final class TourFlowTests: XCTestCase {
         Fixtures.world(desk, visibility: visibility).facts
     }
 
-    /// The events a reader's action caused: what the tour finds when it looks before and after.
+    /// The events a reader's action caused: what the tour finds when it looks before and after,
+    /// knowing `reader` as the card New made.
     private func events(_ before: Desk, visibilityBefore: Visibility = .all,
-                        _ after: Desk, visibilityAfter: Visibility = .all) -> [TourEvent] {
-        TourFacts.events(from: facts(before, visibility: visibilityBefore), to: facts(after, visibility: visibilityAfter))
+                        _ after: Desk, visibilityAfter: Visibility = .all, reader: CardID? = nil) -> [TourEvent] {
+        TourFacts.events(from: facts(before, visibility: visibilityBefore), to: facts(after, visibility: visibilityAfter),
+                         reader: reader)
     }
 
     private func applying(_ command: Command, to desk: Desk) -> Desk {
@@ -40,7 +42,6 @@ final class TourFlowTests: XCTestCase {
 
         XCTAssertEqual(known.prefix(2).map(\.rawValue), ["home", "mid"], "sanity: the desk's order starts at the top left")
         XCTAssertEqual(facts(plain).loose, known, "the tour's order is the desk's order, ties by id")
-        XCTAssertEqual(Fixtures.world(plain).readerCard, id("home"), "the first loose card is the reader's")
     }
 
     func testCardsOfTheSpreadSetAreNotLooseAndTheSetIsOutWhileOneIsOnTheDesktop() {
@@ -53,16 +54,12 @@ final class TourFlowTests: XCTestCase {
         XCTAssertFalse(facts(Fixtures.desk(popped: [("a", slot(0))])).setOut)
     }
 
-    func testAReaderCardUnderHideAllIsStillTheReadersCard() {
+    func testACardUnderHideAllIsStillLoose() {
         let desk = Fixtures.desk(popped: [("a", slot(0))])
 
-        XCTAssertEqual(Fixtures.world(desk, visibility: .hideAll).readerCard, id("a"))
+        XCTAssertEqual(facts(desk, visibility: .hideAll).loose, [id("a")])
         XCTAssertTrue(facts(desk, visibility: .hideAll).isHidden)
         XCTAssertFalse(facts(desk).isHidden)
-    }
-
-    func testAScratchDeskWithNoCardHasNoReaderCard() {
-        XCTAssertNil(Fixtures.world(Fixtures.desk(stack: ["s"])).readerCard)
     }
 
     // MARK: How many blank cards Spread would make
@@ -157,12 +154,18 @@ final class TourFlowTests: XCTestCase {
         let before = Fixtures.desk(popped: [("a", slot(0))])
         let after = applying(.new(at: Fixtures.now), to: before)
 
-        XCTAssertEqual(events(before, after), [.new], "the card is loose now and was not before, though loose.first stays")
+        XCTAssertEqual(events(before, after), [.new], "the card is loose now and was not before, whatever else is out")
+    }
+
+    func testSeveralCardsAppearingInOneLookAreNewToo() {
+        let before = Fixtures.desk(popped: [("a", slot(0))])
+        let after = Fixtures.desk(popped: [("a", slot(0)), ("b", slot(1)), ("c", slot(2))])
+
+        XCTAssertEqual(events(before, after), [.new], "more than one card in a look is still New")
     }
 
     func testNewOnAFullDesktopChangesNothingSoFindsNothing() {
-        let slots = Slot.all.filter { $0 != Slot.stackHome }
-        let full = Fixtures.desk(popped: slots.map { ("p\($0.index)", Place.slot($0)) })
+        let full = Fixtures.fullDesk(stack: [])
         let after = applying(.new(at: Fixtures.now), to: full)
 
         XCTAssertEqual(events(full, after), [], "no card, no event, so the page that waits for New keeps waiting")
@@ -196,35 +199,43 @@ final class TourFlowTests: XCTestCase {
         let before = Fixtures.desk(popped: [("a", slot(0)), ("b", slot(1))])
         let after = applying(.returnToStack(id("a")), to: before)
 
-        XCTAssertEqual(events(before, after), [.returned])
+        XCTAssertEqual(events(before, after, reader: id("a")), [.returned])
     }
 
     func testTheReadersCardBeingDeletedIsDeleted() {
         let before = Fixtures.desk(popped: [("a", slot(0)), ("b", slot(1))])
         let after = applying(.delete(id("a")), to: before)
 
-        XCTAssertEqual(events(before, after), [.deleted])
+        XCTAssertEqual(events(before, after, reader: id("a")), [.deleted])
     }
 
     func testAFileVanishingFromTheFolderReadsAsDeletedToo() {
         let before = Fixtures.desk(popped: [("a", slot(0))])
         let after = applying(.syncFiles([:]), to: before)
 
-        XCTAssertEqual(events(before, after), [.deleted], "the page then says what is true: the card is gone")
+        XCTAssertEqual(events(before, after, reader: id("a")), [.deleted], "the page then says what is true: the card is gone")
     }
 
     func testAnotherCardLeavingIsNotTheReadersCard() {
         let before = Fixtures.desk(popped: [("a", slot(0)), ("b", slot(1))])
 
-        XCTAssertEqual(events(before, applying(.returnToStack(id("b")), to: before)), [])
-        XCTAssertEqual(events(before, applying(.delete(id("b")), to: before)), [])
+        XCTAssertEqual(events(before, applying(.returnToStack(id("b")), to: before), reader: id("a")), [])
+        XCTAssertEqual(events(before, applying(.delete(id("b")), to: before), reader: id("a")), [])
+    }
+
+    func testWithNoReadersCardNoCardsLeavingIsReturnedOrDeleted() {
+        let before = Fixtures.desk(popped: [("old", slot(0)), ("b", slot(1))])
+
+        XCTAssertEqual(events(before, applying(.returnToStack(id("old")), to: before)), [],
+                       "a card that was out before the tour is not the one the pages are about")
+        XCTAssertEqual(events(before, applying(.delete(id("old")), to: before)), [])
     }
 
     func testMovingTheReadersCardIsNotReturnedOrDeleted() {
         let before = Fixtures.desk(popped: [("a", slot(0))])
         let after = applying(.move(.card(id("a")), to: slot(12)), to: before)
 
-        XCTAssertEqual(events(before, after), [])
+        XCTAssertEqual(events(before, after, reader: id("a")), [])
     }
 
     func testASpreadClickThatPutsBlankCardsOutIsSpreadOutAndNotNewOrLoose() {
@@ -274,6 +285,6 @@ final class TourFlowTests: XCTestCase {
         let before = Fixtures.desk(popped: [("a", slot(0))])
         let after = applying(.returnToStack(id("a")), to: before)
 
-        XCTAssertEqual(events(before, after, visibilityAfter: .hideAll), [.hidden, .returned])
+        XCTAssertEqual(events(before, after, visibilityAfter: .hideAll, reader: id("a")), [.hidden, .returned])
     }
 }

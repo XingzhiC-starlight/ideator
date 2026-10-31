@@ -13,10 +13,18 @@ final class TourFlowWalkTests: XCTestCase {
         var shortcut = Fixtures.shortcut
         var cells = SpreadCells.standard
         var flow = TourFlow()
+        /// The last card a New of the reader's made, as the desk reported it: the test's own answer
+        /// to which card is the reader's, never the flow's.
+        private(set) var made: CardID?
 
         init(desk: Desk = Fixtures.desk(stack: ["s"])) { self.desk = desk }
 
-        var world: TourWorld { Fixtures.world(desk, visibility: visibility, shortcut: shortcut, cells: cells) }
+        /// A look, as the session takes one: the flow tells it which card is the reader's.
+        var world: TourWorld {
+            let world = Fixtures.world(desk, visibility: visibility, shortcut: shortcut, cells: cells)
+            flow.inform(world)
+            return world
+        }
         var stop: Stop? { flow.stop }
         var card: HintCard? { flow.stop?.card(in: world) }
         var title: String? { card?.title.spoken }
@@ -29,7 +37,8 @@ final class TourFlowWalkTests: XCTestCase {
 
         /// The reader acts: the desk applies the command, then the controller would render and settle.
         mutating func send(_ command: Command) {
-            _ = desk.apply(command)
+            let arrived = desk.apply(command)
+            if case .new = command, let arrived { made = arrived }
             settle()
         }
 
@@ -65,7 +74,7 @@ final class TourFlowWalkTests: XCTestCase {
 
         mutating func toPage5() {
             toPage4()
-            send(.returnToStack(reader!))
+            send(.returnToStack(made!))
             input(.next)
         }
 
@@ -149,8 +158,200 @@ final class TourFlowWalkTests: XCTestCase {
         XCTAssertEqual(walk.stop, stop(.typeIn), "Back lands on page 2's finished phase")
         XCTAssertEqual(walk.title, "Type or paste into your card")
 
-        walk.send(.delete(walk.reader!))
+        walk.send(.delete(walk.made!))
         XCTAssertEqual(walk.title, "Each New makes one card", "read live, never cached")
+    }
+
+    // MARK: A card the reader did not make
+
+    private let older = Fixtures.id("old")
+
+    /// An owner who updated: a note of theirs is out at slot 0 when the tour begins.
+    private func ownerWithAnOlderCard() -> Walk {
+        Walk(desk: Fixtures.desk(popped: [("old", Fixtures.slot(0))], stack: ["s"]))
+    }
+
+    private func face(at place: Place) -> CGRect { Surfaces.face(of: Fixtures.grid.frame(of: place)) }
+
+    /// The face the panel would sit beside for the current phase, with no live window to measure.
+    private func readerFace(_ walk: Walk) -> CGRect? {
+        Surfaces(walk.world, aim: walk.stop!.phase.script.aim, measure: { _ in nil }).readerFace
+    }
+
+    func testAnOlderCardIsNotTheReadersSoPage2KeepsWaitingForNew() {
+        var walk = ownerWithAnOlderCard()
+        walk.toPage2()
+        XCTAssertEqual(walk.stop, stop(.clickNew))
+        XCTAssertNil(walk.reader, "the card that was out first is not the reader's")
+
+        walk.send(.edit(older, Note(header: "typed", body: [])))
+        walk.send(.returnToStack(older))
+
+        XCTAssertEqual(walk.stop, stop(.clickNew), "nothing the older card does is New")
+        XCTAssertNil(walk.reader)
+    }
+
+    func testNewMakesTheReadersCardAndPage2SitsBesideItNotBesideTheOlderOne() {
+        var walk = ownerWithAnOlderCard()
+        walk.toPage2()
+
+        walk.send(.new(at: Fixtures.now))
+
+        let made = walk.made!
+        XCTAssertEqual(walk.desk.place(of: .card(made)), Fixtures.slot(1), "sanity: the first free slot after the older card's")
+        XCTAssertEqual(walk.stop, stop(.typeIn, .after(.new)))
+        XCTAssertEqual(walk.reader, made)
+        XCTAssertEqual(walk.title, "Type or paste into your card")
+        XCTAssertEqual(walk.stop?.phase.script.aim.anchor, .readerCard)
+        XCTAssertEqual(readerFace(walk), face(at: Fixtures.slot(1)))
+        XCTAssertNotEqual(readerFace(walk), face(at: Fixtures.slot(0)))
+    }
+
+    func testPage4RingsTheCardNewMadeAndReturningTheOlderOneChangesNothing() {
+        var walk = ownerWithAnOlderCard()
+        walk.toPage4()
+        XCTAssertEqual(walk.stop, stop(.clickReturn), "the card New made is out, so the ask is on")
+        XCTAssertEqual(walk.reader, walk.made)
+        XCTAssertEqual(readerFace(walk), face(at: Fixtures.slot(1)), "the hover corner is on the new card")
+
+        walk.send(.returnToStack(older))
+        XCTAssertEqual(walk.stop, stop(.clickReturn), "the older card is not what the page waits for")
+        XCTAssertEqual(walk.reader, walk.made)
+
+        walk.send(.returnToStack(walk.made!))
+        XCTAssertEqual(walk.stop, stop(.afterReturn, .after(.returned)))
+        XCTAssertEqual(walk.title, "Your card is in the stack")
+    }
+
+    func testDeletingTheCardNewMadeEndsPage4WithDeletedAndTheOlderCardStays() {
+        var walk = ownerWithAnOlderCard()
+        walk.toPage4()
+
+        walk.send(.delete(walk.made!))
+
+        XCTAssertEqual(walk.stop, stop(.afterReturn, .after(.deleted)))
+        XCTAssertEqual(walk.title, "Your card is deleted")
+        XCTAssertEqual(walk.desk.popped.map(\.card.id), [older])
+    }
+
+    func testPage4IsSkippedWhenOnlyAnOlderCardIsOutByTheTimeNextIsPressed() {
+        var walk = ownerWithAnOlderCard()
+        walk.toPage3()
+        walk.send(.returnToStack(walk.made!))
+        XCTAssertEqual(walk.desk.popped.map(\.card.id), [older], "sanity: a card is still out")
+        walk.hideAll()
+        walk.showAll()
+
+        walk.input(.next)
+
+        XCTAssertEqual(walk.stop, stop(.afterReturn), "that card is not the reader's to return")
+        XCTAssertEqual(walk.title, "The stack holds your cards")
+    }
+
+    func testHideAllAndShowAllKeepTheReadersCard() {
+        var walk = Walk()
+        walk.toPage3()
+
+        walk.hideAll()
+        XCTAssertEqual(walk.reader, walk.made, "Hide all orders the windows out; the card is still on the desk")
+
+        walk.showAll()
+        XCTAssertEqual(walk.reader, walk.made)
+    }
+
+    func testSeveralNewCardsInOneLookGiveTheReadersCardToTheEarliestInReadingOrder() {
+        var walk = ownerWithAnOlderCard()
+        walk.toPage2()
+
+        walk.desk = Fixtures.desk(popped: [("old", Fixtures.slot(0)), ("late", Fixtures.slot(6)), ("early", Fixtures.slot(1))],
+                                  stack: ["s"])
+        walk.settle()
+
+        XCTAssertEqual(walk.stop, stop(.typeIn, .after(.new)))
+        XCTAssertEqual(walk.reader, Fixtures.id("early"))
+    }
+
+    func testPage4WaitsForTheNewestCardNewMadeAndNotForAnEarlierOne() {
+        var walk = Walk()
+        walk.toPage4()
+        let first = walk.made!
+
+        walk.send(.new(at: Fixtures.now.addingTimeInterval(60)))
+        let newest = walk.made!
+        XCTAssertNotEqual(newest, first)
+        XCTAssertEqual(walk.reader, newest)
+
+        walk.send(.returnToStack(first))
+        XCTAssertEqual(walk.stop, stop(.clickReturn), "the card the page points at is still out")
+
+        walk.send(.returnToStack(newest))
+        XCTAssertEqual(walk.stop, stop(.afterReturn, .after(.returned)))
+    }
+
+    func testAPopOrAnAIToolsCardIsNotNewSoPage2KeepsWaiting() {
+        var walk = Walk(desk: Fixtures.desk(stack: ["s", "t"]))
+        walk.toPage2()
+
+        walk.send(.pop)
+        XCTAssertEqual(walk.stop, stop(.clickNew), "a Pop moves a card out; it makes none")
+        walk.send(.addFromTool(Note(header: "from a tool", body: []), at: Fixtures.now, to: .top, typing: false))
+
+        XCTAssertEqual(walk.stop, stop(.clickNew), "an AI tool's card lands in the stack")
+        XCTAssertNil(walk.reader)
+    }
+
+    func testAStartedTourForgetsTheReadersCardOfTheLastRun() {
+        var walk = Walk()
+        walk.toPage3()
+        let lastRun = walk.made!
+
+        walk.input(.begin(.firstPage))
+        XCTAssertEqual(walk.desk.popped.map(\.card.id), [lastRun], "sanity: the card is still out")
+        XCTAssertNil(walk.reader, "Show the Tour starts over: that card is not this run's")
+
+        walk.input(.next)
+        walk.send(.new(at: Fixtures.now.addingTimeInterval(60)))
+        XCTAssertNotEqual(walk.made, lastRun)
+        XCTAssertEqual(walk.reader, walk.made)
+    }
+
+    // MARK: A full desktop
+
+    func testOnAFullDesktopPage2HasNoWaitAndPage4IsSkipped() {
+        var walk = Walk(desk: Fixtures.fullDesk())
+        XCTAssertNil(walk.desk.firstFreeSlot, "sanity: New would beep and make no card")
+
+        walk.input(.begin(.firstPage))
+        walk.input(.next)
+
+        XCTAssertEqual(walk.stop, stop(.typeIn), "no card can come, so the page does not wait for one")
+        XCTAssertEqual(walk.title, "Each New makes one card")
+        XCTAssertEqual(walk.card?.footer, .backAndNext)
+
+        walk.input(.next)
+        XCTAssertEqual(walk.stop, stop(.clickHide))
+        walk.input(.back)
+        XCTAssertEqual(walk.stop, stop(.typeIn), "Back lands on the same neutral text")
+
+        walk.input(.next)
+        walk.hideAll()
+        walk.showAll()
+        walk.input(.next)
+        XCTAssertEqual(walk.stop, stop(.afterReturn), "none of the 19 cards is one the reader made")
+    }
+
+    func testPage2StopsWaitingOnceTheDesktopFillsUp() {
+        var walk = Walk(desk: Fixtures.desk(stack: (0..<19).map { "s\($0)" }))
+        walk.toPage2()
+        for _ in 0..<18 { walk.send(.pop) }
+        XCTAssertEqual(walk.stop, stop(.clickNew), "one cell is free, so New would make a card")
+
+        walk.send(.pop)
+
+        XCTAssertNil(walk.desk.firstFreeSlot, "sanity: the desktop is full")
+        XCTAssertEqual(walk.stop, stop(.typeIn))
+        XCTAssertEqual(walk.title, "Each New makes one card")
+        XCTAssertEqual(walk.card?.footer, .backAndNext)
     }
 
     // MARK: Page 3, Hide and Show
@@ -192,34 +393,22 @@ final class TourFlowWalkTests: XCTestCase {
         var returned = Walk()
         returned.toPage4()
         XCTAssertEqual(returned.stop, stop(.clickReturn))
-        returned.send(.returnToStack(returned.reader!))
+        returned.send(.returnToStack(returned.made!))
         XCTAssertEqual(returned.stop, stop(.afterReturn, .after(.returned)))
         XCTAssertEqual(returned.title, "Your card is in the stack")
 
         var deleted = Walk()
         deleted.toPage4()
-        deleted.send(.delete(deleted.reader!))
+        deleted.send(.delete(deleted.made!))
         XCTAssertEqual(deleted.stop, stop(.afterReturn, .after(.deleted)))
         XCTAssertEqual(deleted.title, "Your card is deleted")
         XCTAssertTrue(deleted.card!.body.spoken.hasPrefix("Cards you return instead stay in the stack."))
     }
 
-    func testPage4WaitsForTheReadersCardAndNotForAnotherOne() {
-        var walk = Walk()
-        walk.toPage4()
-        walk.send(.new(at: Fixtures.now.addingTimeInterval(60)))
-        let other = walk.desk.popped.map(\.card.id).first { $0 != walk.reader }!
-        XCTAssertEqual(walk.desk.popped.count, 2)
-
-        walk.send(.returnToStack(other))
-
-        XCTAssertEqual(walk.stop, stop(.clickReturn), "the card the page points at is still out")
-    }
-
     func testPage4IsSkippedWhenTheReadersCardIsGoneByTheTimeNextIsPressed() {
         var walk = Walk()
         walk.toPage3()
-        walk.send(.returnToStack(walk.reader!))   // while page 3 is still asking for Hide
+        walk.send(.returnToStack(walk.made!))   // while page 3 is still asking for Hide
         walk.hideAll()
         walk.showAll()
         XCTAssertEqual(walk.stop, stop(.allBack, .after(.shown)))
@@ -234,9 +423,9 @@ final class TourFlowWalkTests: XCTestCase {
         var walk = Walk()
         walk.toPage4()
         XCTAssertTrue(walk.stop!.phase.script.aim.showsHoverButtons)
-        XCTAssertEqual(walk.reader, walk.desk.popped.first?.card.id)
+        XCTAssertEqual(walk.reader, walk.made)
 
-        walk.send(.returnToStack(walk.reader!))
+        walk.send(.returnToStack(walk.made!))
         XCTAssertFalse(walk.stop!.phase.script.aim.showsHoverButtons)
     }
 
