@@ -116,10 +116,10 @@ enum TourLayout {
         spot.top = max(spot.top, s.screen.minY + aboveBottom + face.height)
         let panel = CGRect(x: spot.x, y: spot.top - face.height, width: face.width, height: face.height)
 
-        let ring = aim.ring.flatMap { ring(for: $0, at: s) }
+        let ringed = aim.ring.flatMap { ring(for: $0, at: s) }
         return Pointing(panel: panel.insetBy(dx: -CardShape.gap, dy: -CardShape.gap),
                         notch: spot.notch(on: panel),
-                        rings: ring.map { [$0] } ?? [],
+                        rings: ringed.map { [$0] } ?? [],
                         lit: aim.litCells ? s.litFaces : [],
                         needsMenuBarLevel: aim.ring == .menuBarIcon && ring != nil)
     }
